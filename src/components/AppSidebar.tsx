@@ -14,7 +14,8 @@ import {
   CreditCard,
   User,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Bell
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -45,6 +46,7 @@ const adminNavItems: NavItem[] = [
   { icon: FolderOpen, label: 'Kategoriyalar', path: '/admin/categories' },
   { icon: Video, label: 'Video darslar', path: '/admin/videos' },
   { icon: ClipboardList, label: 'Vazifalar', path: '/admin/tasks' },
+  { icon: Bell, label: 'Xabarnomalar', path: '/admin/notifications' },
 ];
 
 export function AppSidebar() {

@@ -29,12 +29,14 @@ import AdminCategories from "./pages/admin/AdminCategories";
 import AdminVideos from "./pages/admin/AdminVideos";
 import AdminVideoAdd from "./pages/admin/AdminVideoAdd";
 import AdminVideoDetail from "./pages/admin/AdminVideoDetail";
+import AdminVideoEdit from "./pages/admin/AdminVideoEdit";
 import AdminTasks from "./pages/admin/AdminTasks";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminUserDetail from "./pages/admin/AdminUserDetail";
 import AdminPayments from "./pages/admin/AdminPayments";
 import AdminPaymentDetail from "./pages/admin/AdminPaymentDetail";
 import AdminCategoryDetail from "./pages/admin/AdminCategoryDetail";
+import AdminNotifications from "./pages/admin/AdminNotifications";
 
 const queryClient = new QueryClient();
 
@@ -108,7 +110,9 @@ function AppRoutes() {
       <Route path="/admin/videos" element={<ProtectedRoute allowedRole="admin"><AdminVideos /></ProtectedRoute>} />
       <Route path="/admin/videos/add" element={<ProtectedRoute allowedRole="admin"><AdminVideoAdd /></ProtectedRoute>} />
       <Route path="/admin/videos/:videoId" element={<ProtectedRoute allowedRole="admin"><AdminVideoDetail /></ProtectedRoute>} />
+      <Route path="/admin/videos/:videoId/edit" element={<ProtectedRoute allowedRole="admin"><AdminVideoEdit /></ProtectedRoute>} />
       <Route path="/admin/tasks" element={<ProtectedRoute allowedRole="admin"><AdminTasks /></ProtectedRoute>} />
+      <Route path="/admin/notifications" element={<ProtectedRoute allowedRole="admin"><AdminNotifications /></ProtectedRoute>} />
 
       {/* 404 */}
       <Route path="*" element={<NotFound />} />
