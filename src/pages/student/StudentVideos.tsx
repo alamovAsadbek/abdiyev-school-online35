@@ -6,20 +6,21 @@ import { VideoCard } from '@/components/VideoCard';
 import { DataTable, Column } from '@/components/DataTable';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { demoVideos, demoCategories, Video } from '@/data/demoData';
 
 type ViewMode = 'card' | 'table';
 
 export default function StudentVideos() {
   const [search, setSearch] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [viewMode, setViewMode] = useState<ViewMode>('card');
   const navigate = useNavigate();
 
   const filteredVideos = demoVideos.filter(video => {
     const matchesSearch = video.title.toLowerCase().includes(search.toLowerCase()) ||
                          video.description.toLowerCase().includes(search.toLowerCase());
-    const matchesCategory = !selectedCategory || video.categoryId === selectedCategory;
+    const matchesCategory = selectedCategory === 'all' || video.categoryId === selectedCategory;
     return matchesSearch && matchesCategory;
   });
 
@@ -103,44 +104,42 @@ export default function StudentVideos() {
             className="pl-10"
           />
         </div>
-        <div className="flex gap-2 flex-wrap">
-          <button
-            onClick={() => setSelectedCategory(null)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              !selectedCategory 
-                ? 'bg-primary text-primary-foreground' 
-                : 'bg-muted text-muted-foreground hover:bg-muted/80'
-            }`}
-          >
-            Hammasi
-          </button>
-          {demoCategories.map(cat => (
-            <button
-              key={cat.id}
-              onClick={() => setSelectedCategory(cat.id)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                selectedCategory === cat.id 
-                  ? 'bg-primary text-primary-foreground' 
-                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
-              }`}
-            >
-              {cat.name}
-            </button>
-          ))}
-        </div>
+        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="Kursni tanlang" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Barcha kurslar</SelectItem>
+            {demoCategories.map(cat => (
+              <SelectItem key={cat.id} value={cat.id}>
+                {cat.icon} {cat.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Content - Card or Table View */}
       {viewMode === 'card' ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-          {filteredVideos.map((video, index) => (
-            <div key={video.id} className="animate-fade-in" style={{ animationDelay: `${0.05 + index * 0.03}s` }}>
-              <VideoCard
-                video={video}
-                onClick={() => navigate(`/student/video/${video.id}`)}
-              />
-            </div>
-          ))}
+          {filteredVideos.map((video, index) => {
+            const category = demoCategories.find(c => c.id === video.categoryId);
+            return (
+              <div key={video.id} className="animate-fade-in" style={{ animationDelay: `${0.05 + index * 0.03}s` }}>
+                {category && (
+                  <div className="mb-2 px-2">
+                    <span className="text-xs text-muted-foreground">
+                      {category.icon} {category.name}
+                    </span>
+                  </div>
+                )}
+                <VideoCard
+                  video={video}
+                  onClick={() => navigate(`/student/video/${video.id}`)}
+                />
+              </div>
+            );
+          })}
         </div>
       ) : (
         <div className="animate-fade-in">

@@ -28,22 +28,24 @@ export default function StudentTasks() {
   };
 
   const filteredTasks = demoTasks.filter(task => {
+    // Only show completed tasks
+    const isCompleted = progress.completedTasks.includes(task.id);
+    if (!isCompleted) return false;
+
     const matchesSearch = task.title.toLowerCase().includes(search.toLowerCase()) ||
                          task.description.toLowerCase().includes(search.toLowerCase());
-    if (!matchesSearch) return false;
-
-    const isCompleted = progress.completedTasks.includes(task.id);
+    
     const isLocked = isTaskLocked(task);
 
     switch (filterStatus) {
       case 'available':
-        return !isLocked && !isCompleted;
+        return !isLocked && isCompleted;
       case 'completed':
         return isCompleted;
       case 'locked':
         return isLocked;
       default:
-        return true;
+        return matchesSearch;
     }
   });
 
@@ -167,7 +169,7 @@ export default function StudentTasks() {
           </div>
         </div>
         <p className="text-muted-foreground">
-          Video darslarga tegishli barcha vazifalar
+          Topshirilgan vazifalar
         </p>
       </div>
 

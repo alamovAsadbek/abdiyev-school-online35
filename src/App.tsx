@@ -15,7 +15,7 @@ import NotFound from "./pages/NotFound";
 
 // Student Pages
 import StudentDashboard from "./pages/student/StudentDashboard";
-import StudentCategories from "./pages/student/StudentCategories";
+import StudentCourses from "./pages/student/StudentCourses";
 import StudentCategoryView from "./pages/student/StudentCategoryView";
 import StudentVideos from "./pages/student/StudentVideos";
 import StudentVideoView from "./pages/student/StudentVideoView";
@@ -92,7 +92,8 @@ function AppRoutes() {
       {/* Student Routes */}
       <Route path="/student" element={<ProtectedRoute allowedRole="student"><StudentDashboard /></ProtectedRoute>} />
       <Route path="/student/profile" element={<ProtectedRoute allowedRole="student"><StudentProfile /></ProtectedRoute>} />
-      <Route path="/student/categories" element={<ProtectedRoute allowedRole="student"><StudentCategories /></ProtectedRoute>} />
+      <Route path="/student/courses" element={<ProtectedRoute allowedRole="student"><StudentCourses /></ProtectedRoute>} />
+      <Route path="/student/categories" element={<ProtectedRoute allowedRole="student"><StudentCourses /></ProtectedRoute>} />
       <Route path="/student/category/:categoryId" element={<ProtectedRoute allowedRole="student"><StudentCategoryView /></ProtectedRoute>} />
       <Route path="/student/videos" element={<ProtectedRoute allowedRole="student"><StudentVideos /></ProtectedRoute>} />
       <Route path="/student/video/:videoId" element={<ProtectedRoute allowedRole="student"><StudentVideoView /></ProtectedRoute>} />
