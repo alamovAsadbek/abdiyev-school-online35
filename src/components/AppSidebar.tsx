@@ -33,7 +33,7 @@ interface NavItem {
 
 const studentNavItems: NavItem[] = [
   { icon: Home, label: 'Bosh sahifa', path: '/student' },
-  { icon: FolderOpen, label: 'Kategoriyalar', path: '/student/categories' },
+  { icon: FolderOpen, label: 'Kurslar', path: '/student/courses' },
   { icon: Video, label: 'Video darslar', path: '/student/videos' },
   { icon: ClipboardList, label: 'Vazifalar', path: '/student/tasks' },
   { icon: User, label: 'Profil', path: '/student/profile' },
@@ -43,7 +43,7 @@ const adminNavItems: NavItem[] = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/admin' },
   { icon: Users, label: 'Foydalanuvchilar', path: '/admin/users' },
   { icon: CreditCard, label: 'To\'lovlar', path: '/admin/payments' },
-  { icon: FolderOpen, label: 'Kategoriyalar', path: '/admin/categories' },
+  { icon: FolderOpen, label: 'Kurslar', path: '/admin/categories' },
   { icon: Video, label: 'Video darslar', path: '/admin/videos' },
   { icon: ClipboardList, label: 'Vazifalar', path: '/admin/tasks' },
   { icon: Bell, label: 'Xabarnomalar', path: '/admin/notifications' },

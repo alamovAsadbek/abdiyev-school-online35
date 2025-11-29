@@ -10,13 +10,16 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { User, Mail, Phone, Calendar, Save, X, CreditCard, Clock } from 'lucide-react';
 import { toast } from 'sonner';
-import { getUserPayments, formatCurrency, formatDate, getDaysUntilExpiry } from '@/data/demoData';
+import { getUserPayments, formatCurrency, formatDate, getDaysUntilExpiry, Payment } from '@/data/demoData';
 import { cn } from '@/lib/utils';
+import { DataTable, Column } from '@/components/DataTable';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function StudentProfile() {
   const { user, updateProfile } = useAuth();
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
+  const [dateFilter, setDateFilter] = useState<string>('all');
   
   // Parse name into first and last name
   const nameParts = user?.name.split(' ') || [];
@@ -29,9 +32,28 @@ export default function StudentProfile() {
   });
 
   // Get user payments
-  const userPayments = user ? getUserPayments(user.id).sort((a, b) => 
+  const allPayments = user ? getUserPayments(user.id).sort((a, b) => 
     new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   ) : [];
+
+  // Filter payments by date
+  const userPayments = allPayments.filter(payment => {
+    if (dateFilter === 'all') return true;
+    const paymentDate = new Date(payment.createdAt);
+    const now = new Date();
+    
+    if (dateFilter === '7days') {
+      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      return paymentDate >= sevenDaysAgo;
+    } else if (dateFilter === '30days') {
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      return paymentDate >= thirtyDaysAgo;
+    } else if (dateFilter === '90days') {
+      const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+      return paymentDate >= ninetyDaysAgo;
+    }
+    return true;
+  });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,6 +76,74 @@ export default function StudentProfile() {
     });
     setIsEditing(false);
   };
+
+  const paymentColumns: Column<Payment>[] = [
+    {
+      key: 'amount',
+      header: 'Summa',
+      sortable: true,
+      render: (payment) => (
+        <span className="font-semibold text-foreground">
+          {formatCurrency(payment.amount)}
+        </span>
+      ),
+    },
+    {
+      key: 'description',
+      header: 'Tavsif',
+      render: (payment) => payment.description || '—',
+    },
+    {
+      key: 'status',
+      header: 'Holat',
+      render: (payment) => {
+        const daysLeft = payment.status === 'active' ? getDaysUntilExpiry(payment.expiresAt) : 0;
+        return (
+          <div>
+            <span className={cn(
+              "status-badge text-xs",
+              payment.status === 'active' 
+                ? "status-completed" 
+                : "bg-muted text-muted-foreground"
+            )}>
+              {payment.status === 'active' ? 'Faol' : 'Tugagan'}
+            </span>
+            {payment.status === 'active' && daysLeft <= 30 && (
+              <p className="text-xs text-warning mt-1">
+                ⚠️ {daysLeft} kun qoldi
+              </p>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      key: 'createdAt',
+      header: 'Qabul qilingan',
+      sortable: true,
+      render: (payment) => (
+        <div className="text-sm">
+          <div className="flex items-center gap-1 text-muted-foreground">
+            <Calendar className="h-3 w-3" />
+            {formatDate(payment.createdAt)}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'expiresAt',
+      header: 'Tugash sanasi',
+      sortable: true,
+      render: (payment) => (
+        <div className="text-sm">
+          <div className="flex items-center gap-1 text-muted-foreground">
+            <Clock className="h-3 w-3" />
+            {formatDate(payment.expiresAt)}
+          </div>
+        </div>
+      ),
+    },
+  ];
 
   if (!user) {
     return null;
@@ -190,85 +280,32 @@ export default function StudentProfile() {
           <TabsContent value="payments" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>To'lovlar tarixi</CardTitle>
-                <CardDescription>Barcha to'lovlaringiz ro'yxati</CardDescription>
+                <div className="flex items-center justify-between flex-wrap gap-4">
+                  <div>
+                    <CardTitle>To'lovlar tarixi</CardTitle>
+                    <CardDescription>Barcha to'lovlaringiz ro'yxati</CardDescription>
+                  </div>
+                  <Select value={dateFilter} onValueChange={setDateFilter}>
+                    <SelectTrigger className="w-[200px]">
+                      <SelectValue placeholder="Sana bo'yicha filter" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Barchasi</SelectItem>
+                      <SelectItem value="7days">So'nggi 7 kun</SelectItem>
+                      <SelectItem value="30days">So'nggi 30 kun</SelectItem>
+                      <SelectItem value="90days">So'nggi 90 kun</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </CardHeader>
               <CardContent>
-                {userPayments.length > 0 ? (
-                  <div className="space-y-3">
-                    {userPayments.map((payment) => {
-                      const daysLeft = payment.status === 'active' ? getDaysUntilExpiry(payment.expiresAt) : 0;
-                      
-                      return (
-                        <div
-                          key={payment.id}
-                          className={cn(
-                            "p-4 rounded-lg border transition-colors",
-                            payment.status === 'active' 
-                              ? "bg-success/5 border-success/30" 
-                              : "bg-muted/50 border-border"
-                          )}
-                        >
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex items-start gap-3">
-                              <div className={cn(
-                                "flex h-10 w-10 items-center justify-center rounded-full flex-shrink-0",
-                                payment.status === 'active' 
-                                  ? "bg-success/20 text-success" 
-                                  : "bg-muted text-muted-foreground"
-                              )}>
-                                <CreditCard className="h-5 w-5" />
-                              </div>
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <p className="font-semibold text-foreground">
-                                    {formatCurrency(payment.amount)}
-                                  </p>
-                                  <span className={cn(
-                                    "status-badge text-xs",
-                                    payment.status === 'active' 
-                                      ? "status-completed" 
-                                      : "bg-muted text-muted-foreground"
-                                  )}>
-                                    {payment.status === 'active' ? 'Faol' : 'Tugagan'}
-                                  </span>
-                                </div>
-                                
-                                {payment.description && (
-                                  <p className="text-sm text-muted-foreground mt-1">
-                                    {payment.description}
-                                  </p>
-                                )}
-                                
-                                <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                                  <div className="flex items-center gap-1">
-                                    <Calendar className="h-3 w-3" />
-                                    <span>Qabul: {formatDate(payment.createdAt)}</span>
-                                  </div>
-                                  <div className="flex items-center gap-1">
-                                    <Clock className="h-3 w-3" />
-                                    <span>Tugash: {formatDate(payment.expiresAt)}</span>
-                                  </div>
-                                </div>
-                                
-                                {payment.status === 'active' && daysLeft <= 30 && (
-                                  <p className="text-xs text-warning mt-2 font-medium">
-                                    ⚠️ {daysLeft} kun qoldi
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <CreditCard className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-                    <p className="text-muted-foreground">To'lovlar tarixi mavjud emas</p>
-                  </div>
-                )}
+                <DataTable
+                  data={userPayments}
+                  columns={paymentColumns}
+                  searchPlaceholder="To'lovlarni qidirish..."
+                  searchKeys={['description']}
+                  emptyMessage="To'lovlar topilmadi"
+                />
               </CardContent>
             </Card>
           </TabsContent>
