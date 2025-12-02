@@ -53,6 +53,7 @@ export function NotificationBell() {
           variant="ghost" 
           size="icon" 
           className="relative"
+          onClick={() => setIsOpen(!isOpen)}
         >
           <Bell className="h-5 w-5" />
           {hasUnread && (
