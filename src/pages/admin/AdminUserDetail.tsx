@@ -52,6 +52,7 @@ export default function AdminUserDetail() {
   // Confirmation dialog states
   const [courseToDelete, setCourseToDelete] = useState<string | null>(null);
   const [paymentToDelete, setPaymentToDelete] = useState<string | null>(null);
+  const [showBlockConfirm, setShowBlockConfirm] = useState(false);
 
   if (!user) {
     return (
@@ -126,6 +127,15 @@ export default function AdminUserDetail() {
     }
   };
 
+  const handleBlockToggle = () => {
+    user.isBlocked = !user.isBlocked;
+    setShowBlockConfirm(false);
+    toast({ 
+      title: user.isBlocked ? 'Bloklandi' : 'Faollashtirildi', 
+      description: user.isBlocked ? 'Foydalanuvchi bloklandi' : 'Foydalanuvchi faollashtirildi' 
+    });
+  };
+
   return (
     <DashboardLayout>
       {/* Back Button */}
@@ -172,6 +182,7 @@ export default function AdminUserDetail() {
           </div>
           <Button
             variant="outline"
+            onClick={() => setShowBlockConfirm(true)}
             className={user.isBlocked ? "text-success border-success hover:bg-success/10" : "text-warning border-warning hover:bg-warning/10"}
           >
             {user.isBlocked ? <CheckCircle2 className="mr-2 h-4 w-4" /> : <Ban className="mr-2 h-4 w-4" />}
@@ -406,6 +417,20 @@ export default function AdminUserDetail() {
         cancelText="Bekor qilish"
         variant="destructive"
         onConfirm={handleRemovePayment}
+      />
+
+      {/* Block/Unblock Confirmation */}
+      <ConfirmDialog
+        open={showBlockConfirm}
+        onOpenChange={setShowBlockConfirm}
+        title={user.isBlocked ? "Foydalanuvchini faollashtirish" : "Foydalanuvchini bloklash"}
+        description={user.isBlocked 
+          ? "Rostdan ham bu foydalanuvchini faollashtirishni xohlaysizmi? U yana tizimdan foydalana oladi." 
+          : "Rostdan ham bu foydalanuvchini bloklashni xohlaysizmi? U tizimdan foydalana olmaydi."}
+        confirmText={user.isBlocked ? "Ha, faollashtirish" : "Ha, bloklash"}
+        cancelText="Bekor qilish"
+        variant={user.isBlocked ? "default" : "destructive"}
+        onConfirm={handleBlockToggle}
       />
     </DashboardLayout>
   );
