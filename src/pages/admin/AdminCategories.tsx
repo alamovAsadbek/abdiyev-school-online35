@@ -57,7 +57,7 @@ export default function AdminCategories() {
           ? { ...c, name: formData.name, description: formData.description, icon: formData.icon, price: parseInt(formData.price) || 0 }
           : c
       ));
-      toast({ title: 'Muvaffaqiyat', description: 'Kategoriya yangilandi' });
+      toast({ title: 'Muvaffaqiyat', description: 'Kurs yangilandi' });
     } else {
       const newCategory: Category = {
         id: `cat-${Date.now()}`,
@@ -70,7 +70,7 @@ export default function AdminCategories() {
         createdAt: new Date().toISOString().split('T')[0],
       };
       setCategories(prev => [...prev, newCategory]);
-      toast({ title: 'Muvaffaqiyat', description: 'Yangi kategoriya qo\'shildi' });
+      toast({ title: 'Muvaffaqiyat', description: 'Yangi kurs qo\'shildi' });
     }
 
     setIsDialogOpen(false);
@@ -87,7 +87,7 @@ export default function AdminCategories() {
   const columns: Column<Category>[] = [
     {
       key: 'name',
-      header: 'Kategoriya',
+      header: 'Kurs nomi',
       render: (category) => (
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-xl">
@@ -161,7 +161,7 @@ export default function AdminCategories() {
       <div className="flex items-center justify-between mb-8">
         <div className="animate-fade-in">
           <h1 className="text-2xl lg:text-3xl font-bold text-foreground mb-2">
-            Kategoriyalar
+            Kurslar
           </h1>
           <p className="text-muted-foreground">
             Video darslar bo'limlarini boshqaring
@@ -171,7 +171,7 @@ export default function AdminCategories() {
           <DialogTrigger asChild>
             <Button onClick={() => handleOpenDialog()} className="gradient-primary text-primary-foreground">
               <Plus className="mr-2 h-4 w-4" />
-              Yangi kategoriya
+              Yangi kurs
             </Button>
           </DialogTrigger>
           <DialogContent>

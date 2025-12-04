@@ -1,6 +1,6 @@
 import {useState} from 'react';
 import {useNavigate} from 'react-router-dom';
-import {GraduationCap, Mail, Lock, Eye, EyeOff, Loader2, User} from 'lucide-react';
+import {GraduationCap, Mail, Lock, Eye, EyeOff, Loader2, User, UserCog} from 'lucide-react';
 import {useAuth} from '@/contexts/AuthContext';
 import {Button} from '@/components/ui/button';
 import {Input} from '@/components/ui/input';
@@ -188,14 +188,14 @@ export default function Login() {
 
                             <form onSubmit={handleSubmit} className="space-y-5">
                                 <div className="space-y-2">
-                                    <Label htmlFor="email">Email</Label>
+                                    <Label htmlFor="email">Username</Label>
                                     <div className="relative">
-                                        <Mail
+                                        <UserCog
                                             className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground"/>
                                         <Input
                                             id="email"
-                                            type="email"
-                                            placeholder="email@example.com"
+                                            type="text"
+                                            placeholder="username"
                                             value={email}
                                             onChange={(e) => setEmail(e.target.value)}
                                             className="pl-10 h-12"
