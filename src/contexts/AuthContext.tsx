@@ -1,9 +1,24 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User, demoUsers } from '@/data/demoData';
+import { authApi } from '@/services/api';
+
+export interface User {
+  id: string;
+  username: string;
+  name?: string;
+  email?: string;
+  phone?: string;
+  role: 'admin' | 'student';
+  avatar?: string;
+  created_at: string;
+  createdAt?: string;
+  is_blocked: boolean;
+  isBlocked?: boolean;
+}
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (username: string, password: string) => Promise<boolean>;
+  register: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   updateProfile: (data: Partial<User>) => void;
   isLoading: boolean;
@@ -16,32 +31,69 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check for saved user in localStorage
+    // Check for saved tokens and user
+    const accessToken = localStorage.getItem('access');
     const savedUser = localStorage.getItem('abdiyev_user');
-    if (savedUser) {
+    
+    if (accessToken && savedUser) {
       setUser(JSON.parse(savedUser));
+      // Optionally verify token by fetching current user
+      authApi.me()
+        .then(userData => {
+          setUser(userData);
+          localStorage.setItem('abdiyev_user', JSON.stringify(userData));
+        })
+        .catch(() => {
+          // Token expired or invalid
+          localStorage.removeItem('access');
+          localStorage.removeItem('refresh');
+          localStorage.removeItem('abdiyev_user');
+          setUser(null);
+        });
     }
     setIsLoading(false);
   }, []);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    const foundUser = demoUsers.find(
-      u => u.email === email && u.password === password
-    );
-    
-    if (foundUser) {
-      setUser(foundUser);
-      localStorage.setItem('abdiyev_user', JSON.stringify(foundUser));
-      return true;
+  const login = async (username: string, password: string): Promise<boolean> => {
+    try {
+      const response = await authApi.login(username, password);
+      
+      if (response.access) {
+        localStorage.setItem('access', response.access);
+        localStorage.setItem('refresh', response.refresh);
+        localStorage.setItem('abdiyev_user', JSON.stringify(response.user));
+        setUser(response.user);
+        return true;
+      }
+      return false;
+    } catch (error: any) {
+      console.error('Login error:', error);
+      return false;
     }
-    return false;
+  };
+
+  const register = async (username: string, password: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const response = await authApi.register(username, password);
+      
+      if (response.access) {
+        localStorage.setItem('access', response.access);
+        localStorage.setItem('refresh', response.refresh);
+        localStorage.setItem('abdiyev_user', JSON.stringify(response.user));
+        setUser(response.user);
+        return { success: true };
+      }
+      return { success: false, error: 'Ro\'yxatdan o\'tishda xatolik' };
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.error || 'Ro\'yxatdan o\'tishda xatolik';
+      return { success: false, error: errorMessage };
+    }
   };
 
   const logout = () => {
     setUser(null);
+    localStorage.removeItem('access');
+    localStorage.removeItem('refresh');
     localStorage.removeItem('abdiyev_user');
     localStorage.removeItem('abdiyev_progress');
   };
@@ -55,7 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, updateProfile, isLoading }}>
+    <AuthContext.Provider value={{ user, login, register, logout, updateProfile, isLoading }}>
       {children}
     </AuthContext.Provider>
   );
