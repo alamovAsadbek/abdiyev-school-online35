@@ -3,6 +3,7 @@ import { GraduationCap, Play, BookOpen, Award, Users, TrendingUp, ArrowRight, Ch
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useTheme } from '@/contexts/ThemeContext';
+import  {Sun, Moon} from 'lucide-react';
 
 export default function Landing() {
   const { theme, toggleTheme } = useTheme();
@@ -54,7 +55,7 @@ export default function Landing() {
             </div>
             <div className="flex items-center gap-3">
               <Button variant="ghost" onClick={toggleTheme} size="icon" className="text-muted-foreground">
-                {theme === 'dark' ? '🌞' : '🌙'}
+                {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
               </Button>
               <Link to="/login">
                 <Button className="gradient-primary text-primary-foreground">
@@ -179,7 +180,7 @@ export default function Landing() {
                     Minglab o'quvchilar ABDIYEV SCHOOL platformasi orqali o'z maqsadlariga erishmoqda. Siz ham bugun ular qatoriga qo'shiling!
                   </p>
                   <Link to="/login">
-                    <Button size="lg" className="w-full gradient-primary text-primary-foreground">
+                    <Button size="lg" className="w-full gradient-primary text-primary-foreground mt-5">
                       Ro'yxatdan o'tish
                       <ArrowRight className="ml-2 h-5 w-5" />
                     </Button>
@@ -205,7 +206,7 @@ export default function Landing() {
               </div>
             </div>
             <div className="text-sm text-muted-foreground text-center lg:text-left">
-              © 2024 ABDIYEV SCHOOL. Barcha huquqlar himoyalangan.
+              © {new Date().getFullYear()} ABDIYEV SCHOOL. Barcha huquqlar himoyalangan.
             </div>
           </div>
         </div>
