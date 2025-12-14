@@ -7,8 +7,14 @@ export const authApi = {
   login: async (username: string, password: string) => {
     return api.post('/users/login/', { username, password });
   },
-  register: async (username: string, password: string) => {
-    return api.post('/users/register/', { username, password });
+  register: async (username: string, password: string, firstName: string, lastName: string) => {
+    return api.post('/users/register/', { 
+      username, 
+      password, 
+      password2: password,
+      first_name: firstName,
+      last_name: lastName
+    });
   },
   me: async () => {
     return api.get('/users/me/');
