@@ -19,6 +19,8 @@ export default function Login() {
   const [signupUsername, setSignupUsername] = useState('');
   const [signupPassword, setSignupPassword] = useState('');
   const [signupConfirmPassword, setSignupConfirmPassword] = useState('');
+  const [signupFirstName, setSignupFirstName] = useState('');
+  const [signupLastName, setSignupLastName] = useState('');
   const [showSignupPassword, setShowSignupPassword] = useState(false);
 
   const { login, register } = useAuth();
@@ -29,19 +31,19 @@ export default function Login() {
     e.preventDefault();
     setIsLoading(true);
 
-    const success = await login(username, password);
+    const result = await login(username, password);
 
-    if (success) {
-      const user = JSON.parse(localStorage.getItem('abdiyev_user') || '{}');
+    if (result.success) {
       toast({
         title: 'Xush kelibsiz!',
-        description: `${user.username}, tizimga muvaffaqiyatli kirdingiz.`,
+        description: 'Tizimga muvaffaqiyatli kirdingiz.',
       });
-      navigate(user.role === 'admin' ? '/admin' : '/student');
+      // Navigation will be handled by AuthContext based on role from server
+      window.location.reload(); // Force reload to get fresh user data
     } else {
       toast({
         title: 'Xatolik',
-        description: 'Username yoki parol noto\'g\'ri.',
+        description: result.error || 'Username yoki parol noto\'g\'ri.',
         variant: 'destructive',
       });
     }
@@ -51,6 +53,24 @@ export default function Login() {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!signupFirstName.trim()) {
+      toast({
+        title: 'Xatolik',
+        description: 'Ismingizni kiriting',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!signupLastName.trim()) {
+      toast({
+        title: 'Xatolik',
+        description: 'Familiyangizni kiriting',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     if (signupPassword !== signupConfirmPassword) {
       toast({
@@ -81,14 +101,14 @@ export default function Login() {
 
     setIsLoading(true);
 
-    const result = await register(signupUsername, signupPassword);
+    const result = await register(signupUsername, signupPassword, signupFirstName, signupLastName);
 
     if (result.success) {
       toast({
         title: 'Muvaffaqiyat!',
         description: 'Ro\'yxatdan o\'tdingiz.',
       });
-      navigate('/student');
+      window.location.reload(); // Force reload to get fresh user data
     } else {
       toast({
         title: 'Xatolik',
@@ -245,9 +265,36 @@ export default function Login() {
                 <p className="text-muted-foreground">Yangi hisob yarating</p>
               </div>
 
-              <form onSubmit={handleSignup} className="space-y-5">
+              <form onSubmit={handleSignup} className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-firstname">Ism *</Label>
+                    <Input
+                      id="signup-firstname"
+                      type="text"
+                      placeholder="Ismingiz"
+                      value={signupFirstName}
+                      onChange={(e) => setSignupFirstName(e.target.value)}
+                      className="h-12"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-lastname">Familiya *</Label>
+                    <Input
+                      id="signup-lastname"
+                      type="text"
+                      placeholder="Familiyangiz"
+                      value={signupLastName}
+                      onChange={(e) => setSignupLastName(e.target.value)}
+                      className="h-12"
+                      required
+                    />
+                  </div>
+                </div>
+
                 <div className="space-y-2">
-                  <Label htmlFor="signup-username">Foydalanuvchi nomi</Label>
+                  <Label htmlFor="signup-username">Foydalanuvchi nomi *</Label>
                   <div className="relative">
                     <User
                       className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
@@ -264,7 +311,7 @@ export default function Login() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="signup-password">Parol</Label>
+                  <Label htmlFor="signup-password">Parol *</Label>
                   <div className="relative">
                     <Lock
                       className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
@@ -288,7 +335,7 @@ export default function Login() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="signup-confirm-password">Parolni tasdiqlash</Label>
+                  <Label htmlFor="signup-confirm-password">Parolni tasdiqlash *</Label>
                   <div className="relative">
                     <Lock
                       className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
