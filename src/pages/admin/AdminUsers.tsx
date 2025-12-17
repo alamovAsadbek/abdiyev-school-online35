@@ -27,6 +27,7 @@ import { useToast } from '@/hooks/use-toast';
 import { usersApi, authApi } from '@/services/api';
 import { cn } from '@/lib/utils';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { formatDate } from "@/data/demoData";
 
 interface User {
   id: string;
@@ -170,15 +171,6 @@ export default function AdminUsers() {
         setUnblockUserId(null);
       }
     }
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('uz-UZ', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    });
   };
 
   const columns: Column<User>[] = [
