@@ -1,12 +1,14 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, Eye, Calendar } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Plus, Trash2, Eye, Calendar, Send } from 'lucide-react';
 import { DashboardLayout } from '@/layouts/DashboardLayout';
 import { DataTable, Column, Filter } from '@/components/DataTable';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { formatDate } from '@/data/demoData';
+import { notificationsApi, usersApi } from '@/services/api';
 import {
   Dialog,
   DialogContent,
@@ -14,83 +16,171 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 
-interface AdminNotification {
+interface Notification {
   id: string;
   title: string;
   message: string;
-  type: 'payment' | 'course' | 'system';
-  recipients: 'all' | 'active' | 'expired';
-  createdAt: string;
-  sentCount: number;
+  type: string;
+  sent_count: number;
+  created_at: string;
 }
 
-const demoAdminNotifications: AdminNotification[] = [
-  {
-    id: 'admin-notif-1',
-    title: 'Yangi dars qo\'shildi',
-    message: 'Organik Kimyo bo\'limiga 2 ta yangi video dars qo\'shildi. Ko\'ring!',
-    type: 'course',
-    recipients: 'all',
-    createdAt: '2024-11-25',
-    sentCount: 45,
-  },
-  {
-    id: 'admin-notif-2',
-    title: 'To\'lov eslatmasi',
-    message: 'To\'lov muddatingiz tugashiga yaqin. Iltimos, to\'lovni yangilang.',
-    type: 'payment',
-    recipients: 'active',
-    createdAt: '2024-11-20',
-    sentCount: 23,
-  },
-  {
-    id: 'admin-notif-3',
-    title: 'Tizim yangilanmoqda',
-    message: 'Tizim texnik ishlar uchun 2 soat ishlamaydi (20:00-22:00)',
-    type: 'system',
-    recipients: 'all',
-    createdAt: '2024-11-15',
-    sentCount: 45,
-  },
-];
+interface User {
+  id: string;
+  first_name: string;
+  last_name: string;
+  username: string;
+}
 
 export default function AdminNotifications() {
-  const navigate = useNavigate();
-  const [notifications, setNotifications] = useState<AdminNotification[]>(demoAdminNotifications);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
   const [notifToDelete, setNotifToDelete] = useState<string | null>(null);
-  const [viewNotif, setViewNotif] = useState<AdminNotification | null>(null);
+  const [viewNotif, setViewNotif] = useState<Notification | null>(null);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [formData, setFormData] = useState({
+    title: '',
+    message: '',
+    type: 'system',
+    recipient: 'all',
+    selectedUsers: [] as string[],
+  });
   const { toast } = useToast();
 
-  const handleDelete = () => {
-    if (notifToDelete) {
-      const updated = notifications.filter(n => n.id !== notifToDelete);
-      setNotifications(updated);
-      setNotifToDelete(null);
-      toast({ title: 'O\'chirildi', description: 'Xabarnoma o\'chirildi' });
+  useEffect(() => {
+    fetchNotifications();
+    fetchUsers();
+  }, []);
+
+  const fetchNotifications = async () => {
+    try {
+      const response = await notificationsApi.getAll();
+      const data = response?.results || response || [];
+      setNotifications(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Failed to fetch notifications:', error);
+      toast({
+        title: 'Xatolik',
+        description: 'Xabarnomalarni yuklashda xatolik',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
+  const fetchUsers = async () => {
+    try {
+      const response = await usersApi.getAll({ role: 'student' });
+      const data = response?.results || response || [];
+      setUsers(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Failed to fetch users:', error);
+    }
+  };
+
+  const handleSendNotification = async () => {
+    if (!formData.title.trim() || !formData.message.trim()) {
+      toast({
+        title: 'Xatolik',
+        description: 'Sarlavha va xabar kiritilishi shart',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setSending(true);
+    try {
+      const payload: any = {
+        title: formData.title,
+        message: formData.message,
+        type: formData.type,
+      };
+
+      if (formData.recipient === 'all') {
+        payload.send_to_all = true;
+      } else {
+        payload.user_ids = formData.selectedUsers;
+      }
+
+      await notificationsApi.send(payload);
+      
+      toast({
+        title: 'Muvaffaqiyat',
+        description: formData.recipient === 'all' 
+          ? `Xabarnoma barcha o'quvchilarga yuborildi` 
+          : 'Xabarnoma yuborildi',
+      });
+
+      setIsCreateOpen(false);
+      setFormData({
+        title: '',
+        message: '',
+        type: 'system',
+        recipient: 'all',
+        selectedUsers: [],
+      });
+      fetchNotifications();
+    } catch (error) {
+      console.error('Failed to send notification:', error);
+      toast({
+        title: 'Xatolik',
+        description: 'Xabarnomani yuborishda xatolik',
+        variant: 'destructive',
+      });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (notifToDelete) {
+      try {
+        await notificationsApi.delete(notifToDelete);
+        setNotifications(prev => prev.filter(n => n.id !== notifToDelete));
+        toast({ title: 'O\'chirildi', description: 'Xabarnoma o\'chirildi' });
+      } catch (error) {
+        toast({
+          title: 'Xatolik',
+          description: 'O\'chirishda xatolik',
+          variant: 'destructive',
+        });
+      } finally {
+        setNotifToDelete(null);
+      }
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('uz-UZ', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+  };
+
   const getTypeLabel = (type: string) => {
-    const labels = {
-      payment: { text: 'To\'lov', variant: 'default' as const },
-      course: { text: 'Kurs', variant: 'secondary' as const },
-      system: { text: 'Tizim', variant: 'outline' as const },
+    const labels: Record<string, { text: string; variant: 'default' | 'secondary' | 'outline' }> = {
+      payment: { text: 'To\'lov', variant: 'default' },
+      course: { text: 'Kurs', variant: 'secondary' },
+      system: { text: 'Tizim', variant: 'outline' },
     };
-    return labels[type as keyof typeof labels] || { text: type, variant: 'default' as const };
+    return labels[type] || { text: type, variant: 'default' as const };
   };
 
-  const getRecipientsLabel = (recipients: string) => {
-    const labels = {
-      all: 'Hammaga',
-      active: 'Faol foydalanuvchilar',
-      expired: 'Muddati tugaganlar',
-    };
-    return labels[recipients as keyof typeof labels] || recipients;
-  };
-
-  const columns: Column<AdminNotification>[] = [
+  const columns: Column<Notification>[] = [
     {
       key: 'title',
       header: 'Sarlavha',
@@ -110,30 +200,21 @@ export default function AdminNotifications() {
       },
     },
     {
-      key: 'recipients',
-      header: 'Qabul qiluvchilar',
-      render: (notif) => (
-        <span className="text-sm text-muted-foreground">
-          {getRecipientsLabel(notif.recipients)}
-        </span>
-      ),
-    },
-    {
-      key: 'sentCount',
+      key: 'sent_count',
       header: 'Yuborildi',
       sortable: true,
       render: (notif) => (
-        <span className="text-sm font-medium">{notif.sentCount} ta</span>
+        <span className="text-sm font-medium">{notif.sent_count} ta</span>
       ),
     },
     {
-      key: 'createdAt',
+      key: 'created_at',
       header: 'Sana',
       sortable: true,
       render: (notif) => (
         <div className="flex items-center gap-1 text-muted-foreground text-sm">
           <Calendar className="h-4 w-4" />
-          {formatDate(notif.createdAt)}
+          {formatDate(notif.created_at)}
         </div>
       ),
     },
@@ -179,15 +260,6 @@ export default function AdminNotifications() {
         { value: 'system', label: 'Tizim' },
       ],
     },
-    {
-      key: 'recipients',
-      label: 'Qabul qiluvchilar',
-      options: [
-        { value: 'all', label: 'Hammaga' },
-        { value: 'active', label: 'Faol foydalanuvchilar' },
-        { value: 'expired', label: 'Muddati tugaganlar' },
-      ],
-    },
   ];
 
   return (
@@ -203,7 +275,7 @@ export default function AdminNotifications() {
           </p>
         </div>
         <Button 
-          onClick={() => toast({ title: 'Tez kunda', description: 'Bu funksiya tez kunda qo\'shiladi' })} 
+          onClick={() => setIsCreateOpen(true)} 
           className="gradient-primary text-primary-foreground"
         >
           <Plus className="mr-2 h-4 w-4" />
@@ -220,9 +292,94 @@ export default function AdminNotifications() {
           searchPlaceholder="Xabarnoma nomi bo'yicha qidirish..."
           searchKeys={['title', 'message']}
           onRowClick={(notif) => setViewNotif(notif)}
-          emptyMessage="Xabarnomalar topilmadi"
+          emptyMessage={loading ? "Yuklanmoqda..." : "Xabarnomalar topilmadi"}
         />
       </div>
+
+      {/* Create Notification Dialog */}
+      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Yangi xabarnoma yuborish</DialogTitle>
+            <DialogDescription>
+              O'quvchilarga xabarnoma yuboring
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div className="space-y-2">
+              <Label>Qabul qiluvchi</Label>
+              <Select
+                value={formData.recipient}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, recipient: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Barcha o'quvchilar ({users.length} ta)</SelectItem>
+                  {users.map(user => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.first_name} {user.last_name} (@{user.username})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Turi</Label>
+              <Select
+                value={formData.type}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, type: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="system">Tizim xabari</SelectItem>
+                  <SelectItem value="course">Kurs haqida</SelectItem>
+                  <SelectItem value="payment">To'lov haqida</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="notif-title">Sarlavha</Label>
+              <Input
+                id="notif-title"
+                placeholder="Xabar sarlavhasi"
+                value={formData.title}
+                onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="notif-message">Xabar matni</Label>
+              <Textarea
+                id="notif-message"
+                placeholder="Xabar matnini kiriting..."
+                rows={4}
+                value={formData.message}
+                onChange={(e) => setFormData(prev => ({ ...prev, message: e.target.value }))}
+              />
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4">
+              <Button variant="outline" onClick={() => setIsCreateOpen(false)}>
+                Bekor qilish
+              </Button>
+              <Button 
+                onClick={handleSendNotification} 
+                className="gradient-primary text-primary-foreground"
+                disabled={sending}
+              >
+                <Send className="h-4 w-4 mr-2" />
+                {sending ? 'Yuborilmoqda...' : 'Yuborish'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* View Dialog */}
       <Dialog open={!!viewNotif} onOpenChange={(open) => !open && setViewNotif(null)}>
@@ -230,7 +387,7 @@ export default function AdminNotifications() {
           <DialogHeader>
             <DialogTitle>{viewNotif?.title}</DialogTitle>
             <DialogDescription>
-              {formatDate(viewNotif?.createdAt || '')}
+              {viewNotif?.created_at && formatDate(viewNotif.created_at)}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -249,12 +406,8 @@ export default function AdminNotifications() {
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Yuborildi</label>
-                <p className="mt-1 font-medium">{viewNotif?.sentCount} ta foydalanuvchiga</p>
+                <p className="mt-1 font-medium">{viewNotif?.sent_count} ta foydalanuvchiga</p>
               </div>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">Qabul qiluvchilar</label>
-              <p className="mt-1">{getRecipientsLabel(viewNotif?.recipients || '')}</p>
             </div>
           </div>
         </DialogContent>

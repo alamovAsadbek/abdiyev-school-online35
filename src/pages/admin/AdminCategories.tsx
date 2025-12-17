@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Pencil, Trash2, Video } from 'lucide-react';
 import { DashboardLayout } from '@/layouts/DashboardLayout';
@@ -16,18 +16,50 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { demoCategories, Category, formatDate, formatCurrency } from '@/data/demoData';
+import { categoriesApi } from '@/services/api';
+
+interface Category {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  video_count: number;
+  price: number;
+  created_at: string;
+}
 
 const iconOptions = ['⚗️', '🧪', '🔬', '📊', '🧬', '⚛️', '🔥', '💧'];
 
 export default function AdminCategories() {
   const navigate = useNavigate();
-  const [categories, setCategories] = useState<Category[]>(demoCategories);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [formData, setFormData] = useState({ name: '', description: '', icon: '⚗️', price: '' });
   const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
   const { toast } = useToast();
+
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  const fetchCategories = async () => {
+    try {
+      const response = await categoriesApi.getAll();
+      const data = response?.results || response || [];
+      setCategories(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Failed to fetch categories:', error);
+      toast({
+        title: 'Xatolik',
+        description: 'Kategoriyalarni yuklashda xatolik',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleOpenDialog = (category?: Category) => {
     if (category) {
@@ -45,43 +77,68 @@ export default function AdminCategories() {
     setIsDialogOpen(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formData.name.trim()) {
       toast({ title: 'Xatolik', description: 'Kategoriya nomini kiriting', variant: 'destructive' });
       return;
     }
 
-    if (editingCategory) {
-      setCategories(prev => prev.map(c =>
-        c.id === editingCategory.id
-          ? { ...c, name: formData.name, description: formData.description, icon: formData.icon, price: parseInt(formData.price) || 0 }
-          : c
-      ));
-      toast({ title: 'Muvaffaqiyat', description: 'Kurs yangilandi' });
-    } else {
-      const newCategory: Category = {
-        id: `cat-${Date.now()}`,
+    try {
+      const payload = {
         name: formData.name,
         description: formData.description,
         icon: formData.icon,
-        color: 'primary',
-        videoCount: 0,
         price: parseInt(formData.price) || 0,
-        createdAt: new Date().toISOString().split('T')[0],
       };
-      setCategories(prev => [...prev, newCategory]);
-      toast({ title: 'Muvaffaqiyat', description: 'Yangi kurs qo\'shildi' });
-    }
 
-    setIsDialogOpen(false);
+      if (editingCategory) {
+        await categoriesApi.update(editingCategory.id, payload);
+        toast({ title: 'Muvaffaqiyat', description: 'Kurs yangilandi' });
+      } else {
+        await categoriesApi.create(payload);
+        toast({ title: 'Muvaffaqiyat', description: 'Yangi kurs qo\'shildi' });
+      }
+
+      setIsDialogOpen(false);
+      fetchCategories();
+    } catch (error) {
+      toast({
+        title: 'Xatolik',
+        description: 'Saqlashda xatolik',
+        variant: 'destructive',
+      });
+    }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (categoryToDelete) {
-      setCategories(prev => prev.filter(c => c.id !== categoryToDelete));
-      setCategoryToDelete(null);
-      toast({ title: 'O\'chirildi', description: 'Kategoriya o\'chirildi' });
+      try {
+        await categoriesApi.delete(categoryToDelete);
+        setCategories(prev => prev.filter(c => c.id !== categoryToDelete));
+        toast({ title: 'O\'chirildi', description: 'Kategoriya o\'chirildi' });
+      } catch (error) {
+        toast({
+          title: 'Xatolik',
+          description: 'O\'chirishda xatolik',
+          variant: 'destructive',
+        });
+      } finally {
+        setCategoryToDelete(null);
+      }
     }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('uz-UZ', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('uz-UZ').format(amount) + ' so\'m';
   };
 
   const columns: Column<Category>[] = [
@@ -101,13 +158,13 @@ export default function AdminCategories() {
       ),
     },
     {
-      key: 'videoCount',
+      key: 'video_count',
       header: 'Videolar',
       sortable: true,
       render: (category) => (
         <div className="flex items-center gap-2">
           <Video className="h-4 w-4 text-muted-foreground" />
-          {category.videoCount} ta
+          {category.video_count || 0} ta
         </div>
       ),
     },
@@ -118,10 +175,10 @@ export default function AdminCategories() {
       render: (category) => formatCurrency(category.price),
     },
     {
-      key: 'createdAt',
+      key: 'created_at',
       header: 'Yaratilgan',
       sortable: true,
-      render: (category) => formatDate(category.createdAt),
+      render: (category) => formatDate(category.created_at),
     },
     {
       key: 'actions',
@@ -185,6 +242,7 @@ export default function AdminCategories() {
                   {iconOptions.map(icon => (
                     <button
                       key={icon}
+                      type="button"
                       onClick={() => setFormData(prev => ({ ...prev, icon }))}
                       className={`h-10 w-10 rounded-lg text-xl flex items-center justify-center transition-all ${
                         formData.icon === icon
@@ -242,7 +300,7 @@ export default function AdminCategories() {
           searchPlaceholder="Kategoriya nomi bo'yicha qidirish..."
           searchKeys={['name', 'description']}
           onRowClick={(category) => navigate(`/admin/categories/${category.id}`)}
-          emptyMessage="Kategoriyalar topilmadi"
+          emptyMessage={loading ? "Yuklanmoqda..." : "Kategoriyalar topilmadi"}
         />
       </div>
 

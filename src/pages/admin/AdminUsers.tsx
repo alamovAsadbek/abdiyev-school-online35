@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Pencil, Trash2, Ban, CheckCircle2, Mail, Phone } from 'lucide-react';
+import { Plus, Pencil, Trash2, Ban, CheckCircle2, Phone } from 'lucide-react';
 import { DashboardLayout } from '@/layouts/DashboardLayout';
 import { DataTable, Column, Filter } from '@/components/DataTable';
 import { Button } from '@/components/ui/button';
@@ -24,89 +24,160 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { demoUsers, User, formatDate } from '@/data/demoData';
+import { usersApi, authApi } from '@/services/api';
 import { cn } from '@/lib/utils';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
+
+interface User {
+  id: string;
+  username: string;
+  first_name: string;
+  last_name: string;
+  email?: string;
+  phone?: string;
+  role: string;
+  is_blocked: boolean;
+  created_at: string;
+}
 
 export default function AdminUsers() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [users, setUsers] = useState<User[]>(demoUsers.filter(u => u.role === 'student'));
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
+  const [blockUserId, setBlockUserId] = useState<string | null>(null);
+  const [unblockUserId, setUnblockUserId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
+    username: '',
+    first_name: '',
+    last_name: '',
     phone: '',
     password: '',
   });
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = async () => {
+    try {
+      const response = await usersApi.getAll({ role: 'student' });
+      const data = response?.results || response || [];
+      setUsers(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Failed to fetch users:', error);
+      toast({
+        title: 'Xatolik',
+        description: 'Foydalanuvchilarni yuklashda xatolik',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleOpenDialog = (user?: User) => {
     if (user) {
       setEditingUser(user);
       setFormData({
-        name: user.name,
-        email: user.email,
+        username: user.username,
+        first_name: user.first_name,
+        last_name: user.last_name,
         phone: user.phone || '',
         password: '',
       });
     } else {
       setEditingUser(null);
-      setFormData({ name: '', email: '', phone: '', password: '' });
+      setFormData({ username: '', first_name: '', last_name: '', phone: '', password: '' });
     }
     setIsDialogOpen(true);
   };
 
-  const handleSave = () => {
-    if (!formData.name.trim() || !formData.email.trim()) {
-      toast({ title: 'Xatolik', description: 'Ism va email to\'ldiring', variant: 'destructive' });
+  const handleSave = async () => {
+    if (!formData.username.trim() || !formData.first_name.trim()) {
+      toast({ title: 'Xatolik', description: 'Username va ism to\'ldiring', variant: 'destructive' });
       return;
     }
 
-    if (editingUser) {
-      setUsers(prev => prev.map(u =>
-        u.id === editingUser.id
-          ? { ...u, name: formData.name, email: formData.email, phone: formData.phone }
-          : u
-      ));
-      toast({ title: 'Muvaffaqiyat', description: 'Foydalanuvchi yangilandi' });
-    } else {
-      if (!formData.password) {
-        toast({ title: 'Xatolik', description: 'Parol kiriting', variant: 'destructive' });
-        return;
+    try {
+      if (editingUser) {
+        await usersApi.update(editingUser.id, {
+          username: formData.username,
+          first_name: formData.first_name,
+          last_name: formData.last_name,
+          phone: formData.phone,
+        });
+        toast({ title: 'Muvaffaqiyat', description: 'Foydalanuvchi yangilandi' });
+      } else {
+        if (!formData.password) {
+          toast({ title: 'Xatolik', description: 'Parol kiriting', variant: 'destructive' });
+          return;
+        }
+        await authApi.register(formData.username, formData.password, formData.first_name, formData.last_name);
+        toast({ title: 'Muvaffaqiyat', description: 'Yangi foydalanuvchi qo\'shildi' });
       }
-      const newUser: User = {
-        id: `user-${Date.now()}`,
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone,
-        password: formData.password,
-        role: 'student',
-        createdAt: new Date().toISOString().split('T')[0],
-        isBlocked: false,
-      };
-      setUsers(prev => [...prev, newUser]);
-      toast({ title: 'Muvaffaqiyat', description: 'Yangi foydalanuvchi qo\'shildi' });
+      setIsDialogOpen(false);
+      fetchUsers();
+    } catch (error: any) {
+      toast({
+        title: 'Xatolik',
+        description: error?.response?.data?.message || 'Saqlashda xatolik',
+        variant: 'destructive',
+      });
     }
-    setIsDialogOpen(false);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (deleteUserId) {
-      setUsers(prev => prev.filter(u => u.id !== deleteUserId));
-      toast({ title: 'O\'chirildi', description: 'Foydalanuvchi o\'chirildi' });
-      setDeleteUserId(null);
+      try {
+        await usersApi.delete(deleteUserId);
+        setUsers(prev => prev.filter(u => u.id !== deleteUserId));
+        toast({ title: 'O\'chirildi', description: 'Foydalanuvchi o\'chirildi' });
+      } catch (error) {
+        toast({ title: 'Xatolik', description: 'O\'chirishda xatolik', variant: 'destructive' });
+      } finally {
+        setDeleteUserId(null);
+      }
     }
   };
 
-  const handleToggleBlock = (userId: string) => {
-    setUsers(prev => prev.map(u =>
-      u.id === userId ? { ...u, isBlocked: !u.isBlocked } : u
-    ));
-    const user = users.find(u => u.id === userId);
-    toast({
-      title: user?.isBlocked ? 'Blok olib tashlandi' : 'Bloklandi',
-      description: user?.isBlocked ? 'Foydalanuvchi faollashtirildi' : 'Foydalanuvchi bloklandi',
+  const handleBlock = async () => {
+    if (blockUserId) {
+      try {
+        await usersApi.block(blockUserId);
+        setUsers(prev => prev.map(u => u.id === blockUserId ? { ...u, is_blocked: true } : u));
+        toast({ title: 'Bloklandi', description: 'Foydalanuvchi bloklandi' });
+      } catch (error) {
+        toast({ title: 'Xatolik', description: 'Bloklashda xatolik', variant: 'destructive' });
+      } finally {
+        setBlockUserId(null);
+      }
+    }
+  };
+
+  const handleUnblock = async () => {
+    if (unblockUserId) {
+      try {
+        await usersApi.unblock(unblockUserId);
+        setUsers(prev => prev.map(u => u.id === unblockUserId ? { ...u, is_blocked: false } : u));
+        toast({ title: 'Blok olib tashlandi', description: 'Foydalanuvchi faollashtirildi' });
+      } catch (error) {
+        toast({ title: 'Xatolik', description: 'Blokni olib tashlashda xatolik', variant: 'destructive' });
+      } finally {
+        setUnblockUserId(null);
+      }
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('uz-UZ', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
     });
   };
 
@@ -118,13 +189,13 @@ export default function AdminUsers() {
         <div className="flex items-center gap-3">
           <div className={cn(
             "flex h-10 w-10 items-center justify-center rounded-full font-semibold",
-            user.isBlocked ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary"
+            user.is_blocked ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary"
           )}>
-            {user.name.charAt(0)}
+            {user.first_name.charAt(0)}
           </div>
           <div>
-            <p className="font-medium text-card-foreground">{user.name}</p>
-            <p className="text-xs text-muted-foreground">{user.email}</p>
+            <p className="font-medium text-card-foreground">{user.first_name} {user.last_name}</p>
+            <p className="text-xs text-muted-foreground">@{user.username}</p>
           </div>
         </div>
       ),
@@ -140,20 +211,20 @@ export default function AdminUsers() {
       ),
     },
     {
-      key: 'createdAt',
+      key: 'created_at',
       header: 'Ro\'yxatdan o\'tgan',
       sortable: true,
-      render: (user) => formatDate(user.createdAt),
+      render: (user) => formatDate(user.created_at),
     },
     {
-      key: 'isBlocked',
+      key: 'is_blocked',
       header: 'Holat',
       render: (user) => (
         <span className={cn(
           "status-badge",
-          user.isBlocked ? "bg-destructive/15 text-destructive" : "status-completed"
+          user.is_blocked ? "bg-destructive/15 text-destructive" : "status-completed"
         )}>
-          {user.isBlocked ? 'Bloklangan' : 'Faol'}
+          {user.is_blocked ? 'Bloklangan' : 'Faol'}
         </span>
       ),
     },
@@ -173,15 +244,15 @@ export default function AdminUsers() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => handleToggleBlock(user.id)}
+            onClick={() => user.is_blocked ? setUnblockUserId(user.id) : setBlockUserId(user.id)}
             className={cn(
               "h-8 w-8",
-              user.isBlocked
+              user.is_blocked
                 ? "text-success hover:text-success"
                 : "text-warning hover:text-warning"
             )}
           >
-            {user.isBlocked ? <CheckCircle2 className="h-4 w-4" /> : <Ban className="h-4 w-4" />}
+            {user.is_blocked ? <CheckCircle2 className="h-4 w-4" /> : <Ban className="h-4 w-4" />}
           </Button>
           <Button
             variant="ghost"
@@ -198,7 +269,7 @@ export default function AdminUsers() {
 
   const filters: Filter[] = [
     {
-      key: 'isBlocked',
+      key: 'is_blocked',
       label: 'Holat',
       options: [
         { value: 'false', label: 'Faol' },
@@ -232,23 +303,33 @@ export default function AdminUsers() {
             </DialogHeader>
             <div className="space-y-4 mt-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Ism familiya</Label>
+                <Label htmlFor="username">Username</Label>
                 <Input
-                  id="name"
-                  placeholder="Ism familiya"
-                  value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  id="username"
+                  placeholder="username"
+                  value={formData.username}
+                  onChange={(e) => setFormData(prev => ({ ...prev, username: e.target.value }))}
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="email@example.com"
-                  value={formData.email}
-                  onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="first_name">Ism</Label>
+                  <Input
+                    id="first_name"
+                    placeholder="Ism"
+                    value={formData.first_name}
+                    onChange={(e) => setFormData(prev => ({ ...prev, first_name: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="last_name">Familiya</Label>
+                  <Input
+                    id="last_name"
+                    placeholder="Familiya"
+                    value={formData.last_name}
+                    onChange={(e) => setFormData(prev => ({ ...prev, last_name: e.target.value }))}
+                  />
+                </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="phone">Telefon</Label>
@@ -286,10 +367,10 @@ export default function AdminUsers() {
           data={users}
           columns={columns}
           filters={filters}
-          searchPlaceholder="Ism yoki email bo'yicha qidirish..."
-          searchKeys={['name', 'email', 'phone']}
+          searchPlaceholder="Ism yoki username bo'yicha qidirish..."
+          searchKeys={['first_name', 'last_name', 'username', 'phone']}
           onRowClick={(user) => navigate(`/admin/users/${user.id}`)}
-          emptyMessage="Foydalanuvchilar topilmadi"
+          emptyMessage={loading ? "Yuklanmoqda..." : "Foydalanuvchilar topilmadi"}
         />
       </div>
 
@@ -310,6 +391,29 @@ export default function AdminUsers() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Block Confirmation */}
+      <ConfirmDialog
+        open={!!blockUserId}
+        onOpenChange={(open) => !open && setBlockUserId(null)}
+        title="Foydalanuvchini bloklash"
+        description="Rostdan ham bu foydalanuvchini bloklashni xohlaysizmi?"
+        confirmText="Ha, bloklash"
+        cancelText="Bekor qilish"
+        variant="destructive"
+        onConfirm={handleBlock}
+      />
+
+      {/* Unblock Confirmation */}
+      <ConfirmDialog
+        open={!!unblockUserId}
+        onOpenChange={(open) => !open && setUnblockUserId(null)}
+        title="Blokni olib tashlash"
+        description="Foydalanuvchi blokdan chiqarilsinmi?"
+        confirmText="Ha, faollashtirish"
+        cancelText="Bekor qilish"
+        onConfirm={handleUnblock}
+      />
     </DashboardLayout>
   );
 }

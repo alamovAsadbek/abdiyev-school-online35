@@ -1,10 +1,9 @@
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Video, FolderOpen, ClipboardList, Users, TrendingUp, Eye, Bell, Send } from 'lucide-react';
 import { DashboardLayout } from '@/layouts/DashboardLayout';
 import { StatCard } from '@/components/StatCard';
 import { useAuth } from '@/contexts/AuthContext';
-import { demoVideos, demoCategories, demoTasks, demoUsers } from '@/data/demoData';
-import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -24,48 +23,117 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
+import { categoriesApi, videosApi, tasksApi, usersApi, notificationsApi } from '@/services/api';
+
+interface DashboardStats {
+  categoriesCount: number;
+  videosCount: number;
+  tasksCount: number;
+  studentsCount: number;
+}
+
+interface User {
+  id: string;
+  first_name: string;
+  last_name: string;
+  username: string;
+}
 
 export default function AdminDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [stats, setStats] = useState<DashboardStats>({
+    categoriesCount: 0,
+    videosCount: 0,
+    tasksCount: 0,
+    studentsCount: 0,
+  });
+  const [students, setStudents] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isNotificationDialogOpen, setIsNotificationDialogOpen] = useState(false);
+  const [sending, setSending] = useState(false);
   const [notificationForm, setNotificationForm] = useState({
     recipient: 'all',
     title: '',
     message: '',
-    type: 'system' as 'payment' | 'course' | 'system',
+    type: 'system',
   });
 
-  const students = demoUsers.filter(u => u.role === 'student');
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
 
-  const handleSendNotification = () => {
+  const fetchDashboardData = async () => {
+    try {
+      const [categoriesRes, videosRes, tasksRes, usersRes] = await Promise.all([
+        categoriesApi.getAll(),
+        videosApi.getAll(),
+        tasksApi.getAll(),
+        usersApi.getAll({ role: 'student' }),
+      ]);
+
+      const categories = categoriesRes?.results || categoriesRes || [];
+      const videos = videosRes?.results || videosRes || [];
+      const tasks = tasksRes?.results || tasksRes || [];
+      const users = usersRes?.results || usersRes || [];
+
+      setStats({
+        categoriesCount: Array.isArray(categories) ? categories.length : 0,
+        videosCount: Array.isArray(videos) ? videos.length : 0,
+        tasksCount: Array.isArray(tasks) ? tasks.length : 0,
+        studentsCount: Array.isArray(users) ? users.length : 0,
+      });
+      setStudents(Array.isArray(users) ? users : []);
+    } catch (error) {
+      console.error('Failed to fetch dashboard data:', error);
+      toast.error('Ma\'lumotlarni yuklashda xatolik');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSendNotification = async () => {
     if (!notificationForm.title || !notificationForm.message) {
       toast.error('Sarlavha va xabar kiritilishi shart');
       return;
     }
 
-    // In real app, this would send to backend
-    toast.success(
-      notificationForm.recipient === 'all' 
-        ? `Xabarnoma barcha ${students.length} ta o'quvchiga yuborildi` 
-        : 'Xabarnoma yuborildi'
-    );
-    
-    setIsNotificationDialogOpen(false);
-    setNotificationForm({
-      recipient: 'all',
-      title: '',
-      message: '',
-      type: 'system',
-    });
-  };
+    setSending(true);
+    try {
+      const payload: any = {
+        title: notificationForm.title,
+        message: notificationForm.message,
+        type: notificationForm.type,
+      };
 
-  const recentActivity = [
-    { type: 'video', title: 'Atom tuzilishi', action: 'ko\'rildi', user: 'Aziz Karimov', time: '5 daqiqa oldin' },
-    { type: 'task', title: 'Davriy jadval testi', action: 'bajarildi', user: 'Malika Rahimova', time: '15 daqiqa oldin' },
-    { type: 'video', title: 'Alkanlar', action: 'ko\'rildi', user: 'Aziz Karimov', time: '1 soat oldin' },
-    { type: 'task', title: 'Atom tuzilishi testi', action: 'bajarildi', user: 'Aziz Karimov', time: '2 soat oldin' },
-  ];
+      if (notificationForm.recipient === 'all') {
+        payload.send_to_all = true;
+      } else {
+        payload.user_ids = [notificationForm.recipient];
+      }
+
+      await notificationsApi.send(payload);
+      
+      toast.success(
+        notificationForm.recipient === 'all' 
+          ? `Xabarnoma barcha ${students.length} ta o'quvchiga yuborildi` 
+          : 'Xabarnoma yuborildi'
+      );
+      
+      setIsNotificationDialogOpen(false);
+      setNotificationForm({
+        recipient: 'all',
+        title: '',
+        message: '',
+        type: 'system',
+      });
+    } catch (error) {
+      console.error('Failed to send notification:', error);
+      toast.error('Xabarnomani yuborishda xatolik');
+    } finally {
+      setSending(false);
+    }
+  };
 
   return (
     <DashboardLayout>
@@ -85,7 +153,7 @@ export default function AdminDashboard() {
           <StatCard
             icon={FolderOpen}
             label="Kategoriyalar"
-            value={demoCategories.length}
+            value={loading ? '...' : stats.categoriesCount}
             color="primary"
           />
         </div>
@@ -93,7 +161,7 @@ export default function AdminDashboard() {
           <StatCard
             icon={Video}
             label="Video darslar"
-            value={demoVideos.length}
+            value={loading ? '...' : stats.videosCount}
             color="accent"
           />
         </div>
@@ -101,7 +169,7 @@ export default function AdminDashboard() {
           <StatCard
             icon={ClipboardList}
             label="Vazifalar"
-            value={demoTasks.length}
+            value={loading ? '...' : stats.tasksCount}
             color="success"
           />
         </div>
@@ -109,7 +177,7 @@ export default function AdminDashboard() {
           <StatCard
             icon={Users}
             label="O'quvchilar"
-            value={students.length}
+            value={loading ? '...' : stats.studentsCount}
             color="warning"
           />
         </div>
@@ -200,7 +268,7 @@ export default function AdminDashboard() {
                     <SelectItem value="all">Barcha o'quvchilar ({students.length} ta)</SelectItem>
                     {students.map(student => (
                       <SelectItem key={student.id} value={student.id}>
-                        {student.name}
+                        {student.first_name} {student.last_name} (@{student.username})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -211,7 +279,7 @@ export default function AdminDashboard() {
                 <Label>Turi</Label>
                 <Select
                   value={notificationForm.type}
-                  onValueChange={(value: any) => setNotificationForm(prev => ({ ...prev, type: value }))}
+                  onValueChange={(value) => setNotificationForm(prev => ({ ...prev, type: value }))}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -249,9 +317,13 @@ export default function AdminDashboard() {
                 <Button variant="outline" onClick={() => setIsNotificationDialogOpen(false)}>
                   Bekor qilish
                 </Button>
-                <Button onClick={handleSendNotification} className="gradient-primary text-primary-foreground">
+                <Button 
+                  onClick={handleSendNotification} 
+                  className="gradient-primary text-primary-foreground"
+                  disabled={sending}
+                >
                   <Send className="h-4 w-4 mr-2" />
-                  Yuborish
+                  {sending ? 'Yuborilmoqda...' : 'Yuborish'}
                 </Button>
               </div>
             </div>
@@ -259,26 +331,22 @@ export default function AdminDashboard() {
         </Dialog>
       </div>
 
-      {/* Recent Activity */}
+      {/* Info Card */}
       <div className="animate-fade-in rounded-xl border border-border bg-card p-6" style={{ animationDelay: '0.5s' }}>
-        <h2 className="text-lg font-semibold text-card-foreground mb-4">So'nggi faoliyat</h2>
-        <div className="space-y-4">
-          {recentActivity.map((activity, index) => (
-            <div key={index} className="flex items-center gap-4 p-3 rounded-lg hover:bg-muted/50 transition-colors">
-              <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${
-                activity.type === 'video' ? 'bg-accent/10 text-accent' : 'bg-success/10 text-success'
-              }`}>
-                {activity.type === 'video' ? <Eye className="h-5 w-5" /> : <ClipboardList className="h-5 w-5" />}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-card-foreground truncate">
-                  {activity.user} - {activity.title}
-                </p>
-                <p className="text-sm text-muted-foreground">{activity.action}</p>
-              </div>
-              <span className="text-xs text-muted-foreground whitespace-nowrap">{activity.time}</span>
-            </div>
-          ))}
+        <h2 className="text-lg font-semibold text-card-foreground mb-4">Tizim haqida</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="p-4 rounded-lg bg-muted/50">
+            <p className="text-sm text-muted-foreground">Jami kurslar</p>
+            <p className="text-2xl font-bold text-foreground">{stats.categoriesCount}</p>
+          </div>
+          <div className="p-4 rounded-lg bg-muted/50">
+            <p className="text-sm text-muted-foreground">Jami videolar</p>
+            <p className="text-2xl font-bold text-foreground">{stats.videosCount}</p>
+          </div>
+          <div className="p-4 rounded-lg bg-muted/50">
+            <p className="text-sm text-muted-foreground">Faol o'quvchilar</p>
+            <p className="text-2xl font-bold text-foreground">{stats.studentsCount}</p>
+          </div>
         </div>
       </div>
     </DashboardLayout>

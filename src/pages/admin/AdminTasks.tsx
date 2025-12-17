@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Pencil, Trash2, HelpCircle } from 'lucide-react';
 import { DashboardLayout } from '@/layouts/DashboardLayout';
 import { DataTable, Column, Filter } from '@/components/DataTable';
@@ -22,20 +22,85 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { demoTasks, demoVideos, demoCategories, Task, TaskQuestion, getVideoById, getCategoryById, formatDate } from '@/data/demoData';
+import { tasksApi, videosApi, categoriesApi } from '@/services/api';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
+
+interface TaskQuestion {
+  id: string;
+  question: string;
+  options: string[];
+  correct_answer: number;
+}
+
+interface Task {
+  id: string;
+  title: string;
+  description: string;
+  video: {
+    id: string;
+    title: string;
+    category: {
+      id: string;
+      name: string;
+    };
+  };
+  questions: TaskQuestion[];
+  allow_resubmission: boolean;
+  created_at: string;
+}
+
+interface Video {
+  id: string;
+  title: string;
+  category: {
+    id: string;
+    name: string;
+  };
+}
 
 export default function AdminTasks() {
-  const [tasks, setTasks] = useState<Task[]>(demoTasks);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [videos, setVideos] = useState<Video[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    videoId: '',
-    allowResubmission: false,
-    questions: [] as TaskQuestion[],
+    video_id: '',
+    allow_resubmission: false,
+    questions: [] as { id: string; question: string; options: string[]; correct_answer: number }[],
   });
   const { toast } = useToast();
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      const [tasksRes, videosRes] = await Promise.all([
+        tasksApi.getAll(),
+        videosApi.getAll(),
+      ]);
+
+      const tasksData = tasksRes?.results || tasksRes || [];
+      const videosData = videosRes?.results || videosRes || [];
+
+      setTasks(Array.isArray(tasksData) ? tasksData : []);
+      setVideos(Array.isArray(videosData) ? videosData : []);
+    } catch (error) {
+      console.error('Failed to fetch data:', error);
+      toast({
+        title: 'Xatolik',
+        description: 'Ma\'lumotlarni yuklashda xatolik',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleOpenDialog = (task?: Task) => {
     if (task) {
@@ -43,17 +108,22 @@ export default function AdminTasks() {
       setFormData({
         title: task.title,
         description: task.description,
-        videoId: task.videoId,
-        allowResubmission: task.allowResubmission,
-        questions: [...task.questions],
+        video_id: task.video.id,
+        allow_resubmission: task.allow_resubmission,
+        questions: task.questions.map(q => ({
+          id: q.id,
+          question: q.question,
+          options: [...q.options],
+          correct_answer: q.correct_answer,
+        })),
       });
     } else {
       setEditingTask(null);
       setFormData({
         title: '',
         description: '',
-        videoId: '',
-        allowResubmission: false,
+        video_id: '',
+        allow_resubmission: false,
         questions: [],
       });
     }
@@ -61,11 +131,11 @@ export default function AdminTasks() {
   };
 
   const addQuestion = () => {
-    const newQuestion: TaskQuestion = {
+    const newQuestion = {
       id: `q-${Date.now()}`,
       question: '',
       options: ['', '', '', ''],
-      correctAnswer: 0,
+      correct_answer: 0,
     };
     setFormData(prev => ({
       ...prev,
@@ -73,7 +143,7 @@ export default function AdminTasks() {
     }));
   };
 
-  const updateQuestion = (index: number, field: keyof TaskQuestion, value: any) => {
+  const updateQuestion = (index: number, field: string, value: any) => {
     setFormData(prev => ({
       ...prev,
       questions: prev.questions.map((q, i) =>
@@ -100,36 +170,65 @@ export default function AdminTasks() {
     }));
   };
 
-  const handleSave = () => {
-    if (!formData.title.trim() || !formData.videoId || formData.questions.length === 0) {
+  const handleSave = async () => {
+    if (!formData.title.trim() || !formData.video_id || formData.questions.length === 0) {
       toast({ title: 'Xatolik', description: 'Barcha maydonlarni to\'ldiring va kamida 1 ta savol qo\'shing', variant: 'destructive' });
       return;
     }
 
-    if (editingTask) {
-      setTasks(prev => prev.map(t =>
-        t.id === editingTask.id
-          ? { ...t, ...formData }
-          : t
-      ));
-      toast({ title: 'Muvaffaqiyat', description: 'Vazifa yangilandi' });
-    } else {
-      const newTask: Task = {
-        id: `task-${Date.now()}`,
-        ...formData,
-        createdAt: new Date().toISOString().split('T')[0],
+    try {
+      const payload = {
+        title: formData.title,
+        description: formData.description,
+        video_id: formData.video_id,
+        allow_resubmission: formData.allow_resubmission,
+        questions: formData.questions,
       };
-      setTasks(prev => [...prev, newTask]);
-      toast({ title: 'Muvaffaqiyat', description: 'Yangi vazifa qo\'shildi' });
-    }
 
-    setIsDialogOpen(false);
+      if (editingTask) {
+        await tasksApi.update(editingTask.id, payload);
+        toast({ title: 'Muvaffaqiyat', description: 'Vazifa yangilandi' });
+      } else {
+        await tasksApi.create(payload);
+        toast({ title: 'Muvaffaqiyat', description: 'Yangi vazifa qo\'shildi' });
+      }
+
+      setIsDialogOpen(false);
+      fetchData();
+    } catch (error) {
+      toast({
+        title: 'Xatolik',
+        description: 'Saqlashda xatolik',
+        variant: 'destructive',
+      });
+    }
   };
 
-  const handleDelete = (taskId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setTasks(prev => prev.filter(t => t.id !== taskId));
-    toast({ title: 'O\'chirildi', description: 'Vazifa o\'chirildi' });
+  const handleDelete = async () => {
+    if (taskToDelete) {
+      try {
+        await tasksApi.delete(taskToDelete);
+        setTasks(prev => prev.filter(t => t.id !== taskToDelete));
+        toast({ title: 'O\'chirildi', description: 'Vazifa o\'chirildi' });
+      } catch (error) {
+        toast({
+          title: 'Xatolik',
+          description: 'O\'chirishda xatolik',
+          variant: 'destructive',
+        });
+      } finally {
+        setTaskToDelete(null);
+      }
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('uz-UZ', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
   };
 
   const columns: Column<Task>[] = [
@@ -149,38 +248,34 @@ export default function AdminTasks() {
       ),
     },
     {
-      key: 'videoId',
+      key: 'video',
       header: 'Video',
-      render: (task) => {
-        const video = getVideoById(task.videoId);
-        const category = video ? getCategoryById(video.categoryId) : null;
-        return (
-          <div>
-            <p className="text-sm font-medium">{video?.title || 'Noma\'lum'}</p>
-            <p className="text-xs text-muted-foreground">{category?.name}</p>
-          </div>
-        );
-      },
+      render: (task) => (
+        <div>
+          <p className="text-sm font-medium">{task.video?.title || 'Noma\'lum'}</p>
+          <p className="text-xs text-muted-foreground">{task.video?.category?.name}</p>
+        </div>
+      ),
     },
     {
       key: 'questions',
       header: 'Savollar',
-      render: (task) => `${task.questions.length} ta`,
+      render: (task) => `${task.questions?.length || 0} ta`,
     },
     {
-      key: 'allowResubmission',
+      key: 'allow_resubmission',
       header: 'Qayta topshirish',
       render: (task) => (
-        <span className={`status-badge ${task.allowResubmission ? 'bg-success/15 text-success' : 'bg-muted text-muted-foreground'}`}>
-          {task.allowResubmission ? 'Ha' : 'Yo\'q'}
+        <span className={`status-badge ${task.allow_resubmission ? 'bg-success/15 text-success' : 'bg-muted text-muted-foreground'}`}>
+          {task.allow_resubmission ? 'Ha' : 'Yo\'q'}
         </span>
       ),
     },
     {
-      key: 'createdAt',
+      key: 'created_at',
       header: 'Yaratilgan',
       sortable: true,
-      render: (task) => formatDate(task.createdAt),
+      render: (task) => formatDate(task.created_at),
     },
     {
       key: 'actions',
@@ -201,7 +296,10 @@ export default function AdminTasks() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={(e) => handleDelete(task.id, e)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setTaskToDelete(task.id);
+            }}
             className="h-8 w-8 text-muted-foreground hover:text-destructive"
           >
             <Trash2 className="h-4 w-4" />
@@ -247,14 +345,14 @@ export default function AdminTasks() {
               <div className="space-y-2">
                 <Label htmlFor="video">Video dars</Label>
                 <Select
-                  value={formData.videoId}
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, videoId: value }))}
+                  value={formData.video_id}
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, video_id: value }))}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Videoni tanlang" />
                   </SelectTrigger>
                   <SelectContent>
-                    {demoVideos.map(vid => (
+                    {videos.map(vid => (
                       <SelectItem key={vid.id} value={vid.id}>
                         {vid.title}
                       </SelectItem>
@@ -278,8 +376,8 @@ export default function AdminTasks() {
                   <p className="text-xs text-muted-foreground">O'quvchi testni qayta topshira olsinmi?</p>
                 </div>
                 <Switch
-                  checked={formData.allowResubmission}
-                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, allowResubmission: checked }))}
+                  checked={formData.allow_resubmission}
+                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, allow_resubmission: checked }))}
                 />
               </div>
 
@@ -317,8 +415,8 @@ export default function AdminTasks() {
                           <input
                             type="radio"
                             name={`correct-${qIndex}`}
-                            checked={q.correctAnswer === oIndex}
-                            onChange={() => updateQuestion(qIndex, 'correctAnswer', oIndex)}
+                            checked={q.correct_answer === oIndex}
+                            onChange={() => updateQuestion(qIndex, 'correct_answer', oIndex)}
                             className="accent-primary"
                           />
                           <Input
@@ -351,9 +449,21 @@ export default function AdminTasks() {
           columns={columns}
           searchPlaceholder="Vazifa nomi bo'yicha qidirish..."
           searchKeys={['title', 'description']}
-          emptyMessage="Vazifalar topilmadi"
+          emptyMessage={loading ? "Yuklanmoqda..." : "Vazifalar topilmadi"}
         />
       </div>
+
+      {/* Delete Confirmation */}
+      <ConfirmDialog
+        open={!!taskToDelete}
+        onOpenChange={(open) => !open && setTaskToDelete(null)}
+        title="Vazifani o'chirish"
+        description="Rostdan ham bu vazifani o'chirmoqchimisiz?"
+        confirmText="Ha, o'chirish"
+        cancelText="Bekor qilish"
+        variant="destructive"
+        onConfirm={handleDelete}
+      />
     </DashboardLayout>
   );
 }
