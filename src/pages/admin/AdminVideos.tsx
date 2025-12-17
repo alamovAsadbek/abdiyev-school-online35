@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Pencil, Trash2, Clock, Eye } from 'lucide-react';
 import { DashboardLayout } from '@/layouts/DashboardLayout';
@@ -6,22 +6,90 @@ import { DataTable, Column, Filter } from '@/components/DataTable';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { demoVideos, demoCategories, Video, getCategoryById, formatDate } from '@/data/demoData';
+import { videosApi, categoriesApi } from '@/services/api';
+
+interface Video {
+  id: string;
+  title: string;
+  description: string;
+  category: {
+    id: string;
+    name: string;
+    icon: string;
+  };
+  duration: string;
+  view_count: number;
+  thumbnail: string;
+  created_at: string;
+}
+
+interface Category {
+  id: string;
+  name: string;
+  icon: string;
+}
 
 export default function AdminVideos() {
   const navigate = useNavigate();
-  const [videos, setVideos] = useState<Video[]>(demoVideos);
+  const [videos, setVideos] = useState<Video[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
   const [videoToDelete, setVideoToDelete] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const handleDelete = () => {
-    if (videoToDelete) {
-      const updatedVideos = videos.filter(v => v.id !== videoToDelete);
-      setVideos(updatedVideos);
-      localStorage.setItem('abdiyev_videos', JSON.stringify(updatedVideos));
-      setVideoToDelete(null);
-      toast({ title: 'O\'chirildi', description: 'Video o\'chirildi' });
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      const [videosRes, categoriesRes] = await Promise.all([
+        videosApi.getAll(),
+        categoriesApi.getAll(),
+      ]);
+      
+      const videosData = videosRes?.results || videosRes || [];
+      const categoriesData = categoriesRes?.results || categoriesRes || [];
+      
+      setVideos(Array.isArray(videosData) ? videosData : []);
+      setCategories(Array.isArray(categoriesData) ? categoriesData : []);
+    } catch (error) {
+      console.error('Failed to fetch data:', error);
+      toast({
+        title: 'Xatolik',
+        description: 'Ma\'lumotlarni yuklashda xatolik',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const handleDelete = async () => {
+    if (videoToDelete) {
+      try {
+        await videosApi.delete(videoToDelete);
+        setVideos(prev => prev.filter(v => v.id !== videoToDelete));
+        toast({ title: 'O\'chirildi', description: 'Video o\'chirildi' });
+      } catch (error) {
+        toast({
+          title: 'Xatolik',
+          description: 'O\'chirishda xatolik',
+          variant: 'destructive',
+        });
+      } finally {
+        setVideoToDelete(null);
+      }
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('uz-UZ', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
   };
 
   const columns: Column<Video>[] = [
@@ -31,7 +99,7 @@ export default function AdminVideos() {
       render: (video) => (
         <div className="flex items-center gap-3">
           <img
-            src={video.thumbnail}
+            src={video.thumbnail || '/placeholder.svg'}
             alt={video.title}
             className="h-12 w-20 rounded-lg object-cover"
           />
@@ -43,16 +111,13 @@ export default function AdminVideos() {
       ),
     },
     {
-      key: 'categoryId',
+      key: 'category',
       header: 'Kategoriya',
-      render: (video) => {
-        const category = getCategoryById(video.categoryId);
-        return (
-          <span className="px-2 py-1 rounded-md bg-primary/10 text-primary text-xs font-medium">
-            {category?.icon} {category?.name}
-          </span>
-        );
-      },
+      render: (video) => (
+        <span className="px-2 py-1 rounded-md bg-primary/10 text-primary text-xs font-medium">
+          {video.category?.icon} {video.category?.name}
+        </span>
+      ),
     },
     {
       key: 'duration',
@@ -65,21 +130,21 @@ export default function AdminVideos() {
       ),
     },
     {
-      key: 'viewCount',
+      key: 'view_count',
       header: 'Ko\'rishlar',
       sortable: true,
       render: (video) => (
         <div className="flex items-center gap-1 text-muted-foreground">
           <Eye className="h-4 w-4" />
-          {video.viewCount}
+          {video.view_count}
         </div>
       ),
     },
     {
-      key: 'createdAt',
+      key: 'created_at',
       header: 'Qo\'shilgan',
       sortable: true,
-      render: (video) => formatDate(video.createdAt),
+      render: (video) => formatDate(video.created_at),
     },
     {
       key: 'actions',
@@ -115,9 +180,9 @@ export default function AdminVideos() {
 
   const filters: Filter[] = [
     {
-      key: 'categoryId',
+      key: 'category.id',
       label: 'Kategoriya',
-      options: demoCategories.map(cat => ({
+      options: categories.map(cat => ({
         value: cat.id,
         label: `${cat.icon} ${cat.name}`,
       })),
@@ -154,7 +219,7 @@ export default function AdminVideos() {
           searchPlaceholder="Video nomi bo'yicha qidirish..."
           searchKeys={['title', 'description']}
           onRowClick={(video) => navigate(`/admin/videos/${video.id}`)}
-          emptyMessage="Videolar topilmadi"
+          emptyMessage={loading ? "Yuklanmoqda..." : "Videolar topilmadi"}
         />
       </div>
 

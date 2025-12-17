@@ -47,6 +47,9 @@ export const usersApi = {
   unblock: async (id: string) => {
     return api.post(`/users/${id}/unblock/`, {});
   },
+  getStats: async () => {
+    return api.get('/users/stats/');
+  },
 };
 
 // Categories API
@@ -131,7 +134,7 @@ export const userCoursesApi = {
 // Progress API
 export const progressApi = {
   getMyProgress: async () => {
-    return api.get('/progress/my_progress/', {});
+    return api.get('/progress/my_progress/');
   },
   completeVideo: async (videoId: string) => {
     return api.post('/progress/complete_video/', { video_id: videoId });
@@ -168,11 +171,17 @@ export const paymentsApi = {
   create: async (data: any) => {
     return api.post('/payments/', data);
   },
+  update: async (id: string, data: any) => {
+    return api.put(`/payments/${id}/`, data);
+  },
   updateStatus: async (id: string, status: string) => {
     return api.post(`/payments/${id}/update_status/`, { status });
   },
   delete: async (id: string) => {
     return api.delete(`/payments/${id}/`);
+  },
+  getStats: async () => {
+    return api.get('/payments/stats/');
   },
 };
 
@@ -181,17 +190,43 @@ export const notificationsApi = {
   getAll: async (params?: Record<string, any>) => {
     return api.get('/notifications/', params);
   },
-  getMyNotifications: async () => {
-    return api.get('/notifications/my_notifications/', {});
+  getById: async (id: string) => {
+    return api.get(`/notifications/${id}/`);
   },
-  send: async (data: any) => {
-    return api.post('/notifications/send/', data);
-  },
-  markAsRead: async (id: string) => {
-    return api.post(`/notifications/${id}/mark_read/`, {});
+  send: async (data: { title: string; message: string; type: string; send_to_all?: boolean; user_ids?: string[] }) => {
+    return api.post('/notifications/send_notification/', data);
   },
   delete: async (id: string) => {
     return api.delete(`/notifications/${id}/`);
+  },
+  getStats: async () => {
+    return api.get('/notifications/stats/');
+  },
+  // User notifications
+  getMyNotifications: async () => {
+    return api.get('/user-notifications/my_notifications/');
+  },
+  getUnreadCount: async () => {
+    return api.get('/user-notifications/unread_count/');
+  },
+  markAsRead: async (id: string) => {
+    return api.post(`/user-notifications/${id}/mark_as_read/`, {});
+  },
+  markAllRead: async () => {
+    return api.post('/user-notifications/mark_all_read/', {});
+  },
+};
+
+// Dashboard Stats API
+export const dashboardApi = {
+  getAdminStats: async () => {
+    return api.get('/dashboard/admin-stats/');
+  },
+  getStudentStats: async () => {
+    return api.get('/dashboard/student-stats/');
+  },
+  getRecentActivity: async () => {
+    return api.get('/dashboard/recent-activity/');
   },
 };
 
