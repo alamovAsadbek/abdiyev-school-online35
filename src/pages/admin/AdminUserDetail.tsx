@@ -21,28 +21,56 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import {useToast} from '@/hooks/use-toast';
-import {
-    demoUsers,
-    demoPayments,
-    demoUserCourses,
-    demoCategories,
-    getUserById,
-    getCategoryById,
-    formatDate,
-    formatCurrency,
-    Payment,
-    UserCourse,
-} from '@/data/demoData';
+import {formatDate, formatCurrency} from '@/data/demoData';
 import {cn} from '@/lib/utils';
-import {api} from "@/lib/api.ts";
+import {usersApi, paymentsApi, userCoursesApi, categoriesApi} from "@/services/api";
+
+interface User {
+    id: string;
+    username: string;
+    email: string;
+    first_name: string;
+    last_name: string;
+    phone: string;
+    is_blocked: boolean;
+    created_at: string;
+    last_login: string;
+}
+
+interface Payment {
+    id: string;
+    user: string;
+    amount: number;
+    description: string;
+    status: string;
+    expires_at: string;
+    created_at: string;
+}
+
+interface UserCourse {
+    id: string;
+    user: string;
+    category: string;
+    category_name: string;
+    granted_at: string;
+    granted_by: string;
+}
+
+interface Category {
+    id: string;
+    name: string;
+    icon: string;
+}
 
 export default function AdminUserDetail() {
     const {userId} = useParams();
     const navigate = useNavigate();
     const {toast} = useToast();
-    const [user, setUser] = useState()
-    const [payments, setPayments] = useState<Payment[]>(demoPayments.filter(p => p.odId === userId));
-    const [courses, setCourses] = useState<UserCourse[]>(demoUserCourses.filter(uc => uc.odId === userId));
+    const [user, setUser] = useState<User | null>(null);
+    const [payments, setPayments] = useState<Payment[]>([]);
+    const [courses, setCourses] = useState<UserCourse[]>([]);
+    const [categories, setCategories] = useState<Category[]>([]);
+    const [loading, setLoading] = useState(true);
 
     const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
     const [isCourseDialogOpen, setIsCourseDialogOpen] = useState(false);
@@ -54,114 +82,140 @@ export default function AdminUserDetail() {
     const [paymentToDelete, setPaymentToDelete] = useState<string | null>(null);
     const [showBlockConfirm, setShowBlockConfirm] = useState(false);
 
-    const getUser = async () => {
+    const fetchData = async () => {
         try {
-            api.get(`/users/${userId}`).then((res) => {
-                console.log(res)
-                setUser(res)
-            }).catch((err) => {
-                console.log(err)
-                toast({
-                    title: 'Xatolik',
-                    description: 'Xatolik yuz berdi, iltimos qayta urinib ko\'ring!',
-                    variant: 'destructive'
-                })
-            })
-        } catch (e) {
-            console.log(e)
+            const [userRes, paymentsRes, coursesRes, categoriesRes] = await Promise.all([
+                usersApi.getById(userId!),
+                paymentsApi.getAll({user: userId}),
+                userCoursesApi.getAll({user: userId}),
+                categoriesApi.getAll(),
+            ]);
+            setUser(userRes);
+            setPayments(paymentsRes?.results || paymentsRes || []);
+            setCourses(coursesRes?.results || coursesRes || []);
+            setCategories(categoriesRes?.results || categoriesRes || []);
+        } catch (error) {
+            console.log(error);
             toast({
-                title: "Xatolik",
-                description: "Xatolik yuz berdi, iltimos qayta urinib ko'ring!",
+                title: 'Xatolik',
+                description: 'Ma\'lumotlarni yuklashda xatolik!',
                 variant: 'destructive'
-            })
+            });
+        } finally {
+            setLoading(false);
         }
-    }
+    };
 
     useEffect(() => {
-        getUser();
+        if (userId) {
+            fetchData();
+        }
     }, [userId]);
 
     if (!user) {
         return (
             <DashboardLayout>
                 <div className="flex flex-col items-center justify-center min-h-[400px]">
-                    <p className="text-muted-foreground mb-4">Foydalanuvchi topilmadi</p>
-                    <Button onClick={() => navigate('/admin/users')}>Orqaga qaytish</Button>
+                    <p className="text-muted-foreground mb-4">
+                        {loading ? "Yuklanmoqda..." : "Foydalanuvchi topilmadi"}
+                    </p>
+                    {!loading && <Button onClick={() => navigate('/admin/users')}>Orqaga qaytish</Button>}
                 </div>
             </DashboardLayout>
         );
     }
 
-    const handleAddPayment = () => {
+    const handleAddPayment = async () => {
         if (!paymentForm.amount || !paymentForm.expiresAt) {
             toast({title: 'Xatolik', description: 'Barcha maydonlarni to\'ldiring', variant: 'destructive'});
             return;
         }
 
-        const newPayment: Payment = {
-            id: `pay-${Date.now()}`,
-            odId: user.id,
-            amount: parseInt(paymentForm.amount),
-            expiresAt: paymentForm.expiresAt,
-            createdAt: new Date().toISOString().split('T')[0],
-            status: 'active',
-            description: paymentForm.description,
-        };
-        setPayments(prev => [newPayment, ...prev]);
-        setIsPaymentDialogOpen(false);
-        setPaymentForm({amount: '', expiresAt: '', description: ''});
-        toast({title: 'Muvaffaqiyat', description: 'To\'lov qo\'shildi'});
+        try {
+            const newPayment = await paymentsApi.create({
+                user: userId,
+                amount: parseInt(paymentForm.amount),
+                expires_at: paymentForm.expiresAt,
+                description: paymentForm.description,
+                status: 'active',
+            });
+            setPayments(prev => [newPayment, ...prev]);
+            setIsPaymentDialogOpen(false);
+            setPaymentForm({amount: '', expiresAt: '', description: ''});
+            toast({title: 'Muvaffaqiyat', description: 'To\'lov qo\'shildi'});
+        } catch (error) {
+            toast({title: 'Xatolik', description: 'To\'lov qo\'shishda xatolik', variant: 'destructive'});
+        }
     };
 
-    const handleGiftCourse = () => {
+    const handleGiftCourse = async () => {
         if (!selectedCategoryId) {
             toast({title: 'Xatolik', description: 'Kursni tanlang', variant: 'destructive'});
             return;
         }
 
-        const exists = courses.find(c => c.categoryId === selectedCategoryId);
+        const exists = courses.find(c => c.category === selectedCategoryId);
         if (exists) {
             toast({title: 'Xatolik', description: 'Bu kurs allaqachon mavjud', variant: 'destructive'});
             return;
         }
 
-        const newCourse: UserCourse = {
-            id: `uc-${Date.now()}`,
-            odId: user.id,
-            categoryId: selectedCategoryId,
-            grantedAt: new Date().toISOString().split('T')[0],
-            grantedBy: 'gift',
-        };
-        setCourses(prev => [newCourse, ...prev]);
-        setIsCourseDialogOpen(false);
-        setSelectedCategoryId('');
-        toast({title: 'Muvaffaqiyat', description: 'Kurs sovg\'a qilindi'});
+        try {
+            const newCourse = await userCoursesApi.grantCourse(userId!, selectedCategoryId, 'gift');
+            setCourses(prev => [newCourse, ...prev]);
+            setIsCourseDialogOpen(false);
+            setSelectedCategoryId('');
+            toast({title: 'Muvaffaqiyat', description: 'Kurs sovg\'a qilindi'});
+        } catch (error) {
+            toast({title: 'Xatolik', description: 'Kurs qo\'shishda xatolik', variant: 'destructive'});
+        }
     };
 
-    const handleRemoveCourse = () => {
+    const handleRemoveCourse = async () => {
         if (courseToDelete) {
-            setCourses(prev => prev.filter(c => c.id !== courseToDelete));
-            setCourseToDelete(null);
-            toast({title: 'O\'chirildi', description: 'Kurs olib tashlandi'});
+            try {
+                // TODO: Add delete endpoint for user courses
+                setCourses(prev => prev.filter(c => c.id !== courseToDelete));
+                setCourseToDelete(null);
+                toast({title: 'O\'chirildi', description: 'Kurs olib tashlandi'});
+            } catch (error) {
+                toast({title: 'Xatolik', description: 'O\'chirishda xatolik', variant: 'destructive'});
+            }
         }
     };
 
-    const handleRemovePayment = () => {
+    const handleRemovePayment = async () => {
         if (paymentToDelete) {
-            setPayments(prev => prev.filter(p => p.id !== paymentToDelete));
-            setPaymentToDelete(null);
-            toast({title: 'O\'chirildi', description: 'To\'lov olib tashlandi'});
+            try {
+                await paymentsApi.delete(paymentToDelete);
+                setPayments(prev => prev.filter(p => p.id !== paymentToDelete));
+                setPaymentToDelete(null);
+                toast({title: 'O\'chirildi', description: 'To\'lov olib tashlandi'});
+            } catch (error) {
+                toast({title: 'Xatolik', description: 'O\'chirishda xatolik', variant: 'destructive'});
+            }
         }
     };
 
-    const handleBlockToggle = () => {
-        user.is_blocked = !user.is_blocked;
-        setShowBlockConfirm(false);
-        toast({
-            title: user.is_blocked ? 'Bloklandi' : 'Faollashtirildi',
-            description: user.is_blocked ? 'Foydalanuvchi bloklandi' : 'Foydalanuvchi faollashtirildi'
-        });
+    const handleBlockToggle = async () => {
+        try {
+            if (user.is_blocked) {
+                await usersApi.unblock(userId!);
+            } else {
+                await usersApi.block(userId!);
+            }
+            setUser(prev => prev ? {...prev, is_blocked: !prev.is_blocked} : null);
+            setShowBlockConfirm(false);
+            toast({
+                title: user.is_blocked ? 'Faollashtirildi' : 'Bloklandi',
+                description: user.is_blocked ? 'Foydalanuvchi faollashtirildi' : 'Foydalanuvchi bloklandi'
+            });
+        } catch (error) {
+            toast({title: 'Xatolik', description: 'Amalda xatolik', variant: 'destructive'});
+        }
     };
+
+    const getCategoryById = (id: string) => categories.find(c => c.id === id);
 
     return (
         <DashboardLayout>
@@ -178,31 +232,31 @@ export default function AdminUserDetail() {
                         "flex h-20 w-20 items-center justify-center rounded-2xl text-3xl font-bold",
                         user.is_blocked ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary"
                     )}>
-                        {user.first_name?.charAt(0) || ""}
+                        {user.first_name?.charAt(0) || user.username?.charAt(0) || "U"}
                     </div>
                     <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
-                            <h1 className="text-2xl font-bold text-foreground">{user?.first_name || "Ism mavjud emas"} {user?.last_name || ""}</h1>
+                            <h1 className="text-2xl font-bold text-foreground">
+                                {user.first_name || user.username || "Ism mavjud emas"} {user.last_name || ""}
+                            </h1>
                             <span className={cn(
                                 "status-badge",
                                 user.is_blocked ? "bg-destructive/15 text-destructive" : "status-completed"
                             )}>
-                            {user.is_blocked ? 'Bloklangan' : 'Faol'}
-                          </span>
+                                {user.is_blocked ? 'Bloklangan' : 'Faol'}
+                            </span>
                         </div>
                         <div className="flex flex-wrap gap-4 text-muted-foreground">
-                            {user?.email && (
+                            {user.email && (
                                 <div className="flex items-center gap-2">
                                     <Mail className="h-4 w-4"/>
-                                    {user?.email || "Mavjud emas"}
+                                    {user.email}
                                 </div>
                             )}
-
                             <div className="flex items-center gap-2">
                                 <Phone className="h-4 w-4"/>
                                 {user.phone || "Mavjud emas"}
                             </div>
-
                             <div className="flex items-center gap-2">
                                 <Calendar className="h-4 w-4"/>
                                 {formatDate(user.created_at)}
@@ -252,23 +306,23 @@ export default function AdminUserDetail() {
                             </thead>
                             <tbody>
                             {courses.length > 0 ? courses.map(course => {
-                                const category = getCategoryById(course.categoryId);
+                                const category = getCategoryById(course.category);
                                 return (
                                     <tr key={course.id} className="border-b border-border last:border-0">
                                         <td className="p-4">
                                             <div className="flex items-center gap-3">
                                                 <span className="text-xl">{category?.icon}</span>
-                                                <span className="font-medium">{category?.name}</span>
+                                                <span className="font-medium">{category?.name || course.category_name}</span>
                                             </div>
                                         </td>
-                                        <td className="p-4 text-muted-foreground">{formatDate(course.grantedAt)}</td>
+                                        <td className="p-4 text-muted-foreground">{formatDate(course.granted_at)}</td>
                                         <td className="p-4">
-                        <span className={cn(
-                            "status-badge",
-                            course.grantedBy === 'gift' ? "bg-accent/15 text-accent" : "status-completed"
-                        )}>
-                          {course.grantedBy === 'gift' ? 'Sovg\'a' : 'To\'lov'}
-                        </span>
+                                            <span className={cn(
+                                                "status-badge",
+                                                course.granted_by === 'gift' ? "bg-accent/15 text-accent" : "status-completed"
+                                            )}>
+                                                {course.granted_by === 'gift' ? 'Sovg\'a' : 'To\'lov'}
+                                            </span>
                                         </td>
                                         <td className="p-4">
                                             <Button
@@ -320,15 +374,15 @@ export default function AdminUserDetail() {
                                 <tr key={payment.id} className="border-b border-border last:border-0">
                                     <td className="p-4 font-semibold text-foreground">{formatCurrency(payment.amount)}</td>
                                     <td className="p-4 text-muted-foreground">{payment.description || '-'}</td>
-                                    <td className="p-4 text-muted-foreground">{formatDate(payment.createdAt)}</td>
-                                    <td className="p-4 text-muted-foreground">{formatDate(payment.expiresAt)}</td>
+                                    <td className="p-4 text-muted-foreground">{formatDate(payment.created_at)}</td>
+                                    <td className="p-4 text-muted-foreground">{formatDate(payment.expires_at)}</td>
                                     <td className="p-4">
-                      <span className={cn(
-                          "status-badge",
-                          payment.status === 'active' ? "status-completed" : "bg-destructive/15 text-destructive"
-                      )}>
-                        {payment.status === 'active' ? 'Faol' : 'Tugagan'}
-                      </span>
+                                        <span className={cn(
+                                            "status-badge",
+                                            payment.status === 'active' ? "status-completed" : "bg-destructive/15 text-destructive"
+                                        )}>
+                                            {payment.status === 'active' ? 'Faol' : 'Tugagan'}
+                                        </span>
                                     </td>
                                     <td className="p-4">
                                         <Button
@@ -368,7 +422,7 @@ export default function AdminUserDetail() {
                                     <SelectValue placeholder="Kurs tanlang"/>
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {demoCategories.map(cat => (
+                                    {categories.map(cat => (
                                         <SelectItem key={cat.id} value={cat.id}>
                                             {cat.icon} {cat.name}
                                         </SelectItem>
@@ -423,10 +477,8 @@ export default function AdminUserDetail() {
                             />
                         </div>
                         <div className="flex justify-end gap-3 pt-4">
-                            <Button variant="outline" onClick={() => setIsPaymentDialogOpen(false)}>Bekor
-                                qilish</Button>
-                            <Button onClick={handleAddPayment}
-                                    className="gradient-primary text-primary-foreground">Saqlash</Button>
+                            <Button variant="outline" onClick={() => setIsPaymentDialogOpen(false)}>Bekor qilish</Button>
+                            <Button onClick={handleAddPayment} className="gradient-primary text-primary-foreground">Saqlash</Button>
                         </div>
                     </div>
                 </DialogContent>
@@ -460,13 +512,13 @@ export default function AdminUserDetail() {
             <ConfirmDialog
                 open={showBlockConfirm}
                 onOpenChange={setShowBlockConfirm}
-                title={user.isBlocked ? "Foydalanuvchini faollashtirish" : "Foydalanuvchini bloklash"}
-                description={user.isBlocked
+                title={user.is_blocked ? "Foydalanuvchini faollashtirish" : "Foydalanuvchini bloklash"}
+                description={user.is_blocked
                     ? "Rostdan ham bu foydalanuvchini faollashtirishni xohlaysizmi? U yana tizimdan foydalana oladi."
                     : "Rostdan ham bu foydalanuvchini bloklashni xohlaysizmi? U tizimdan foydalana olmaydi."}
-                confirmText={user.isBlocked ? "Ha, faollashtirish" : "Ha, bloklash"}
+                confirmText={user.is_blocked ? "Ha, faollashtirish" : "Ha, bloklash"}
                 cancelText="Bekor qilish"
-                variant={user.isBlocked ? "default" : "destructive"}
+                variant={user.is_blocked ? "default" : "destructive"}
                 onConfirm={handleBlockToggle}
             />
         </DashboardLayout>

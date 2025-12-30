@@ -13,11 +13,12 @@ interface Video {
     id: string;
     title: string;
     description: string;
-    category: {
+    category?: {
         id: string;
         name: string;
         icon: string;
     };
+    category_name?: string;
     duration: string;
     view_count: number;
     thumbnail: string;
@@ -107,8 +108,8 @@ export default function AdminVideos() {
             header: 'Kategoriya',
             render: (video) => (
                 <span className="px-2 py-1 rounded-md bg-primary/10 text-primary text-xs font-medium">
-          {video.category_name}
-        </span>
+                    {video.category?.name || video.category_name || '-'}
+                </span>
             ),
         },
         {
