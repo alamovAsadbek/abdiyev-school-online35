@@ -3,77 +3,101 @@ import {ArrowLeft, Plus, Pencil, Trash2, Eye, Clock} from 'lucide-react';
 import {DashboardLayout} from '@/layouts/DashboardLayout';
 import {DataTable, Column} from '@/components/DataTable';
 import {Button} from '@/components/ui/button';
-import {demoCategories, demoVideos, Video, formatDate} from '@/data/demoData';
+import {formatDate} from '@/data/demoData';
 import {useToast} from '@/hooks/use-toast';
 import {useEffect, useState} from "react";
-import {api} from "@/lib/api.ts";
+import {categoriesApi, videosApi} from "@/services/api";
+
+interface Category {
+    id: string;
+    name: string;
+    icon: string;
+    description: string;
+    video_count: number;
+}
+
+interface Video {
+    id: string;
+    title: string;
+    description: string;
+    thumbnail: string;
+    duration: string;
+    view_count: number;
+    order: number;
+    created_at: string;
+}
 
 export default function AdminCategoryDetail() {
     const {categoryId} = useParams();
     const navigate = useNavigate();
     const {toast} = useToast();
-    const [category, setCategory] = useState();
-    const [videos, setVideos] = useState();
+    const [category, setCategory] = useState<Category | null>(null);
+    const [videos, setVideos] = useState<Video[]>([]);
+    const [loading, setLoading] = useState(true);
+
     const getCategory = async () => {
         try {
-            api.get(`/categories/${categoryId}`).then((response) => {
-                console.log(response);
-                setCategory(response);
-            }).catch((error) => {
-                console.log(error)
-                toast({
-                    title: 'Xatolik',
-                    description: "Server bilan bog'lanishda xatolik yuz berdi!",
-                    variant: 'destructive'
-                })
-            })
-        } catch (e) {
-            console.log(e)
-        }
-    }
-
-    const getVideos = async () => {
-        try {
-            api.get(`/videos/by_category?category_id=${categoryId}`).then((response) => {
-                console.log(response);
-                setVideos(response);
-            }).catch((error) => {
-                console.log(error)
-                toast({
-                    title: 'Xatolik',
-                    description: "Server bilan bog'lanishda xatolik yuz berdi!",
-                    variant: 'destructive'
-                })
-            })
-        } catch (e) {
-            console.log(e)
+            const response = await categoriesApi.getById(categoryId!);
+            setCategory(response);
+        } catch (error) {
+            console.log(error);
             toast({
                 title: 'Xatolik',
                 description: "Server bilan bog'lanishda xatolik yuz berdi!",
                 variant: 'destructive'
-            })
+            });
         }
     };
+
+    const getVideos = async () => {
+        try {
+            const response = await videosApi.getByCategory(categoryId!);
+            setVideos(response?.results || response || []);
+        } catch (error) {
+            console.log(error);
+            toast({
+                title: 'Xatolik',
+                description: "Server bilan bog'lanishda xatolik yuz berdi!",
+                variant: 'destructive'
+            });
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
-        getCategory();
-        getVideos();
+        if (categoryId) {
+            getCategory();
+            getVideos();
+        }
     }, [categoryId]);
+
     if (!category) {
         return (
             <DashboardLayout>
                 <div className="flex flex-col items-center justify-center min-h-[400px]">
-                    <p className="text-muted-foreground mb-4">Kategoriya topilmadi</p>
-                    <Button onClick={() => navigate('/admin/categories')}>
-                        Orqaga qaytish
-                    </Button>
+                    <p className="text-muted-foreground mb-4">
+                        {loading ? "Yuklanmoqda..." : "Kategoriya topilmadi"}
+                    </p>
+                    {!loading && (
+                        <Button onClick={() => navigate('/admin/categories')}>
+                            Orqaga qaytish
+                        </Button>
+                    )}
                 </div>
             </DashboardLayout>
         );
     }
 
-    const handleDelete = (videoId: string, e: React.MouseEvent) => {
+    const handleDelete = async (videoId: string, e: React.MouseEvent) => {
         e.stopPropagation();
-        toast({title: 'O\'chirildi', description: 'Video o\'chirildi'});
+        try {
+            await videosApi.delete(videoId);
+            setVideos(prev => prev.filter(v => v.id !== videoId));
+            toast({title: 'O\'chirildi', description: 'Video o\'chirildi'});
+        } catch (error) {
+            toast({title: 'Xatolik', description: 'O\'chirishda xatolik', variant: 'destructive'});
+        }
     };
 
     const columns: Column<Video>[] = [
@@ -83,7 +107,7 @@ export default function AdminCategoryDetail() {
             render: (video) => (
                 <div className="flex items-center gap-3">
                     <img
-                        src={video.thumbnail}
+                        src={video.thumbnail || '/placeholder.svg'}
                         alt={video.title}
                         className="w-16 h-10 object-cover rounded"
                     />
@@ -105,13 +129,13 @@ export default function AdminCategoryDetail() {
             ),
         },
         {
-            key: 'viewCount',
+            key: 'view_count',
             header: 'Ko\'rishlar',
             sortable: true,
             render: (video) => (
                 <div className="flex items-center gap-2">
                     <Eye className="h-4 w-4 text-muted-foreground"/>
-                    {video.viewCount || 0}
+                    {video.view_count || 0}
                 </div>
             ),
         },
@@ -179,7 +203,7 @@ export default function AdminCategoryDetail() {
                             <h1 className="text-2xl lg:text-3xl font-bold text-foreground">
                                 {category.name}
                             </h1>
-                            <p className="text-muted-foreground">{category.video_count} ta video dars</p>
+                            <p className="text-muted-foreground">{category.video_count || videos.length} ta video dars</p>
                         </div>
                     </div>
                     <p className="text-muted-foreground max-w-2xl">
@@ -203,7 +227,7 @@ export default function AdminCategoryDetail() {
                     searchPlaceholder="Video nomi bo'yicha qidirish..."
                     searchKeys={['title', 'description']}
                     onRowClick={(video) => navigate(`/admin/videos/${video.id}`)}
-                    emptyMessage="Bu kategoriyada videolar topilmadi"
+                    emptyMessage={loading ? "Yuklanmoqda..." : "Bu kategoriyada videolar topilmadi"}
                 />
             </div>
         </DashboardLayout>

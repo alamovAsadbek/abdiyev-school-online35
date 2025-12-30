@@ -22,6 +22,7 @@ import StudentVideoView from "./pages/student/StudentVideoView";
 import StudentTasks from "./pages/student/StudentTasks";
 import StudentTaskView from "./pages/student/StudentTaskView";
 import StudentProfile from "./pages/student/StudentProfile";
+import StudentCheckout from "./pages/student/StudentCheckout";
 
 // Admin Pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -99,6 +100,7 @@ function AppRoutes() {
       <Route path="/student/video/:videoId" element={<ProtectedRoute allowedRole="student"><StudentVideoView /></ProtectedRoute>} />
       <Route path="/student/tasks" element={<ProtectedRoute allowedRole="student"><StudentTasks /></ProtectedRoute>} />
       <Route path="/student/task/:taskId" element={<ProtectedRoute allowedRole="student"><StudentTaskView /></ProtectedRoute>} />
+      <Route path="/student/checkout" element={<ProtectedRoute allowedRole="student"><StudentCheckout /></ProtectedRoute>} />
 
       {/* Admin Routes */}
       <Route path="/admin" element={<ProtectedRoute allowedRole="admin"><AdminDashboard /></ProtectedRoute>} />

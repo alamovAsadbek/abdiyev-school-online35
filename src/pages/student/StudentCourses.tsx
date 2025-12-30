@@ -82,11 +82,25 @@ export default function StudentCourses() {
     };
 
     const handlePurchase = () => {
-        toast({
-            title: 'Sotib olish',
-            description: 'To\'lov sahifasiga yo\'naltirilmoqda...',
-        });
+        if (!selectedCourse) return;
+        
+        // Add to cart
+        const savedCart = localStorage.getItem('course_cart');
+        const cart = savedCart ? JSON.parse(savedCart) : [];
+        
+        if (!cart.find((c: any) => c.id === selectedCourse.id)) {
+            cart.push({
+                id: selectedCourse.id,
+                name: selectedCourse.name,
+                icon: selectedCourse.icon,
+                price: selectedCourse.price,
+                description: selectedCourse.description,
+            });
+            localStorage.setItem('course_cart', JSON.stringify(cart));
+        }
+        
         setSelectedCourse(null);
+        navigate('/student/checkout');
     };
 
     return (
