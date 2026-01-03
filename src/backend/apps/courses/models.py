@@ -28,7 +28,9 @@ class Video(models.Model):
     title = models.CharField(max_length=255)
     description = models.TextField(null=True, blank=True)
     duration = models.CharField(max_length=10)
-    thumbnail = models.URLField(null=True, blank=True)
+    thumbnail = models.ImageField(upload_to='thumbnails/', null=True, blank=True)
+    thumbnail_url = models.URLField(null=True, blank=True)
+    video_file = models.FileField(upload_to='videos/', null=True, blank=True)
     video_url = models.URLField(null=True, blank=True)
     order = models.IntegerField(default=0)
     view_count = models.IntegerField(default=0)
@@ -36,6 +38,18 @@ class Video(models.Model):
 
     def __str__(self):
         return self.title
+    
+    def get_video_url(self):
+        """Return video file URL or external URL"""
+        if self.video_file:
+            return self.video_file.url
+        return self.video_url
+    
+    def get_thumbnail_url(self):
+        """Return thumbnail file URL or external URL"""
+        if self.thumbnail:
+            return self.thumbnail.url
+        return self.thumbnail_url
 
     class Meta:
         db_table = 'videos'

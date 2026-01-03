@@ -20,6 +20,79 @@ class VideoViewSet(viewsets.ModelViewSet):
     serializer_class = VideoSerializer
     permission_classes = [IsAuthenticated]
     
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
+    
+    def create(self, request, *args, **kwargs):
+        """Handle video creation with file upload"""
+        data = request.data.copy()
+        
+        # Handle video file or URL
+        video_file = request.FILES.get('video_file')
+        video_url = data.get('video_url')
+        
+        # Handle thumbnail file or URL
+        thumbnail_file = request.FILES.get('thumbnail')
+        thumbnail_url = data.get('thumbnail_url')
+        
+        # Create video instance
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        video = serializer.save()
+        
+        # Save video file if provided
+        if video_file:
+            video.video_file = video_file
+        elif video_url:
+            video.video_url = video_url
+            
+        # Save thumbnail file if provided
+        if thumbnail_file:
+            video.thumbnail = thumbnail_file
+        elif thumbnail_url:
+            video.thumbnail_url = thumbnail_url
+            
+        video.save()
+        
+        return Response(self.get_serializer(video).data, status=status.HTTP_201_CREATED)
+    
+    def update(self, request, *args, **kwargs):
+        """Handle video update with file upload"""
+        instance = self.get_object()
+        data = request.data.copy()
+        
+        # Handle video file or URL
+        video_file = request.FILES.get('video_file')
+        video_url = data.get('video_url')
+        
+        # Handle thumbnail file or URL
+        thumbnail_file = request.FILES.get('thumbnail')
+        thumbnail_url = data.get('thumbnail_url')
+        
+        serializer = self.get_serializer(instance, data=data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        video = serializer.save()
+        
+        # Update video file if provided
+        if video_file:
+            video.video_file = video_file
+            video.video_url = None
+        elif video_url:
+            video.video_url = video_url
+            
+        # Update thumbnail file if provided
+        if thumbnail_file:
+            video.thumbnail = thumbnail_file
+            video.thumbnail_url = None
+        elif thumbnail_url:
+            video.thumbnail_url = thumbnail_url
+            
+        video.save()
+        
+        return Response(self.get_serializer(video).data)
+    
     @action(detail=True, methods=['post'])
     def increment_view(self, request, pk=None):
         video = self.get_object()
