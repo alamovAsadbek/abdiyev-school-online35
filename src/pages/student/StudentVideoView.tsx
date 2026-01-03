@@ -1,30 +1,56 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2, Clock, ChevronRight, ClipboardList, Lock } from 'lucide-react';
 import { DashboardLayout } from '@/layouts/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { useProgress } from '@/contexts/ProgressContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { demoVideos, demoCategories, demoTasks } from '@/data/demoData';
-import { videosApi } from '@/services/api';
+import { videosApi, tasksApi, userCoursesApi, categoriesApi } from '@/services/api';
+import { SecureVideoPlayer } from '@/components/SecureVideoPlayer';
+
+interface Video {
+  id: string;
+  title: string;
+  description: string;
+  duration: string;
+  video_url: string;
+  thumbnail: string;
+  category: string;
+  order: number;
+}
+
+interface Task {
+  id: string;
+  title: string;
+  description: string;
+  video: string;
+  questions?: { id: string }[];
+}
+
+interface Category {
+  id: string;
+  name: string;
+  icon: string;
+}
 
 export default function StudentVideoView() {
   const { videoId } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { markVideoCompleted, isVideoCompleted } = useProgress();
   const { toast } = useToast();
+  
+  const [video, setVideo] = useState<Video | null>(null);
+  const [category, setCategory] = useState<Category | null>(null);
+  const [task, setTask] = useState<Task | null>(null);
+  const [categoryVideos, setCategoryVideos] = useState<Video[]>([]);
   const [hasWatched, setHasWatched] = useState(false);
-  const videoContainerRef = useRef<HTMLDivElement>(null);
+  const [loading, setLoading] = useState(true);
+  const [hasAccess, setHasAccess] = useState(false);
 
-  const video = demoVideos.find(v => v.id === videoId);
-  const category = video ? demoCategories.find(c => c.id === video.categoryId) : null;
-  const task = demoTasks.find(t => t.videoId === videoId);
   const completed = video ? isVideoCompleted(video.id) : false;
-
-  // Get all videos in category sorted by order
-  const categoryVideos = video
-    ? demoVideos.filter(v => v.categoryId === video.categoryId).sort((a, b) => a.order - b.order)
-    : [];
+  
   const currentIndex = categoryVideos.findIndex(v => v.id === videoId);
   const nextVideo = currentIndex >= 0 && currentIndex < categoryVideos.length - 1
     ? categoryVideos[currentIndex + 1]
@@ -34,84 +60,84 @@ export default function StudentVideoView() {
   const isVideoLocked = (targetVideoId: string): boolean => {
     const targetIndex = categoryVideos.findIndex(v => v.id === targetVideoId);
     if (targetIndex === 0) return false;
-
     const previousVideo = categoryVideos[targetIndex - 1];
     return !isVideoCompleted(previousVideo.id);
   };
 
-  // Check if current video is locked
   const currentVideoLocked = video ? isVideoLocked(video.id) : false;
 
-  // Increment view count
   useEffect(() => {
-    if (video && !currentVideoLocked) {
-      videosApi.incrementView(video.id).catch(() => {});
-    }
-  }, [video, currentVideoLocked]);
+    const fetchData = async () => {
+      if (!videoId) return;
+      
+      setLoading(true);
+      try {
+        // Fetch video
+        const videoData = await videosApi.getById(videoId);
+        setVideo(videoData);
 
-  // Video protection - prevent screenshots and screen recording
-  useEffect(() => {
-    // Disable right-click on video container
-    const handleContextMenu = (e: MouseEvent) => {
-      if (videoContainerRef.current?.contains(e.target as Node)) {
-        e.preventDefault();
-      }
-    };
+        // Check if user has access to this course
+        const myCourses = await userCoursesApi.getMyCourses();
+        const courses = myCourses?.results || myCourses || [];
+        const hasAccessToCourse = courses.some(
+          (c: any) => String(c.category) === String(videoData.category)
+        );
+        setHasAccess(hasAccessToCourse);
 
-    // Disable keyboard shortcuts for screenshots
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Prevent PrintScreen
-      if (e.key === 'PrintScreen') {
-        e.preventDefault();
+        if (!hasAccessToCourse) {
+          setLoading(false);
+          return;
+        }
+
+        // Fetch category
+        if (videoData.category) {
+          const categoryData = await categoriesApi.getById(String(videoData.category));
+          setCategory(categoryData);
+          
+          // Fetch all videos in category
+          const videosInCategory = await videosApi.getByCategory(String(videoData.category));
+          const videos = videosInCategory?.results || videosInCategory || [];
+          setCategoryVideos(videos.sort((a: Video, b: Video) => a.order - b.order));
+        }
+
+        // Fetch task for this video
+        try {
+          const tasksData = await tasksApi.getByVideo(videoId);
+          const tasks = tasksData?.results || tasksData || [];
+          if (tasks.length > 0) {
+            setTask(tasks[0]);
+          }
+        } catch {
+          // No task for this video
+        }
+
+        // Increment view count
+        videosApi.incrementView(videoId).catch(() => {});
+
+      } catch (error) {
+        console.error('Failed to fetch video data:', error);
         toast({
-          title: 'Ruxsat berilmagan',
-          description: 'Skrinshot olish taqiqlangan',
+          title: 'Xatolik',
+          description: 'Video ma\'lumotlarini yuklashda xatolik',
           variant: 'destructive',
         });
-      }
-      // Prevent common screenshot shortcuts
-      if ((e.ctrlKey || e.metaKey) && (e.key === 'p' || e.key === 's' || e.key === 'P' || e.key === 'S')) {
-        e.preventDefault();
-      }
-      // Prevent Ctrl+Shift+S, Cmd+Shift+S
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 's' || e.key === 'S')) {
-        e.preventDefault();
+      } finally {
+        setLoading(false);
       }
     };
 
-    // Detect visibility change (when user switches tabs or uses screen recording)
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        // Video is hidden - could be recording
-      }
-    };
+    fetchData();
+  }, [videoId, toast]);
 
-    document.addEventListener('contextmenu', handleContextMenu);
-    document.addEventListener('keydown', handleKeyDown);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    // Add CSS to prevent selection and dragging
-    if (videoContainerRef.current) {
-      videoContainerRef.current.style.userSelect = 'none';
-      videoContainerRef.current.style.webkitUserSelect = 'none';
-    }
-
-    return () => {
-      document.removeEventListener('contextmenu', handleContextMenu);
-      document.removeEventListener('keydown', handleKeyDown);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [toast]);
-
+  // Auto mark as watched after 10 seconds
   useEffect(() => {
-    if (video && !completed && !currentVideoLocked) {
-      // Auto mark as completed after 10 seconds
+    if (video && !completed && !currentVideoLocked && hasAccess) {
       const timer = setTimeout(() => {
         setHasWatched(true);
       }, 10000);
       return () => clearTimeout(timer);
     }
-  }, [video, completed, currentVideoLocked]);
+  }, [video, completed, currentVideoLocked, hasAccess]);
 
   const handleMarkCompleted = () => {
     if (video) {
@@ -145,6 +171,32 @@ export default function StudentVideoView() {
     navigate(`/student/video/${targetVideoId}`);
   };
 
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (!hasAccess) {
+    return (
+      <DashboardLayout>
+        <div className="flex flex-col items-center justify-center min-h-[400px]">
+          <Lock className="h-12 w-12 text-muted-foreground mb-4" />
+          <p className="text-muted-foreground mb-4 text-center">
+            Siz bu kursni sotib olmagansiz. Videoni ko'rish uchun avval kursni sotib oling.
+          </p>
+          <Button onClick={() => navigate('/student/courses')}>
+            Kurslarga o'tish
+          </Button>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   if (!video || currentVideoLocked) {
     return (
       <DashboardLayout>
@@ -177,33 +229,13 @@ export default function StudentVideoView() {
         {/* Video Player */}
         <div className="lg:col-span-2 space-y-6">
           <div className="animate-fade-in">
-            {/* Video Container with Protection */}
-            <div
-              ref={videoContainerRef}
-              className="relative aspect-video rounded-xl overflow-hidden bg-black"
-              style={{
-                userSelect: 'none',
-                WebkitUserSelect: 'none',
-              }}
-            >
-              <iframe
-                src={video.videoUrl}
-                title={video.title}
-                className="w-full h-full"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                style={{
-                  pointerEvents: 'auto',
-                }}
-              />
-              {/* Overlay to prevent download button clicks */}
-              <div
-                className="absolute inset-0 pointer-events-none"
-                style={{
-                  background: 'transparent',
-                }}
-              />
-            </div>
+            {/* Secure Video Player with Watermark */}
+            <SecureVideoPlayer
+              videoUrl={video.video_url}
+              title={video.title}
+              watermarkId={user?.watermark_id || user?.id?.toString().slice(-8).toUpperCase() || 'USER'}
+              onComplete={handleMarkCompleted}
+            />
 
             {/* Video Info */}
             <div className="mt-5">
@@ -250,7 +282,7 @@ export default function StudentVideoView() {
               <div className="mt-4 p-3 rounded-lg bg-warning/10 border border-warning/20">
                 <p className="text-xs text-warning flex items-center gap-2">
                   <Lock className="h-3 w-3" />
-                  Bu video himoyalangan. Skrinshot olish va ekran yozish taqiqlangan.
+                  Bu video himoyalangan. Skrinshot olish va ekran yozish taqiqlangan. Sizning ID: {user?.watermark_id || user?.id?.toString().slice(-8).toUpperCase()}
                 </p>
               </div>
             </div>
@@ -268,7 +300,7 @@ export default function StudentVideoView() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-card-foreground">Vazifa</h3>
-                  <p className="text-xs text-muted-foreground">{task.questions.length} ta savol</p>
+                  <p className="text-xs text-muted-foreground">{task.questions?.length || 0} ta savol</p>
                 </div>
               </div>
               <p className="text-sm text-muted-foreground mb-4">{task.description}</p>

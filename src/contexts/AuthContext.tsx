@@ -15,6 +15,7 @@ export interface User {
   name: string;
   createdAt?: string;
   isBlocked?: boolean;
+  watermark_id?: string;
 }
 
 interface AuthContextType {

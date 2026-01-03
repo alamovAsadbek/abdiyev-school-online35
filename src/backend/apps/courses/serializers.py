@@ -28,12 +28,32 @@ class TaskSerializer(serializers.ModelSerializer):
 class VideoSerializer(serializers.ModelSerializer):
     tasks = TaskSerializer(many=True, read_only=True)
     category_name = serializers.CharField(source='category.name', read_only=True)
+    video_url = serializers.SerializerMethodField()
+    thumbnail = serializers.SerializerMethodField()
     
     class Meta:
         model = Video
         fields = ['id', 'category', 'category_name', 'title', 'description', 
-                  'duration', 'thumbnail', 'video_url', 'order', 'view_count', 
-                  'tasks', 'created_at']
+                  'duration', 'thumbnail', 'video_url', 'video_file', 'thumbnail_url',
+                  'order', 'view_count', 'tasks', 'created_at']
+    
+    def get_video_url(self, obj):
+        """Return video file URL or external URL"""
+        if obj.video_file:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.video_file.url)
+            return obj.video_file.url
+        return obj.video_url
+    
+    def get_thumbnail(self, obj):
+        """Return thumbnail file URL or external URL"""
+        if obj.thumbnail:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.thumbnail.url)
+            return obj.thumbnail.url
+        return obj.thumbnail_url
 
 
 class UserCourseSerializer(serializers.ModelSerializer):

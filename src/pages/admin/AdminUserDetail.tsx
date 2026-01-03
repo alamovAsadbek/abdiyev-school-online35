@@ -1,6 +1,6 @@
 import {useEffect, useState} from 'react';
 import {useParams, useNavigate} from 'react-router-dom';
-import {ArrowLeft, Mail, Phone, Calendar, Ban, CheckCircle2, Gift, Plus, Trash2, CalendarClock} from 'lucide-react';
+import {ArrowLeft, Mail, Phone, Calendar, Ban, CheckCircle2, Gift, Plus, Trash2, CalendarClock, Edit} from 'lucide-react';
 import {DashboardLayout} from '@/layouts/DashboardLayout';
 import {Button} from '@/components/ui/button';
 import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs';
@@ -74,8 +74,15 @@ export default function AdminUserDetail() {
 
     const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
     const [isCourseDialogOpen, setIsCourseDialogOpen] = useState(false);
+    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [paymentForm, setPaymentForm] = useState({amount: '', expiresAt: '', description: ''});
     const [selectedCategoryId, setSelectedCategoryId] = useState('');
+    const [editForm, setEditForm] = useState({
+        first_name: '',
+        last_name: '',
+        email: '',
+        phone: '',
+    });
 
     // Confirmation dialog states
     const [courseToDelete, setCourseToDelete] = useState<string | null>(null);
@@ -111,6 +118,18 @@ export default function AdminUserDetail() {
             fetchData();
         }
     }, [userId]);
+
+    // Populate edit form when user data is loaded
+    useEffect(() => {
+        if (user) {
+            setEditForm({
+                first_name: user.first_name || '',
+                last_name: user.last_name || '',
+                email: user.email || '',
+                phone: user.phone || '',
+            });
+        }
+    }, [user]);
 
     if (!user) {
         return (
@@ -217,6 +236,17 @@ export default function AdminUserDetail() {
 
     const getCategoryById = (id: string) => categories.find(c => c.id === id);
 
+    const handleEditUser = async () => {
+        try {
+            const updatedUser = await usersApi.update(userId!, editForm);
+            setUser(updatedUser);
+            setIsEditDialogOpen(false);
+            toast({title: 'Muvaffaqiyat', description: 'Foydalanuvchi ma\'lumotlari yangilandi'});
+        } catch (error) {
+            toast({title: 'Xatolik', description: 'Yangilashda xatolik', variant: 'destructive'});
+        }
+    };
+
     return (
         <DashboardLayout>
             {/* Back Button */}
@@ -267,14 +297,23 @@ export default function AdminUserDetail() {
                             </div>
                         </div>
                     </div>
-                    <Button
-                        variant="outline"
-                        onClick={() => setShowBlockConfirm(true)}
-                        className={user.is_blocked ? "text-success border-success hover:bg-success/10" : "text-warning border-warning hover:bg-warning/10"}
-                    >
-                        {user.is_blocked ? <CheckCircle2 className="mr-2 h-4 w-4"/> : <Ban className="mr-2 h-4 w-4"/>}
-                        {user.is_blocked ? 'Faollashtirish' : 'Bloklash'}
-                    </Button>
+                    <div className="flex gap-2">
+                        <Button
+                            variant="outline"
+                            onClick={() => setIsEditDialogOpen(true)}
+                        >
+                            <Edit className="mr-2 h-4 w-4"/>
+                            Tahrirlash
+                        </Button>
+                        <Button
+                            variant="outline"
+                            onClick={() => setShowBlockConfirm(true)}
+                            className={user.is_blocked ? "text-success border-success hover:bg-success/10" : "text-warning border-warning hover:bg-warning/10"}
+                        >
+                            {user.is_blocked ? <CheckCircle2 className="mr-2 h-4 w-4"/> : <Ban className="mr-2 h-4 w-4"/>}
+                            {user.is_blocked ? 'Faollashtirish' : 'Bloklash'}
+                        </Button>
+                    </div>
                 </div>
             </div>
 
@@ -521,6 +560,63 @@ export default function AdminUserDetail() {
                 variant={user.is_blocked ? "default" : "destructive"}
                 onConfirm={handleBlockToggle}
             />
+
+            {/* Edit User Dialog */}
+            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Foydalanuvchini tahrirlash</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 mt-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="firstName">Ism</Label>
+                                <Input
+                                    id="firstName"
+                                    placeholder="Ism"
+                                    value={editForm.first_name}
+                                    onChange={(e) => setEditForm(prev => ({...prev, first_name: e.target.value}))}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="lastName">Familiya</Label>
+                                <Input
+                                    id="lastName"
+                                    placeholder="Familiya"
+                                    value={editForm.last_name}
+                                    onChange={(e) => setEditForm(prev => ({...prev, last_name: e.target.value}))}
+                                />
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="email">Email</Label>
+                            <Input
+                                id="email"
+                                type="email"
+                                placeholder="email@example.com"
+                                value={editForm.email}
+                                onChange={(e) => setEditForm(prev => ({...prev, email: e.target.value}))}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="phone">Telefon</Label>
+                            <Input
+                                id="phone"
+                                placeholder="+998 90 123 45 67"
+                                value={editForm.phone}
+                                onChange={(e) => setEditForm(prev => ({...prev, phone: e.target.value}))}
+                            />
+                        </div>
+                        <div className="flex justify-end gap-3 pt-4">
+                            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Bekor qilish</Button>
+                            <Button onClick={handleEditUser} className="gradient-primary text-primary-foreground">
+                                <Edit className="mr-2 h-4 w-4"/>
+                                Saqlash
+                            </Button>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </DashboardLayout>
     );
 }
