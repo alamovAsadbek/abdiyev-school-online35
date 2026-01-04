@@ -215,7 +215,12 @@ export const notificationsApi = {
   markAllRead: async () => {
     return api.post('/user-notifications/mark_all_read/', {});
   },
+  // Admin: specific user's notifications
+  getUserNotifications: async (userId: string) => {
+    return api.get('/user-notifications/', { user_id: userId });
+  },
 };
+
 
 // Dashboard Stats API
 export const dashboardApi = {

@@ -3,11 +3,15 @@ from apps.users.models import User
 
 class Notification(models.Model):
     TYPE_CHOICES = (
+        ('system', 'System'),
+        ('course', 'Course'),
+        ('payment', 'Payment'),
         ('info', 'Info'),
         ('warning', 'Warning'),
         ('success', 'Success'),
         ('error', 'Error'),
     )
+
     
     title = models.CharField(max_length=255)
     message = models.TextField()

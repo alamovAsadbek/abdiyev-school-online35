@@ -24,8 +24,9 @@ interface UserNotification {
   id: string;
   notification: Notification;
   is_read: boolean;
-  created_at: string;
+  received_at: string;
 }
+
 
 export function NotificationBell() {
   const { user } = useAuth();
@@ -168,14 +169,20 @@ export function NotificationBell() {
         return 'bg-warning/20 text-warning';
       case 'course':
         return 'bg-primary/20 text-primary';
+      case 'system':
       case 'info':
-        return 'bg-blue-500/20 text-blue-500';
+        return 'bg-muted text-muted-foreground';
       case 'success':
         return 'bg-green-500/20 text-green-500';
+      case 'warning':
+        return 'bg-warning/20 text-warning';
+      case 'error':
+        return 'bg-destructive/20 text-destructive';
       default:
         return 'bg-muted text-muted-foreground';
     }
   };
+
 
   // Don't render for admins
   if (!user || user.role === 'admin') return null;
@@ -261,8 +268,9 @@ export function NotificationBell() {
                         {notif.notification?.message || ''}
                       </p>
                       <p className="text-xs text-muted-foreground/70 mt-1">
-                        {formatDate(notif.created_at)}
+                        {formatDate(notif.received_at)}
                       </p>
+
                     </div>
                   </div>
                 </div>

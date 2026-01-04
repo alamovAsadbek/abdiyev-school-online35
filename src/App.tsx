@@ -34,10 +34,12 @@ import AdminVideoEdit from "./pages/admin/AdminVideoEdit";
 import AdminTasks from "./pages/admin/AdminTasks";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminUserDetail from "./pages/admin/AdminUserDetail";
+import AdminUserEdit from "./pages/admin/AdminUserEdit";
 import AdminPayments from "./pages/admin/AdminPayments";
 import AdminPaymentDetail from "./pages/admin/AdminPaymentDetail";
 import AdminCategoryDetail from "./pages/admin/AdminCategoryDetail";
 import AdminNotifications from "./pages/admin/AdminNotifications";
+
 
 const queryClient = new QueryClient();
 
@@ -106,8 +108,9 @@ function AppRoutes() {
       <Route path="/admin" element={<ProtectedRoute allowedRole="admin"><AdminDashboard /></ProtectedRoute>} />
       <Route path="/admin/users" element={<ProtectedRoute allowedRole="admin"><AdminUsers /></ProtectedRoute>} />
       <Route path="/admin/users/:userId" element={<ProtectedRoute allowedRole="admin"><AdminUserDetail /></ProtectedRoute>} />
+      <Route path="/admin/users/:userId/edit" element={<ProtectedRoute allowedRole="admin"><AdminUserEdit /></ProtectedRoute>} />
       <Route path="/admin/payments" element={<ProtectedRoute allowedRole="admin"><AdminPayments /></ProtectedRoute>} />
-      <Route path="/admin/payments/:paymentId" element={<ProtectedRoute allowedRole="admin"><AdminPaymentDetail /></ProtectedRoute>} />
+
       <Route path="/admin/categories" element={<ProtectedRoute allowedRole="admin"><AdminCategories /></ProtectedRoute>} />
       <Route path="/admin/categories/:categoryId" element={<ProtectedRoute allowedRole="admin"><AdminCategoryDetail /></ProtectedRoute>} />
       <Route path="/admin/videos" element={<ProtectedRoute allowedRole="admin"><AdminVideos /></ProtectedRoute>} />

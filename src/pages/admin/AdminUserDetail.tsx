@@ -23,7 +23,7 @@ import {
 import {useToast} from '@/hooks/use-toast';
 import {formatDate, formatCurrency} from '@/data/demoData';
 import {cn} from '@/lib/utils';
-import {usersApi, paymentsApi, userCoursesApi, categoriesApi} from "@/services/api";
+import {usersApi, paymentsApi, userCoursesApi, categoriesApi, notificationsApi} from "@/services/api";
 
 interface User {
     id: string;
@@ -62,6 +62,21 @@ interface Category {
     icon: string;
 }
 
+interface Notification {
+    id: string;
+    title: string;
+    message: string;
+    type: string;
+    created_at: string;
+}
+
+interface UserNotification {
+    id: string;
+    notification: Notification;
+    is_read: boolean;
+    received_at: string;
+}
+
 export default function AdminUserDetail() {
     const {userId} = useParams();
     const navigate = useNavigate();
@@ -74,33 +89,32 @@ export default function AdminUserDetail() {
 
     const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
     const [isCourseDialogOpen, setIsCourseDialogOpen] = useState(false);
-    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [paymentForm, setPaymentForm] = useState({amount: '', expiresAt: '', description: ''});
     const [selectedCategoryId, setSelectedCategoryId] = useState('');
-    const [editForm, setEditForm] = useState({
-        first_name: '',
-        last_name: '',
-        email: '',
-        phone: '',
-    });
+
+    const [userNotifications, setUserNotifications] = useState<UserNotification[]>([]);
 
     // Confirmation dialog states
     const [courseToDelete, setCourseToDelete] = useState<string | null>(null);
     const [paymentToDelete, setPaymentToDelete] = useState<string | null>(null);
     const [showBlockConfirm, setShowBlockConfirm] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
 
     const fetchData = async () => {
         try {
-            const [userRes, paymentsRes, coursesRes, categoriesRes] = await Promise.all([
+            const [userRes, paymentsRes, coursesRes, categoriesRes, userNotifsRes] = await Promise.all([
                 usersApi.getById(userId!),
                 paymentsApi.getAll({user: userId}),
                 userCoursesApi.getAll({user: userId}),
                 categoriesApi.getAll(),
+                notificationsApi.getUserNotifications(userId!),
             ]);
             setUser(userRes);
             setPayments(paymentsRes?.results || paymentsRes || []);
             setCourses(coursesRes?.results || coursesRes || []);
             setCategories(categoriesRes?.results || categoriesRes || []);
+            setUserNotifications(userNotifsRes?.results || userNotifsRes || []);
         } catch (error) {
             console.log(error);
             toast({
@@ -119,17 +133,6 @@ export default function AdminUserDetail() {
         }
     }, [userId]);
 
-    // Populate edit form when user data is loaded
-    useEffect(() => {
-        if (user) {
-            setEditForm({
-                first_name: user.first_name || '',
-                last_name: user.last_name || '',
-                email: user.email || '',
-                phone: user.phone || '',
-            });
-        }
-    }, [user]);
 
     if (!user) {
         return (
@@ -236,16 +239,19 @@ export default function AdminUserDetail() {
 
     const getCategoryById = (id: string) => categories.find(c => c.id === id);
 
-    const handleEditUser = async () => {
+    const handleDeleteUser = async () => {
         try {
-            const updatedUser = await usersApi.update(userId!, editForm);
-            setUser(updatedUser);
-            setIsEditDialogOpen(false);
-            toast({title: 'Muvaffaqiyat', description: 'Foydalanuvchi ma\'lumotlari yangilandi'});
+            await usersApi.delete(userId!);
+            toast({ title: 'O\'chirildi', description: 'Foydalanuvchi o\'chirildi' });
+            navigate('/admin/users');
         } catch (error) {
-            toast({title: 'Xatolik', description: 'Yangilashda xatolik', variant: 'destructive'});
+            toast({ title: 'Xatolik', description: 'Foydalanuvchini o\'chirishda xatolik', variant: 'destructive' });
+        } finally {
+            setShowDeleteConfirm(false);
         }
     };
+
+
 
     return (
         <DashboardLayout>
@@ -300,7 +306,7 @@ export default function AdminUserDetail() {
                     <div className="flex gap-2">
                         <Button
                             variant="outline"
-                            onClick={() => setIsEditDialogOpen(true)}
+                            onClick={() => navigate(`/admin/users/${userId}/edit`)}
                         >
                             <Edit className="mr-2 h-4 w-4"/>
                             Tahrirlash
@@ -313,6 +319,13 @@ export default function AdminUserDetail() {
                             {user.is_blocked ? <CheckCircle2 className="mr-2 h-4 w-4"/> : <Ban className="mr-2 h-4 w-4"/>}
                             {user.is_blocked ? 'Faollashtirish' : 'Bloklash'}
                         </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={() => setShowDeleteConfirm(true)}
+                        >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            O'chirish
+                        </Button>
                     </div>
                 </div>
             </div>
@@ -322,6 +335,7 @@ export default function AdminUserDetail() {
                 <TabsList className="mb-6">
                     <TabsTrigger value="courses">Kurslar ({courses.length})</TabsTrigger>
                     <TabsTrigger value="payments">To'lovlar ({payments.length})</TabsTrigger>
+                    <TabsTrigger value="notifications">Xabarnomalar ({userNotifications.length})</TabsTrigger>
                 </TabsList>
 
                 {/* Courses Tab */}
@@ -445,7 +459,56 @@ export default function AdminUserDetail() {
                         </table>
                     </div>
                 </TabsContent>
+
+                {/* Notifications Tab */}
+                <TabsContent value="notifications">
+                    <div className="rounded-xl border border-border bg-card overflow-hidden">
+                        <table className="w-full">
+                            <thead>
+                            <tr className="border-b border-border bg-muted/50">
+                                <th className="text-left p-4 font-medium text-muted-foreground">Sarlavha</th>
+                                <th className="text-left p-4 font-medium text-muted-foreground">Turi</th>
+                                <th className="text-left p-4 font-medium text-muted-foreground">Holat</th>
+                                <th className="text-left p-4 font-medium text-muted-foreground">Sana</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {userNotifications.length > 0 ? userNotifications.map((un) => (
+                                <tr key={un.id} className="border-b border-border last:border-0">
+                                    <td className="p-4">
+                                        <div>
+                                            <p className="font-medium text-foreground">{un.notification?.title}</p>
+                                            <p className="text-xs text-muted-foreground line-clamp-1">{un.notification?.message}</p>
+                                        </div>
+                                    </td>
+                                    <td className="p-4">
+                                        <span className="status-badge bg-primary/10 text-primary">
+                                            {un.notification?.type || 'system'}
+                                        </span>
+                                    </td>
+                                    <td className="p-4">
+                                        <span className={cn(
+                                            "status-badge",
+                                            un.is_read ? "status-completed" : "bg-warning/15 text-warning"
+                                        )}>
+                                            {un.is_read ? "O'qilgan" : "Yangi"}
+                                        </span>
+                                    </td>
+                                    <td className="p-4 text-muted-foreground">{formatDate(un.received_at)}</td>
+                                </tr>
+                            )) : (
+                                <tr>
+                                    <td colSpan={4} className="p-8 text-center text-muted-foreground">
+                                        Xabarnomalar topilmadi
+                                    </td>
+                                </tr>
+                            )}
+                            </tbody>
+                        </table>
+                    </div>
+                </TabsContent>
             </Tabs>
+
 
             {/* Gift Course Dialog */}
             <Dialog open={isCourseDialogOpen} onOpenChange={setIsCourseDialogOpen}>
@@ -561,62 +624,17 @@ export default function AdminUserDetail() {
                 onConfirm={handleBlockToggle}
             />
 
-            {/* Edit User Dialog */}
-            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Foydalanuvchini tahrirlash</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4 mt-4">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="firstName">Ism</Label>
-                                <Input
-                                    id="firstName"
-                                    placeholder="Ism"
-                                    value={editForm.first_name}
-                                    onChange={(e) => setEditForm(prev => ({...prev, first_name: e.target.value}))}
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="lastName">Familiya</Label>
-                                <Input
-                                    id="lastName"
-                                    placeholder="Familiya"
-                                    value={editForm.last_name}
-                                    onChange={(e) => setEditForm(prev => ({...prev, last_name: e.target.value}))}
-                                />
-                            </div>
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="email">Email</Label>
-                            <Input
-                                id="email"
-                                type="email"
-                                placeholder="email@example.com"
-                                value={editForm.email}
-                                onChange={(e) => setEditForm(prev => ({...prev, email: e.target.value}))}
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="phone">Telefon</Label>
-                            <Input
-                                id="phone"
-                                placeholder="+998 90 123 45 67"
-                                value={editForm.phone}
-                                onChange={(e) => setEditForm(prev => ({...prev, phone: e.target.value}))}
-                            />
-                        </div>
-                        <div className="flex justify-end gap-3 pt-4">
-                            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Bekor qilish</Button>
-                            <Button onClick={handleEditUser} className="gradient-primary text-primary-foreground">
-                                <Edit className="mr-2 h-4 w-4"/>
-                                Saqlash
-                            </Button>
-                        </div>
-                    </div>
-                </DialogContent>
-            </Dialog>
+            {/* Delete User Confirmation */}
+            <ConfirmDialog
+                open={showDeleteConfirm}
+                onOpenChange={setShowDeleteConfirm}
+                title="Foydalanuvchini o'chirish"
+                description="Rostdan ham bu foydalanuvchini o'chirmoqchimisiz? Bu amalni ortga qaytarib bo'lmaydi."
+                confirmText="Ha, o'chirish"
+                cancelText="Bekor qilish"
+                variant="destructive"
+                onConfirm={handleDeleteUser}
+            />
         </DashboardLayout>
     );
 }
