@@ -24,6 +24,8 @@ class UserNotificationSerializer(serializers.ModelSerializer):
 class SendNotificationSerializer(serializers.Serializer):
     title = serializers.CharField(max_length=255)
     message = serializers.CharField()
-    type = serializers.ChoiceField(choices=['info', 'warning', 'success', 'error'])
-    user_ids = serializers.ListField(child=serializers.IntegerField(), required=False)
+    # Frontendda ishlatiladigan turlarni ham qabul qilamiz
+    type = serializers.ChoiceField(choices=['system', 'course', 'payment', 'info', 'warning', 'success', 'error'])
+    user_ids = serializers.ListField(child=serializers.CharField(), required=False)
     send_to_all = serializers.BooleanField(default=False)
+
