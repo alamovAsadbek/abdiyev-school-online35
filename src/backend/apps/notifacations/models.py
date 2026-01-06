@@ -11,6 +11,12 @@ class Notification(models.Model):
         ('success', 'Success'),
         ('error', 'Error'),
     )
+    
+    STATUS_CHOICES = (
+        ('pending', 'Pending'),
+        ('sent', 'Sent'),
+        ('scheduled', 'Scheduled'),
+    )
 
     
     title = models.CharField(max_length=255)
@@ -18,6 +24,8 @@ class Notification(models.Model):
     type = models.CharField(max_length=10, choices=TYPE_CHOICES, default='info')
     recipients = models.ManyToManyField(User, related_name='notifications', blank=True)
     sent_count = models.IntegerField(default=0)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='sent')
+    scheduled_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     
     def __str__(self):

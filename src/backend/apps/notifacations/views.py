@@ -37,11 +37,16 @@ class NotificationViewSet(viewsets.ModelViewSet):
         serializer = SendNotificationSerializer(data=request.data)
         if serializer.is_valid():
             data = serializer.validated_data
+            
+            send_now = data.get('send_now', True)
+            scheduled_at = data.get('scheduled_at')
 
             notification = Notification.objects.create(
                 title=data['title'],
                 message=data['message'],
-                type=data['type']
+                type=data['type'],
+                status='sent' if send_now else 'scheduled',
+                scheduled_at=scheduled_at if not send_now else None
             )
 
             if data.get('send_to_all'):
@@ -51,15 +56,16 @@ class NotificationViewSet(viewsets.ModelViewSet):
                 users = User.objects.filter(id__in=user_ids, is_blocked=False)
 
             notification.recipients.set(users)
-
-            # Create UserNotification for each recipient
-            for user in users:
-                UserNotification.objects.create(
-                    user=user,
-                    notification=notification
-                )
-
-            notification.sent_count = users.count()
+            
+            # Agar hozir yuborilsa, UserNotification yaratish
+            if send_now:
+                for user in users:
+                    UserNotification.objects.create(
+                        user=user,
+                        notification=notification
+                    )
+                notification.sent_count = users.count()
+            
             notification.save()
 
             return Response(
@@ -67,6 +73,31 @@ class NotificationViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_201_CREATED
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=False, methods=['post'])
+    def send_scheduled(self, request):
+        """Send all scheduled notifications that are due"""
+        from django.utils import timezone
+        
+        now = timezone.now()
+        scheduled = Notification.objects.filter(
+            status='scheduled',
+            scheduled_at__lte=now
+        )
+        
+        sent_count = 0
+        for notification in scheduled:
+            for user in notification.recipients.all():
+                UserNotification.objects.get_or_create(
+                    user=user,
+                    notification=notification
+                )
+            notification.sent_count = notification.recipients.count()
+            notification.status = 'sent'
+            notification.save()
+            sent_count += 1
+        
+        return Response({'sent': sent_count})
 
     @swagger_auto_schema(
         operation_description="Get notification statistics",

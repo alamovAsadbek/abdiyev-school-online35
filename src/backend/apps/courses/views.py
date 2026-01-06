@@ -8,6 +8,8 @@ from .serializers import (
     TaskQuestionSerializer, UserCourseSerializer, 
     StudentProgressSerializer, TaskSubmissionSerializer
 )
+from apps.notifacations.models import Notification, UserNotification
+from apps.users.models import User
 
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
@@ -31,13 +33,18 @@ class VideoViewSet(viewsets.ModelViewSet):
         
         # Handle video file or URL
         video_file = request.FILES.get('video_file')
-        video_url = data.get('video_url')
+        video_url = data.get('video_url', '')
         
         # Handle thumbnail file or URL
         thumbnail_file = request.FILES.get('thumbnail')
-        thumbnail_url = data.get('thumbnail_url')
+        thumbnail_url = data.get('thumbnail_url', '')
         
-        # Create video instance
+        # Remove file fields from data to avoid serializer conflicts
+        fields_to_remove = ['video_file', 'thumbnail', 'thumbnail_url', 'video_url']
+        for field in fields_to_remove:
+            data.pop(field, None)
+        
+        # Create video instance with basic fields
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
         video = serializer.save()
@@ -65,11 +72,16 @@ class VideoViewSet(viewsets.ModelViewSet):
         
         # Handle video file or URL
         video_file = request.FILES.get('video_file')
-        video_url = data.get('video_url')
+        video_url = data.get('video_url', '')
         
         # Handle thumbnail file or URL
         thumbnail_file = request.FILES.get('thumbnail')
-        thumbnail_url = data.get('thumbnail_url')
+        thumbnail_url = data.get('thumbnail_url', '')
+        
+        # Remove file fields from data to avoid serializer conflicts
+        fields_to_remove = ['video_file', 'thumbnail', 'thumbnail_url', 'video_url']
+        for field in fields_to_remove:
+            data.pop(field, None)
         
         serializer = self.get_serializer(instance, data=data, partial=True)
         serializer.is_valid(raise_exception=True)
@@ -153,6 +165,30 @@ class UserCourseViewSet(viewsets.ModelViewSet):
             category_id=category_id,
             defaults={'granted_by': granted_by}
         )
+        
+        # Agar yangi kurs berilgan bo'lsa, xabarnoma yuborish
+        if created:
+            try:
+                user = User.objects.get(id=user_id)
+                category = Category.objects.get(id=category_id)
+                
+                # Xabarnoma yaratish
+                notification = Notification.objects.create(
+                    title="Sizga yangi kurs sovg'a qilindi! 🎁",
+                    message=f"Tabriklaymiz! Sizga '{category.name}' kursi sovg'a qilindi. Endi barcha video darslarni bepul ko'rishingiz mumkin.",
+                    type='course'
+                )
+                notification.recipients.add(user)
+                notification.sent_count = 1
+                notification.save()
+                
+                # UserNotification yaratish
+                UserNotification.objects.create(
+                    user=user,
+                    notification=notification
+                )
+            except Exception as e:
+                print(f"Error sending gift notification: {e}")
         
         serializer = self.get_serializer(course)
         return Response(serializer.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)

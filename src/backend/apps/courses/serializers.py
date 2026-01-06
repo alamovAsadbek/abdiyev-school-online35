@@ -31,11 +31,23 @@ class VideoSerializer(serializers.ModelSerializer):
     video_url = serializers.SerializerMethodField()
     thumbnail = serializers.SerializerMethodField()
     
+    # Write-only fields - optional for file uploads
+    video_file = serializers.FileField(write_only=True, required=False, allow_null=True)
+    thumbnail_file = serializers.ImageField(write_only=True, required=False, allow_null=True, source='thumbnail')
+    thumbnail_url_input = serializers.URLField(write_only=True, required=False, allow_null=True, allow_blank=True, source='thumbnail_url')
+    video_url_input = serializers.URLField(write_only=True, required=False, allow_null=True, allow_blank=True)
+    
     class Meta:
         model = Video
         fields = ['id', 'category', 'category_name', 'title', 'description', 
-                  'duration', 'thumbnail', 'video_url', 'video_file', 'thumbnail_url',
+                  'duration', 'thumbnail', 'video_url', 'video_file', 
+                  'thumbnail_file', 'thumbnail_url_input', 'video_url_input',
                   'order', 'view_count', 'tasks', 'created_at']
+        extra_kwargs = {
+            'category': {'required': True},
+            'title': {'required': True},
+            'duration': {'required': True},
+        }
     
     def get_video_url(self, obj):
         """Return video file URL or external URL"""
