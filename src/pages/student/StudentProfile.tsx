@@ -31,8 +31,8 @@ export default function StudentProfile() {
     }, [user]);
 
     const [formData, setFormData] = useState({
-        firstName: initialFirstName,
-        lastName: initialLastName,
+        firstName: user.first_name,
+        lastName: user.last_name,
     });
 
     // Get user payments
@@ -75,8 +75,8 @@ export default function StudentProfile() {
 
     const handleCancel = () => {
         setFormData({
-            firstName: initialFirstName,
-            lastName: initialLastName,
+            firstName: user.first_name,
+            lastName: user.last_name,
         });
         setIsEditing(false);
     };
@@ -205,7 +205,7 @@ export default function StudentProfile() {
                                     {/* Editable Fields */}
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div className="space-y-2">
-                                            <Label htmlFor="firstName">Ism *</Label>
+                                            <Label htmlFor="firstName">Ism <span className='text-destructive'>*</span></Label>
                                             <Input
                                                 id="firstName"
                                                 value={formData.firstName}
@@ -228,6 +228,32 @@ export default function StudentProfile() {
                                             />
                                         </div>
                                     </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="firstName">Username <span className='text-destructive'>*</span></Label>
+                                            <Input
+                                                id="firstName"
+                                                value={formData.firstName}
+                                                onChange={(e) => setFormData({...formData, firstName: e.target.value})}
+                                                disabled={!isEditing}
+                                                placeholder="Usernamengizni kiriting"
+                                                className={!isEditing ? 'bg-muted' : ''}
+                                            />
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <Label htmlFor="lastName">Telefon raqam</Label>
+                                            <Input
+                                                id="lastName"
+                                                value={formData.lastName}
+                                                onChange={(e) => setFormData({...formData, lastName: e.target.value})}
+                                                disabled={!isEditing}
+                                                placeholder="Telefon raqamingizni kiriting"
+                                                className={!isEditing ? 'bg-muted' : ''}
+                                            />
+                                        </div>
+                                    </div>
+
 
                                     <Separator/>
 
@@ -270,7 +296,7 @@ export default function StudentProfile() {
                                                     Saqlash
                                                 </Button>
                                                 <Button type="button" variant="outline" onClick={handleCancel}
-                                                        className="flex-1">
+                                                        className="flex-1 text-destructive hover:bg-destructive">
                                                     <X className="h-4 w-4 mr-2"/>
                                                     Bekor qilish
                                                 </Button>
