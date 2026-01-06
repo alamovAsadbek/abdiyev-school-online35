@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Bell, Check, CheckCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -27,6 +27,8 @@ interface UserNotification {
   received_at: string;
 }
 
+// Notification sound as base64 (short beep sound)
+const NOTIFICATION_SOUND_BASE64 = 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2teleQgdWI+u0L55ExdJfKTLy4k5CyRjrbvPn1w0I06KxdSzZxoKS3ek0s+EWAUKV4i11MQAAAB/gYB9e32JpL+2h1IxNVaAvtfRoVwMJV6bztyxZhAZUouz0sFzCBVJhbDTv3gJEVGDr9DAfQsPUIOvz8B9Cw9Qg6/PwH0LD1CDr8/AfQsPUIOvz8B9Cw9Qg6/PwH0LD1CDr8/AfQsPUIOvz8B9Cw9Qg6/PwH0LD1CDr8/AfQsPUIOvz8B9Cw9Qg6/PwH0LD1CDr8/AfQsPUIOvz8B9Cw9Qg6/PwH0=';
 
 export function NotificationBell() {
   const { user } = useAuth();
@@ -36,17 +38,56 @@ export function NotificationBell() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [initialLoaded, setInitialLoaded] = useState(false);
+  const previousUnreadCount = useRef<number>(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const hasPlayedInitialSound = useRef(false);
+
+  // Initialize audio on mount
+  useEffect(() => {
+    audioRef.current = new Audio(NOTIFICATION_SOUND_BASE64);
+    audioRef.current.volume = 0.5;
+    
+    return () => {
+      if (audioRef.current) {
+        audioRef.current = null;
+      }
+    };
+  }, []);
+
+  const playNotificationSound = useCallback(() => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().catch(err => {
+        console.log('Could not play notification sound:', err);
+      });
+    }
+  }, []);
 
   const fetchUnreadCount = useCallback(async () => {
     if (!user || user.role === 'admin') return;
     
     try {
       const response = await notificationsApi.getUnreadCount();
-      setUnreadCount(response?.count || response?.unread_count || 0);
+      const newCount = response?.count || response?.unread_count || 0;
+      
+      // Check if there are new notifications
+      if (initialLoaded && newCount > previousUnreadCount.current) {
+        // New notification arrived! Play sound
+        playNotificationSound();
+        
+        // Show toast notification
+        toast({
+          title: '🔔 Yangi xabarnoma!',
+          description: 'Sizga yangi xabarnoma keldi',
+        });
+      }
+      
+      previousUnreadCount.current = newCount;
+      setUnreadCount(newCount);
     } catch (error) {
       console.error('Failed to fetch unread count:', error);
     }
-  }, [user]);
+  }, [user, initialLoaded, playNotificationSound, toast]);
 
   const fetchNotifications = useCallback(async () => {
     if (!user || user.role === 'admin') return;
@@ -66,6 +107,14 @@ export function NotificationBell() {
       
       // Update unread count
       const unread = notifs.filter((n: UserNotification) => !n.is_read).length;
+      
+      // Play sound on first load if there are unread notifications
+      if (!hasPlayedInitialSound.current && unread > 0) {
+        playNotificationSound();
+        hasPlayedInitialSound.current = true;
+      }
+      
+      previousUnreadCount.current = unread;
       setUnreadCount(unread);
     } catch (error) {
       console.error('Failed to fetch notifications:', error);
@@ -73,14 +122,14 @@ export function NotificationBell() {
       setLoading(false);
       setInitialLoaded(true);
     }
-  }, [user]);
+  }, [user, playNotificationSound]);
 
   // Initial fetch
   useEffect(() => {
     if (user && user.role !== 'admin' && !initialLoaded) {
-      fetchUnreadCount();
+      fetchNotifications();
     }
-  }, [user, fetchUnreadCount, initialLoaded]);
+  }, [user, fetchNotifications, initialLoaded]);
 
   // Fetch notifications when popover opens
   useEffect(() => {
@@ -89,7 +138,7 @@ export function NotificationBell() {
     }
   }, [isOpen, fetchNotifications, user]);
 
-  // Poll for new notifications every 30 seconds
+  // Poll for new notifications every 15 seconds
   useEffect(() => {
     if (!user || user.role === 'admin') return;
     
@@ -97,7 +146,7 @@ export function NotificationBell() {
       if (!isOpen) {
         fetchUnreadCount();
       }
-    }, 30000);
+    }, 15000);
     
     return () => clearInterval(interval);
   }, [user, isOpen, fetchUnreadCount]);
@@ -111,6 +160,7 @@ export function NotificationBell() {
         prev.map(n => n.id === id ? { ...n, is_read: true } : n)
       );
       setUnreadCount(prev => Math.max(0, prev - 1));
+      previousUnreadCount.current = Math.max(0, previousUnreadCount.current - 1);
     } catch (error) {
       console.error('Failed to mark as read:', error);
       toast({
@@ -126,6 +176,7 @@ export function NotificationBell() {
       await notificationsApi.markAllRead();
       setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
       setUnreadCount(0);
+      previousUnreadCount.current = 0;
       toast({
         title: 'Muvaffaqiyat',
         description: 'Barcha bildirishnomalar o\'qilgan deb belgilandi',

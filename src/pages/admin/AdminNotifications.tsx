@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, Eye, Calendar, Send } from 'lucide-react';
+import { Plus, Trash2, Eye, Calendar, Send, Clock } from 'lucide-react';
 import { DashboardLayout } from '@/layouts/DashboardLayout';
 import { DataTable, Column, Filter } from '@/components/DataTable';
 import { Button } from '@/components/ui/button';
@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 
 interface Notification {
   id: string;
@@ -31,6 +32,8 @@ interface Notification {
   message: string;
   type: string;
   sent_count: number;
+  status: string;
+  scheduled_at: string | null;
   created_at: string;
 }
 
@@ -55,6 +58,9 @@ export default function AdminNotifications() {
     type: 'system',
     recipient: 'all',
     selectedUsers: [] as string[],
+    sendNow: true,
+    scheduledDate: '',
+    scheduledTime: '',
   });
   const { toast } = useToast();
 
@@ -99,6 +105,15 @@ export default function AdminNotifications() {
       });
       return;
     }
+    
+    if (!formData.sendNow && (!formData.scheduledDate || !formData.scheduledTime)) {
+      toast({
+        title: 'Xatolik',
+        description: 'Rejalashtirilgan vaqtni tanlang',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     setSending(true);
     try {
@@ -106,21 +121,29 @@ export default function AdminNotifications() {
         title: formData.title,
         message: formData.message,
         type: formData.type,
+        send_now: formData.sendNow,
       };
 
       if (formData.recipient === 'all') {
         payload.send_to_all = true;
       } else {
-        payload.user_ids = formData.selectedUsers;
+        payload.user_ids = [formData.recipient];
+      }
+      
+      if (!formData.sendNow) {
+        const scheduledDateTime = new Date(`${formData.scheduledDate}T${formData.scheduledTime}`);
+        payload.scheduled_at = scheduledDateTime.toISOString();
       }
 
       await notificationsApi.send(payload);
       
       toast({
         title: 'Muvaffaqiyat',
-        description: formData.recipient === 'all' 
-          ? `Xabarnoma barcha o'quvchilarga yuborildi` 
-          : 'Xabarnoma yuborildi',
+        description: formData.sendNow 
+          ? (formData.recipient === 'all' 
+            ? `Xabarnoma barcha o'quvchilarga yuborildi` 
+            : 'Xabarnoma yuborildi')
+          : 'Xabarnoma rejalashtirildi',
       });
 
       setIsCreateOpen(false);
@@ -130,6 +153,9 @@ export default function AdminNotifications() {
         type: 'system',
         recipient: 'all',
         selectedUsers: [],
+        sendNow: true,
+        scheduledDate: '',
+        scheduledTime: '',
       });
       fetchNotifications();
     } catch (error) {
@@ -168,6 +194,8 @@ export default function AdminNotifications() {
       day: 'numeric',
       month: 'short',
       year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
     });
   };
 
@@ -178,6 +206,15 @@ export default function AdminNotifications() {
       system: { text: 'Tizim', variant: 'outline' },
     };
     return labels[type] || { text: type, variant: 'default' as const };
+  };
+  
+  const getStatusLabel = (status: string) => {
+    const labels: Record<string, { text: string; variant: 'default' | 'secondary' | 'outline' | 'destructive' }> = {
+      sent: { text: 'Yuborilgan', variant: 'default' },
+      scheduled: { text: 'Rejalashtirilgan', variant: 'secondary' },
+      pending: { text: 'Kutilmoqda', variant: 'outline' },
+    };
+    return labels[status] || { text: status, variant: 'outline' as const };
   };
 
   const columns: Column<Notification>[] = [
@@ -197,6 +234,24 @@ export default function AdminNotifications() {
       render: (notif) => {
         const { text, variant } = getTypeLabel(notif.type);
         return <Badge variant={variant}>{text}</Badge>;
+      },
+    },
+    {
+      key: 'status',
+      header: 'Holati',
+      render: (notif) => {
+        const { text, variant } = getStatusLabel(notif.status || 'sent');
+        return (
+          <div className="flex flex-col gap-1">
+            <Badge variant={variant}>{text}</Badge>
+            {notif.scheduled_at && notif.status === 'scheduled' && (
+              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                {formatDate(notif.scheduled_at)}
+              </span>
+            )}
+          </div>
+        );
       },
     },
     {
@@ -260,7 +315,20 @@ export default function AdminNotifications() {
         { value: 'system', label: 'Tizim' },
       ],
     },
+    {
+      key: 'status',
+      label: 'Holati',
+      options: [
+        { value: 'sent', label: 'Yuborilgan' },
+        { value: 'scheduled', label: 'Rejalashtirilgan' },
+      ],
+    },
   ];
+
+  // Get minimum date/time (now)
+  const now = new Date();
+  const minDate = now.toISOString().split('T')[0];
+  const minTime = now.toTimeString().slice(0, 5);
 
   return (
     <DashboardLayout>
@@ -363,6 +431,47 @@ export default function AdminNotifications() {
                 onChange={(e) => setFormData(prev => ({ ...prev, message: e.target.value }))}
               />
             </div>
+            
+            {/* Send Now Toggle */}
+            <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/30">
+              <div className="space-y-0.5">
+                <Label htmlFor="send-now" className="font-medium">Hozir yuborish</Label>
+                <p className="text-xs text-muted-foreground">
+                  {formData.sendNow ? 'Xabarnoma darhol yuboriladi' : 'Belgilangan vaqtda yuboriladi'}
+                </p>
+              </div>
+              <Switch
+                id="send-now"
+                checked={formData.sendNow}
+                onCheckedChange={(checked) => setFormData(prev => ({ ...prev, sendNow: checked }))}
+              />
+            </div>
+            
+            {/* Scheduled Date/Time */}
+            {!formData.sendNow && (
+              <div className="grid grid-cols-2 gap-4 p-4 border rounded-lg bg-muted/30">
+                <div className="space-y-2">
+                  <Label htmlFor="scheduled-date">Sana</Label>
+                  <Input
+                    id="scheduled-date"
+                    type="date"
+                    min={minDate}
+                    value={formData.scheduledDate}
+                    onChange={(e) => setFormData(prev => ({ ...prev, scheduledDate: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="scheduled-time">Vaqt</Label>
+                  <Input
+                    id="scheduled-time"
+                    type="time"
+                    min={formData.scheduledDate === minDate ? minTime : undefined}
+                    value={formData.scheduledTime}
+                    onChange={(e) => setFormData(prev => ({ ...prev, scheduledTime: e.target.value }))}
+                  />
+                </div>
+              </div>
+            )}
 
             <div className="flex justify-end gap-3 pt-4">
               <Button variant="outline" onClick={() => setIsCreateOpen(false)}>
@@ -373,8 +482,17 @@ export default function AdminNotifications() {
                 className="gradient-primary text-primary-foreground"
                 disabled={sending}
               >
-                <Send className="h-4 w-4 mr-2" />
-                {sending ? 'Yuborilmoqda...' : 'Yuborish'}
+                {formData.sendNow ? (
+                  <>
+                    <Send className="h-4 w-4 mr-2" />
+                    {sending ? 'Yuborilmoqda...' : 'Yuborish'}
+                  </>
+                ) : (
+                  <>
+                    <Clock className="h-4 w-4 mr-2" />
+                    {sending ? 'Saqlanmoqda...' : 'Rejalashtirish'}
+                  </>
+                )}
               </Button>
             </div>
           </div>
@@ -405,10 +523,27 @@ export default function AdminNotifications() {
                 </p>
               </div>
               <div>
+                <label className="text-sm font-medium text-muted-foreground">Holati</label>
+                <p className="mt-1">
+                  <Badge variant={getStatusLabel(viewNotif?.status || 'sent').variant}>
+                    {getStatusLabel(viewNotif?.status || 'sent').text}
+                  </Badge>
+                </p>
+              </div>
+              <div>
                 <label className="text-sm font-medium text-muted-foreground">Yuborildi</label>
                 <p className="mt-1 font-medium">{viewNotif?.sent_count} ta foydalanuvchiga</p>
               </div>
             </div>
+            {viewNotif?.scheduled_at && viewNotif?.status === 'scheduled' && (
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">Rejalashtirilgan vaqt</label>
+                <p className="mt-1 flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  {formatDate(viewNotif.scheduled_at)}
+                </p>
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>
