@@ -27,7 +27,7 @@ import {useToast} from '@/hooks/use-toast';
 import {usersApi, authApi} from '@/services/api';
 import {cn} from '@/lib/utils';
 import {ConfirmDialog} from '@/components/ConfirmDialog';
-import {formatDate} from "@/data/demoData";
+import {formatDate} from "@/lib/utils.ts";
 
 interface User {
     id: string;

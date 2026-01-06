@@ -5,7 +5,7 @@ from .models import User
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'phone', 'role', 'avatar', 
+        fields = ['id', 'username', 'email', 'phone', 'role', 'avatar', 'watermark_id',
                   'is_blocked', 'created_at', 'first_name', 'last_name']
         read_only_fields = ['id', 'created_at', 'role']
 
@@ -39,7 +39,7 @@ class UserDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'username', 'email', 'phone', 'role', 'avatar', 
-                  'is_blocked', 'created_at', 'first_name', 'last_name', 
+                  'is_blocked', 'created_at', 'first_name', 'last_name', 'watermark_id',
                   'date_joined', 'last_login']
         read_only_fields = ['id', 'created_at', 'date_joined', 'last_login', 'role']
 

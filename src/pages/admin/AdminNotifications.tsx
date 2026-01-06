@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
+import { formatDate } from "@/lib/utils";
 
 interface Notification {
   id: string;
@@ -188,16 +189,6 @@ export default function AdminNotifications() {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('uz-UZ', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
 
   const getTypeLabel = (type: string) => {
     const labels: Record<string, { text: string; variant: 'default' | 'secondary' | 'outline' }> = {

@@ -21,9 +21,10 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import {useToast} from '@/hooks/use-toast';
-import {formatDate, formatCurrency} from '@/data/demoData';
+import {formatCurrency} from '@/data/demoData';
 import {cn} from '@/lib/utils';
 import {usersApi, paymentsApi, userCoursesApi, categoriesApi, notificationsApi} from "@/services/api";
+import {formatDate} from "@/lib/utils.ts";
 
 interface User {
     id: string;
@@ -307,9 +308,17 @@ export default function AdminUserDetail() {
                         <Button
                             variant="outline"
                             onClick={() => navigate(`/admin/users/${userId}/edit`)}
+                            className='hover:bg-card'
                         >
                             <Edit className="mr-2 h-4 w-4"/>
                             Tahrirlash
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={() => setShowDeleteConfirm(true)}
+                        >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            O'chirish
                         </Button>
                         <Button
                             variant="outline"
@@ -319,13 +328,7 @@ export default function AdminUserDetail() {
                             {user.is_blocked ? <CheckCircle2 className="mr-2 h-4 w-4"/> : <Ban className="mr-2 h-4 w-4"/>}
                             {user.is_blocked ? 'Faollashtirish' : 'Bloklash'}
                         </Button>
-                        <Button
-                            variant="destructive"
-                            onClick={() => setShowDeleteConfirm(true)}
-                        >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            O'chirish
-                        </Button>
+
                     </div>
                 </div>
             </div>

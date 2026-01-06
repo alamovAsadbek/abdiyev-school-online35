@@ -33,10 +33,10 @@ import {
     demoUsers,
     getCategoryById,
     getVideoById,
-    formatDate,
     initialStudentProgress,
 } from '@/data/demoData';
 import {api} from "@/lib/api.ts";
+import {formatDate} from "@/lib/utils.ts";
 
 interface StudentStat {
     id: string;
@@ -116,7 +116,7 @@ export default function AdminVideoDetail() {
         <DashboardLayout>
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
-                <Button variant="ghost" onClick={() => navigate('/admin/videos')} className="-ml-2">
+                <Button variant="ghost" onClick={() => navigate('/admin/videos')} className="-ml-2 hover:bg-card">
                     <ArrowLeft className="mr-2 h-4 w-4"/>
                     Orqaga
                 </Button>
@@ -124,6 +124,7 @@ export default function AdminVideoDetail() {
                     <Button
                         variant="outline"
                         onClick={() => navigate(`/admin/videos/${videoId}/edit`)}
+                        className='hover:bg-card'
                     >
                         <Pencil className="mr-2 h-4 w-4"/>
                         Tahrirlash
@@ -131,7 +132,7 @@ export default function AdminVideoDetail() {
                     <Button
                         variant="outline"
                         onClick={() => setShowDeleteConfirm(true)}
-                        className="text-destructive hover:text-destructive"
+                        className="text-destructive hover:text-white hover:bg-destructive"
                     >
                         <Trash2 className="mr-2 h-4 w-4"/>
                         O'chirish

@@ -94,7 +94,7 @@ export default function AdminUserEdit() {
       </header>
 
       <main>
-        <section className="max-w-2xl">
+        <section className="w-full">
           <h1 className="text-2xl lg:text-3xl font-bold text-foreground mb-2">
             Foydalanuvchini tahrirlash
           </h1>

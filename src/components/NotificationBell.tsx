@@ -27,8 +27,33 @@ interface UserNotification {
   received_at: string;
 }
 
+export const playNotificationSound = () => {
+  const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+
+  const oscillator = audioCtx.createOscillator();
+  const gainNode = audioCtx.createGain();
+
+  oscillator.type = 'sine';       // eng yoqimli tovush
+  oscillator.frequency.value = 880; // chiroyli bell (A5)
+
+  gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+  gainNode.gain.linearRampToValueAtTime(0.3, audioCtx.currentTime + 0.05);
+  gainNode.gain.exponentialRampToValueAtTime(
+      0.001,
+      audioCtx.currentTime + 0.8
+  );
+
+  oscillator.connect(gainNode);
+  gainNode.connect(audioCtx.destination);
+
+  oscillator.start();
+  oscillator.stop(audioCtx.currentTime + 0.8);
+};
+
+
 // Notification sound as base64 (short beep sound)
-const NOTIFICATION_SOUND_BASE64 = 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2teleQgdWI+u0L55ExdJfKTLy4k5CyRjrbvPn1w0I06KxdSzZxoKS3ek0s+EWAUKV4i11MQAAAB/gYB9e32JpL+2h1IxNVaAvtfRoVwMJV6bztyxZhAZUouz0sFzCBVJhbDTv3gJEVGDr9DAfQsPUIOvz8B9Cw9Qg6/PwH0LD1CDr8/AfQsPUIOvz8B9Cw9Qg6/PwH0LD1CDr8/AfQsPUIOvz8B9Cw9Qg6/PwH0LD1CDr8/AfQsPUIOvz8B9Cw9Qg6/PwH0LD1CDr8/AfQsPUIOvz8B9Cw9Qg6/PwH0=';
+const NOTIFICATION_SOUND_BASE64 = playNotificationSound();
+
 
 export function NotificationBell() {
   const { user } = useAuth();
@@ -43,16 +68,18 @@ export function NotificationBell() {
   const hasPlayedInitialSound = useRef(false);
 
   // Initialize audio on mount
+  const audioContextRef = useRef<AudioContext | null>(null);
+
   useEffect(() => {
-    audioRef.current = new Audio(NOTIFICATION_SOUND_BASE64);
-    audioRef.current.volume = 0.5;
-    
+    audioContextRef.current =
+        new (window.AudioContext || (window as any).webkitAudioContext)();
+
     return () => {
-      if (audioRef.current) {
-        audioRef.current = null;
-      }
+      audioContextRef.current?.close();
+      audioContextRef.current = null;
     };
   }, []);
+
 
   const playNotificationSound = useCallback(() => {
     if (audioRef.current) {

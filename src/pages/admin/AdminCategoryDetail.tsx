@@ -3,7 +3,7 @@ import {ArrowLeft, Plus, Pencil, Trash2, Eye, Clock} from 'lucide-react';
 import {DashboardLayout} from '@/layouts/DashboardLayout';
 import {DataTable, Column} from '@/components/DataTable';
 import {Button} from '@/components/ui/button';
-import {formatDate} from '@/data/demoData';
+import {formatDate} from "@/lib/utils.ts";
 import {useToast} from '@/hooks/use-toast';
 import {useEffect, useState} from "react";
 import {categoriesApi, videosApi} from "@/services/api";
