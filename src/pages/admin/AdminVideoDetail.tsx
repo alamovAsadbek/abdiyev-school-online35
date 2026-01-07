@@ -36,7 +36,10 @@ import {
     initialStudentProgress,
 } from '@/data/demoData';
 import {api} from "@/lib/api.ts";
-import {formatDate} from "@/lib/utils.ts";
+import {ClockText, formatDate} from "@/lib/utils.ts";
+import ShakaPlayer from "shaka-player-react";
+import "shaka-player-react/dist/controls.css";
+import VideoPlayer from "@/components/VideoPlayes.tsx";
 
 interface StudentStat {
     id: string;
@@ -57,6 +60,31 @@ export default function AdminVideoDetail() {
     const [video, setVideo] = useState(null)
     const category = video ? getCategoryById(video.categoryId) : null;
     const task = demoTasks.find(t => t.videoId === videoId);
+    const [user, setUser] = useState(null);
+
+    // get user data
+
+    const getUser = async () => {
+        try {
+            api.get('/users/me').then((res) => {
+                setUser(res)
+            }).catch((err) => {
+                console.log(err);
+                toast({
+                    title: "Xatolik",
+                    description: "Xatolik yuz berdi, iltimos qayta urinib ko'ring!!!",
+                    variant: 'destructive'
+                })
+            })
+        } catch (e) {
+            console.log(e)
+            toast({
+                title: 'Xatolik',
+                description: e.message,
+                variant: 'destructive'
+            })
+        }
+    }
 
     useEffect(() => {
         try {
@@ -69,7 +97,9 @@ export default function AdminVideoDetail() {
         } catch (e) {
             console.log(e)
         }
+        getUser();
     }, [videoId]);
+
 
     // Generate student statistics
     const studentStats: StudentStat[] = demoUsers
@@ -149,106 +179,143 @@ export default function AdminVideoDetail() {
                 {/* Video Info Tab */}
                 <TabsContent value="info" className="space-y-6">
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                        {/* Video Preview */}
+
+                        {/* Video + Info */}
                         <div className="lg:col-span-2 space-y-6 animate-fade-in">
-                            <div className="relative aspect-video rounded-xl overflow-hidden bg-black">
-                                <iframe
-                                    src={video.videoUrl}
-                                    title={video.title}
-                                    className="w-full h-full"
-                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                    allowFullScreen
-                                />
+
+                            <div className="relative w-full rounded-xl bg-black overflow-hidden">
+
+                                {/* VIDEO PLAYER */}
+                                <VideoPlayer videoUrl={video.video_url}
+                                             userId={`${user?.watermark_id} • ${user?.username}`}/>
+
                             </div>
 
+                            {/* VIDEO INFO */}
                             <div>
-                                <h1 className="text-2xl font-bold text-foreground mb-4">{video.title}</h1>
-                                <p className="text-muted-foreground mb-6">{video.description}</p>
+                                <h1 className="text-2xl font-bold text-foreground mb-4">
+                                    {video.title}
+                                </h1>
+
+                                <p className="text-muted-foreground mb-6">
+                                    {video.description}
+                                </p>
 
                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+
+                                    {/* Duration */}
                                     <div className="p-4 rounded-lg bg-muted/50">
                                         <div className="flex items-center gap-2 text-muted-foreground mb-1">
                                             <Clock className="h-4 w-4"/>
                                             <span className="text-sm">Davomiylik</span>
                                         </div>
-                                        <p className="font-semibold text-foreground">{video.duration}</p>
+                                        <p className="font-semibold text-foreground">
+                                            {video.duration}
+                                        </p>
                                     </div>
+
+                                    {/* Views */}
                                     <div className="p-4 rounded-lg bg-muted/50">
                                         <div className="flex items-center gap-2 text-muted-foreground mb-1">
                                             <Eye className="h-4 w-4"/>
-                                            <span className="text-sm">Ko'rishlar</span>
+                                            <span className="text-sm">Ko‘rishlar</span>
                                         </div>
-                                        <p className="font-semibold text-foreground">{video.viewCount}</p>
+                                        <p className="font-semibold text-foreground">
+                                            {video.viewCount}
+                                        </p>
                                     </div>
+
+                                    {/* Created at */}
                                     <div className="p-4 rounded-lg bg-muted/50">
                                         <div className="flex items-center gap-2 text-muted-foreground mb-1">
                                             <Calendar className="h-4 w-4"/>
-                                            <span className="text-sm">Qo'shilgan</span>
+                                            <span className="text-sm">Qo‘shilgan</span>
                                         </div>
-                                        <p className="font-semibold text-foreground">{formatDate(video.created_at)}</p>
+                                        <p className="font-semibold text-foreground">
+                                            {formatDate(video.created_at)}
+                                        </p>
                                     </div>
+
+                                    {/* Category */}
                                     <div className="p-4 rounded-lg bg-muted/50">
                                         <div className="flex items-center gap-2 text-muted-foreground mb-1">
                                             <FolderOpen className="h-4 w-4"/>
                                             <span className="text-sm">Kurs</span>
                                         </div>
-                                        <a className="font-semibold text-primary cursor-pointer hover:text-success"
-                                           onClick={() => {
-                                               navigate(`/admin/categories/${video.category}`)
-                                           }}>{video?.category_name}</a>
+                                        <button
+                                            className="font-semibold text-primary hover:text-success transition"
+                                            onClick={() => navigate(`/admin/categories/${video.category}`)}
+                                        >
+                                            {video.category_name}
+                                        </button>
                                     </div>
+
                                 </div>
                             </div>
                         </div>
 
-                        {/* Sidebar */}
-                        <div className="space-y-6 animate-fade-in" style={{animationDelay: '0.1s'}}>
-                            {/* Task Info */}
+                        {/* SIDEBAR */}
+                        <div
+                            className="space-y-6 animate-fade-in"
+                            style={{animationDelay: "0.1s"}}
+                        >
+
+                            {/* TASK INFO */}
                             <div className="rounded-xl border border-border bg-card p-5">
                                 <h3 className="font-semibold text-card-foreground mb-4 flex items-center gap-2">
                                     <ClipboardList className="h-5 w-5 text-primary"/>
                                     Vazifa
                                 </h3>
+
                                 {task ? (
                                     <div>
                                         <p className="font-medium mb-2">{task.title}</p>
-                                        <p className="text-sm text-muted-foreground mb-3">{task.description}</p>
+                                        <p className="text-sm text-muted-foreground mb-3">
+                                            {task.description}
+                                        </p>
                                         <p className="text-sm text-muted-foreground">
                                             {task.questions.length} ta savol
                                         </p>
+
                                         <Button
                                             variant="outline"
                                             className="w-full mt-4"
-                                            onClick={() => navigate(`/admin/tasks`)}
+                                            onClick={() => navigate("/admin/tasks")}
                                         >
-                                            Vazifani ko'rish
+                                            Vazifani ko‘rish
                                         </Button>
                                     </div>
                                 ) : (
                                     <div className="text-center py-4">
-                                        <p className="text-muted-foreground mb-3">Bu videoga vazifa biriktirilmagan</p>
+                                        <p className="text-muted-foreground mb-3">
+                                            Bu videoga vazifa biriktirilmagan
+                                        </p>
                                         <Button
                                             variant="outline"
-                                            onClick={() => navigate('/admin/tasks')}
+                                            onClick={() => navigate("/admin/tasks")}
                                         >
-                                            Vazifa qo'shish
+                                            Vazifa qo‘shish
                                         </Button>
                                     </div>
                                 )}
                             </div>
 
-                            {/* Thumbnail Preview */}
+                            {/* THUMBNAIL */}
                             <div className="rounded-xl border border-border bg-card p-5">
-                                <h3 className="font-semibold text-card-foreground mb-4">Thumbnail</h3>
+                                <h3 className="font-semibold text-card-foreground mb-4">
+                                    Thumbnail
+                                </h3>
                                 <img
                                     src={video.thumbnail}
                                     alt={video.title}
-                                    className="w-full rounded-lg"
+                                    className="w-full rounded-lg object-contain"
                                 />
                             </div>
+
                         </div>
                     </div>
                 </TabsContent>
+
 
                 {/* Statistics Tab */}
                 <TabsContent value="stats" className="space-y-6">
@@ -382,7 +449,8 @@ export default function AdminVideoDetail() {
                 </TabsContent>
             </Tabs>
 
-            {/* Delete Confirmation */}
+            {/* Delete Confirmation */
+            }
             <ConfirmDialog
                 open={showDeleteConfirm}
                 onOpenChange={setShowDeleteConfirm}
@@ -394,5 +462,6 @@ export default function AdminVideoDetail() {
                 onConfirm={handleDelete}
             />
         </DashboardLayout>
-    );
+    )
+        ;
 }

@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { paymentsApi, usersApi } from '@/services/api';
-import { cn } from '@/lib/utils';
+import { cn, formatDate } from '@/lib/utils';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 
 interface Payment {
@@ -199,15 +199,6 @@ export default function AdminPayments() {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('uz-UZ', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    });
-  };
-
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('uz-UZ').format(amount) + ' so\'m';
   };
@@ -301,7 +292,7 @@ export default function AdminPayments() {
             variant="ghost"
             size="icon"
             onClick={() => setPaymentToDelete(payment.id)}
-            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+            className="h-8 w-8 text-muted-foreground hover:bg-destructive"
           >
             <Trash2 className="h-4 w-4" />
           </Button>

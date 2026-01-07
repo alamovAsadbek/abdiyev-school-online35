@@ -385,7 +385,7 @@ export default function AdminUserDetail() {
                                                 variant="ghost"
                                                 size="icon"
                                                 onClick={() => setCourseToDelete(course.id)}
-                                                className="h-8 w-8 text-destructive hover:text-destructive"
+                                                className="h-8 w-8 text-destructive hover:bg-destructive"
                                             >
                                                 <Trash2 className="h-4 w-4"/>
                                             </Button>

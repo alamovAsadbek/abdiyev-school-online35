@@ -24,13 +24,13 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    
+
     # Third party apps
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
     'drf_yasg',
-    
+
     # Local apps
     'apps.users',
     'apps.courses',
@@ -248,3 +248,13 @@ LOGGING = {
         },
     },
 }
+
+X_FRAME_OPTIONS = 'DENY'
+
+CSP_FRAME_ANCESTORS = (
+    "'self'",
+    "http://localhost:3000",
+)
+
+
+

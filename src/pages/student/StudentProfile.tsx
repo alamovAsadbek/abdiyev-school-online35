@@ -33,6 +33,8 @@ export default function StudentProfile() {
     const [formData, setFormData] = useState({
         firstName: user.first_name,
         lastName: user.last_name,
+        username: user.username,
+        phone: user.phone,
     });
 
     // Get user payments
@@ -230,11 +232,11 @@ export default function StudentProfile() {
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div className="space-y-2">
-                                            <Label htmlFor="firstName">Username <span className='text-destructive'>*</span></Label>
+                                            <Label htmlFor="username">Username <span className='text-destructive'>*</span></Label>
                                             <Input
-                                                id="firstName"
-                                                value={formData.firstName}
-                                                onChange={(e) => setFormData({...formData, firstName: e.target.value})}
+                                                id="username"
+                                                value={formData.username}
+                                                onChange={(e) => setFormData({...formData, username: e.target.value})}
                                                 disabled={!isEditing}
                                                 placeholder="Usernamengizni kiriting"
                                                 className={!isEditing ? 'bg-muted' : ''}
@@ -242,11 +244,11 @@ export default function StudentProfile() {
                                         </div>
 
                                         <div className="space-y-2">
-                                            <Label htmlFor="lastName">Telefon raqam</Label>
+                                            <Label htmlFor="phone">Telefon raqam</Label>
                                             <Input
-                                                id="lastName"
-                                                value={formData.lastName}
-                                                onChange={(e) => setFormData({...formData, lastName: e.target.value})}
+                                                id="phone"
+                                                value={formData.phone}
+                                                onChange={(e) => setFormData({...formData, phone: e.target.value})}
                                                 disabled={!isEditing}
                                                 placeholder="Telefon raqamingizni kiriting"
                                                 className={!isEditing ? 'bg-muted' : ''}

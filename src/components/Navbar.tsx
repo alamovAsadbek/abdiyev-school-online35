@@ -50,9 +50,9 @@ export function Navbar() {
                     {/* User Profile Menu */}
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-10 gap-2 px-2">
+                            <Button variant="ghost" className="h-10 gap-2 px-2 hover:text-white">
                                 <div
-                                    className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold text-sm">
+                                    className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 font-semibold text-sm">
                                     {user.name.charAt(0)}
                                 </div>
                                 <div className="hidden md:block text-left">

@@ -145,7 +145,7 @@ export default function StudentCheckout() {
                                                 variant="ghost"
                                                 size="icon"
                                                 onClick={() => removeFromCart(item.id)}
-                                                className="text-destructive hover:text-destructive"
+                                                className="text-destructive hover:bg-destructive"
                                             >
                                                 <Trash2 className="h-4 w-4"/>
                                             </Button>

@@ -244,8 +244,8 @@ export default function AdminUsers() {
                         className={cn(
                             "h-8 w-8",
                             user.is_blocked
-                                ? "text-success hover:text-success"
-                                : "text-warning hover:text-warning"
+                                ? "text-success"
+                                : "text-warning hover:bg-warning"
                         )}
                     >
                         {user.is_blocked ? <CheckCircle2 className="h-4 w-4"/> : <Ban className="h-4 w-4"/>}
@@ -254,7 +254,7 @@ export default function AdminUsers() {
                         variant="ghost"
                         size="icon"
                         onClick={() => setDeleteUserId(user.id)}
-                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        className="h-8 w-8 text-muted-foreground hover:bg-destructive"
                     >
                         <Trash2 className="h-4 w-4"/>
                     </Button>
