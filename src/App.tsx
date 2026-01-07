@@ -29,6 +29,7 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminCategories from "./pages/admin/AdminCategories";
 import AdminVideos from "./pages/admin/AdminVideos";
 import AdminVideoAdd from "./pages/admin/AdminVideoAdd";
+import AdminVideoAddWithTask from "./pages/admin/AdminVideoAddWithTask";
 import AdminVideoDetail from "./pages/admin/AdminVideoDetail";
 import AdminVideoEdit from "./pages/admin/AdminVideoEdit";
 import AdminTasks from "./pages/admin/AdminTasks";
@@ -114,7 +115,8 @@ function AppRoutes() {
       <Route path="/admin/categories" element={<ProtectedRoute allowedRole="admin"><AdminCategories /></ProtectedRoute>} />
       <Route path="/admin/categories/:categoryId" element={<ProtectedRoute allowedRole="admin"><AdminCategoryDetail /></ProtectedRoute>} />
       <Route path="/admin/videos" element={<ProtectedRoute allowedRole="admin"><AdminVideos /></ProtectedRoute>} />
-      <Route path="/admin/videos/add" element={<ProtectedRoute allowedRole="admin"><AdminVideoAdd /></ProtectedRoute>} />
+      <Route path="/admin/videos/add" element={<ProtectedRoute allowedRole="admin"><AdminVideoAddWithTask /></ProtectedRoute>} />
+      <Route path="/admin/videos/add-old" element={<ProtectedRoute allowedRole="admin"><AdminVideoAdd /></ProtectedRoute>} />
       <Route path="/admin/videos/:videoId" element={<ProtectedRoute allowedRole="admin"><AdminVideoDetail /></ProtectedRoute>} />
       <Route path="/admin/videos/:videoId/edit" element={<ProtectedRoute allowedRole="admin"><AdminVideoEdit /></ProtectedRoute>} />
       <Route path="/admin/tasks" element={<ProtectedRoute allowedRole="admin"><AdminTasks /></ProtectedRoute>} />
