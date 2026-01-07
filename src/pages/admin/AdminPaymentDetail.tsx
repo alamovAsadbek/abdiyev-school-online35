@@ -2,8 +2,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, User, Calendar, CreditCard, Clock } from 'lucide-react';
 import { DashboardLayout } from '@/layouts/DashboardLayout';
 import { Button } from '@/components/ui/button';
-import { demoPayments, getUserById, formatDate, formatCurrency, getDaysUntilExpiry } from '@/data/demoData';
-import { cn } from '@/lib/utils';
+import { demoPayments, getUserById, formatCurrency, getDaysUntilExpiry } from '@/data/demoData';
+import { cn, formatDate } from '@/lib/utils';
 
 export default function AdminPaymentDetail() {
   const { paymentId } = useParams();

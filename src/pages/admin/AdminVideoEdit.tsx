@@ -21,8 +21,8 @@ export default function AdminVideoEdit() {
     const {videoId} = useParams();
     const navigate = useNavigate();
     const {toast} = useToast();
-    const [video, setVideo] = useState();
-    const [category, setCategory] = useState([]);
+    const [video, setVideo] = useState<any>(null);
+    const [category, setCategory] = useState<any[]>([]);
 
     const [formData, setFormData] = useState({
         title: '',

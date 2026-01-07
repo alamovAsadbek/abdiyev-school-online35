@@ -116,6 +116,22 @@ export const tasksApi = {
   delete: async (id: string) => {
     return api.delete(`/tasks/${id}/`);
   },
+  getStats: async (taskId: string) => {
+    return api.get(`/tasks/${taskId}/stats/`);
+  },
+};
+
+// Video Stats API
+export const videoStatsApi = {
+  getVideoStats: async (videoId: string) => {
+    return api.get(`/videos/${videoId}/stats/`);
+  },
+  updateOrder: async (videoId: string, newOrder: number) => {
+    return api.post(`/videos/${videoId}/update_order/`, { order: newOrder });
+  },
+  bulkUpdateOrder: async (orderUpdates: { id: string; order: number }[]) => {
+    return api.post('/videos/bulk_update_order/', { updates: orderUpdates });
+  },
 };
 
 // User Courses API

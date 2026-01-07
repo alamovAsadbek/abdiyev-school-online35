@@ -79,6 +79,8 @@ export default function StudentProfile() {
         setFormData({
             firstName: user.first_name,
             lastName: user.last_name,
+            username: user.username,
+            phone: user.phone,
         });
         setIsEditing(false);
     };
