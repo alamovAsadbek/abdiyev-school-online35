@@ -1,6 +1,6 @@
 import {useState, useEffect} from 'react';
 import {useNavigate} from 'react-router-dom';
-import {Search, Lock, ShoppingCart} from 'lucide-react';
+import {Search, Lock, ShoppingCart, Gift} from 'lucide-react';
 import {DashboardLayout} from '@/layouts/DashboardLayout';
 import {demoCategories, getUserCourses, Category, formatCurrency} from '@/data/demoData';
 import {useAuth} from '@/contexts/AuthContext';
@@ -20,6 +20,7 @@ export default function StudentCourses() {
     const [selectedCourse, setSelectedCourse] = useState<Category | null>(null);
     const [categories, setCategories] = useState<Category[]>();
     const [accessibleCourseIds, setAccessibleCourseIds] = useState<string[]>([]);
+    const [courseGrantedBy, setCourseGrantedBy] = useState<Record<string, string>>({});
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
@@ -33,23 +34,46 @@ export default function StudentCourses() {
                 categoriesApi.getAll().catch(() => null),
                 userCoursesApi.getMyCourses().catch(() => null)
             ]);
+
             if (categoriesData) {
-                setCategories(categoriesData?.results);
+                const list = (categoriesData as any)?.results || categoriesData;
+                setCategories(list);
             }
 
             if (userCoursesData) {
-                setAccessibleCourseIds(userCoursesData.map((uc: any) => uc.category_id || uc.categoryId));
+                const courses = (userCoursesData as any)?.results || userCoursesData || [];
+                const map: Record<string, string> = {};
+
+                for (const uc of courses) {
+                    const categoryId = (uc as any)?.category ?? (uc as any)?.category_id ?? (uc as any)?.categoryId;
+                    if (categoryId !== undefined && categoryId !== null) {
+                        map[String(categoryId)] = (uc as any)?.granted_by ?? (uc as any)?.grantedBy ?? 'payment';
+                    }
+                }
+
+                setCourseGrantedBy(map);
+                setAccessibleCourseIds(Object.keys(map));
             } else if (user) {
                 // Fallback to demo data
                 const userCourses = getUserCourses(user.id);
-                setAccessibleCourseIds(userCourses.map(uc => uc.categoryId));
+                const map: Record<string, string> = {};
+                userCourses.forEach((uc) => {
+                    map[String(uc.categoryId)] = uc.grantedBy;
+                });
+                setCourseGrantedBy(map);
+                setAccessibleCourseIds(Object.keys(map));
             }
         } catch (error) {
             console.error('Error loading data:', error);
             // Fallback to demo data
             if (user) {
                 const userCourses = getUserCourses(user.id);
-                setAccessibleCourseIds(userCourses.map(uc => uc.categoryId));
+                const map: Record<string, string> = {};
+                userCourses.forEach((uc) => {
+                    map[String(uc.categoryId)] = uc.grantedBy;
+                });
+                setCourseGrantedBy(map);
+                setAccessibleCourseIds(Object.keys(map));
             }
         } finally {
             setIsLoading(false);
@@ -59,10 +83,10 @@ export default function StudentCourses() {
     // Filter categories
     const filteredCategories = categories?.filter(category => {
         const matchesSearch =
-            category.name.toLowerCase().includes(search.toLowerCase()) ||
-            category.description.toLowerCase().includes(search.toLowerCase());
+            (category.name ?? '').toLowerCase().includes(search.toLowerCase()) ||
+            (category.description ?? '').toLowerCase().includes(search.toLowerCase());
 
-        const hasAccess = accessibleCourseIds.includes(category.id);
+        const hasAccess = accessibleCourseIds.includes(String((category as any).id));
 
         if (filterAccess === 'accessible') return matchesSearch && hasAccess;
         if (filterAccess === 'locked') return matchesSearch && !hasAccess;
@@ -72,11 +96,12 @@ export default function StudentCourses() {
 
 
     const handleCourseClick = (categoryId: string) => {
-        const hasAccess = accessibleCourseIds.includes(categoryId);
+        const id = String(categoryId);
+        const hasAccess = accessibleCourseIds.includes(id);
         if (hasAccess) {
-            navigate(`/student/category/${categoryId}`);
+            navigate(`/student/category/${id}`);
         } else {
-            const course = categories.find(c => c.id === categoryId);
+            const course = categories?.find((c) => String((c as any).id) === id);
             setSelectedCourse(course || null);
         }
     };
@@ -139,48 +164,59 @@ export default function StudentCourses() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                 {filteredCategories.map((category, index) => {
-                    const hasAccess = accessibleCourseIds.includes(category.id);
+                    const categoryId = String((category as any).id);
+                    const hasAccess = accessibleCourseIds.includes(categoryId);
+                    const grantedBy = courseGrantedBy[categoryId];
+                    const isGifted = hasAccess && grantedBy === 'gift';
+
+                    const videoCount = (category as any).videoCount ?? (category as any).video_count ?? 0;
+                    const price = Number((category as any).price ?? 0);
 
                     return (
                         <div
-                            key={category.id}
+                            key={categoryId}
                             className="animate-fade-in relative"
                             style={{animationDelay: `${0.1 + index * 0.05}s`}}
                         >
                             {/* Course Card */}
                             <div
-                                onClick={() => handleCourseClick(category.id)}
+                                onClick={() => handleCourseClick(categoryId)}
                                 className={`rounded-xl border bg-card p-5 cursor-pointer transition-all hover:shadow-lg ${hasAccess ? 'border-border hover:border-primary/50' : 'border-border/50'
                                 }`}
                             >
-                                {/* Icon and Lock Badge */}
+                                {/* Icon and Lock/Gift Badge */}
                                 <div className="flex items-start justify-between mb-4">
                                     <div
                                         className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-2xl">
-                                        {category.icon}
+                                        {(category as any).icon}
                                     </div>
-                                    {!hasAccess && (
+
+                                    {!hasAccess ? (
                                         <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
                                             <Lock className="h-4 w-4 text-muted-foreground"/>
                                         </div>
-                                    )}
+                                    ) : isGifted ? (
+                                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent/10 text-accent">
+                                            <Gift className="h-4 w-4"/>
+                                        </div>
+                                    ) : null}
                                 </div>
 
                                 {/* Course Info */}
                                 <h3 className="font-semibold text-card-foreground mb-2 line-clamp-1">
-                                    {category.name}
+                                    {(category as any).name}
                                 </h3>
                                 <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
-                                    {category.description}
+                                    {(category as any).description || ''}
                                 </p>
 
                                 {/* Price and Status */}
                                 <div className="flex items-center justify-between pt-3 border-t border-border">
                   <span className={`text-lg font-bold ${hasAccess ? 'text-success' : 'text-primary'}`}>
-                    {hasAccess ? 'Ochiq' : formatCurrency(category.price)}
+                    {hasAccess ? 'Ochiq' : formatCurrency(price)}
                   </span>
                                     <span className="text-xs text-muted-foreground">
-                    {category.videoCount} ta video
+                    {videoCount} ta video
                   </span>
                                 </div>
                             </div>
