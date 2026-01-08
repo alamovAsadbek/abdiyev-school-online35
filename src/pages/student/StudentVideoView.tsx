@@ -81,7 +81,10 @@ export default function StudentVideoView() {
         const myCourses = await userCoursesApi.getMyCourses();
         const courses = myCourses?.results || myCourses || [];
         const hasAccessToCourse = courses.some(
-          (c: any) => String(c.category) === String(videoData.category)
+          (c: any) => {
+            const courseCategory = c.category_id || c.categoryId || c.category;
+            return String(courseCategory) === String(videoData.category);
+          }
         );
         setHasAccess(hasAccessToCourse);
 

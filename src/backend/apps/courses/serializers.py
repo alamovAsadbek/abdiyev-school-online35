@@ -33,21 +33,61 @@ class VideoSerializer(serializers.ModelSerializer):
     
     # Write-only fields - optional for file uploads
     video_file = serializers.FileField(write_only=True, required=False, allow_null=True)
-    thumbnail_file = serializers.ImageField(write_only=True, required=False, allow_null=True, source='thumbnail')
-    thumbnail_url_input = serializers.URLField(write_only=True, required=False, allow_null=True, allow_blank=True, source='thumbnail_url')
-    video_url_input = serializers.URLField(write_only=True, required=False, allow_null=True, allow_blank=True)
+    thumbnail_file = serializers.ImageField(write_only=True, required=False, allow_null=True)
+    thumbnail_url = serializers.URLField(write_only=True, required=False, allow_null=True, allow_blank=True)
     
     class Meta:
         model = Video
         fields = ['id', 'category', 'category_name', 'title', 'description', 
                   'duration', 'thumbnail', 'video_url', 'video_file', 
-                  'thumbnail_file', 'thumbnail_url_input', 'video_url_input',
+                  'thumbnail_file', 'thumbnail_url',
                   'order', 'view_count', 'tasks', 'created_at']
         extra_kwargs = {
             'category': {'required': True},
             'title': {'required': True},
-            'duration': {'required': True},
+            'duration': {'required': False, 'allow_blank': True},
+            'description': {'required': False, 'allow_blank': True},
         }
+    
+    def create(self, validated_data):
+        # Handle file uploads
+        video_file = validated_data.pop('video_file', None)
+        thumbnail_file = validated_data.pop('thumbnail_file', None)
+        thumbnail_url = validated_data.pop('thumbnail_url', None)
+        
+        # Set default empty description if not provided
+        if 'description' not in validated_data or validated_data.get('description') is None:
+            validated_data['description'] = ''
+        
+        video = Video.objects.create(**validated_data)
+        
+        if video_file:
+            video.video_file = video_file
+        if thumbnail_file:
+            video.thumbnail = thumbnail_file
+        elif thumbnail_url:
+            video.thumbnail_url = thumbnail_url
+            
+        video.save()
+        return video
+    
+    def update(self, instance, validated_data):
+        video_file = validated_data.pop('video_file', None)
+        thumbnail_file = validated_data.pop('thumbnail_file', None)
+        thumbnail_url = validated_data.pop('thumbnail_url', None)
+        
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        
+        if video_file:
+            instance.video_file = video_file
+        if thumbnail_file:
+            instance.thumbnail = thumbnail_file
+        elif thumbnail_url:
+            instance.thumbnail_url = thumbnail_url
+            
+        instance.save()
+        return instance
     
     def get_video_url(self, obj):
         """Return video file URL or external URL"""

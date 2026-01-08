@@ -27,32 +27,8 @@ interface UserNotification {
   received_at: string;
 }
 
-export const playNotificationSound = () => {
-  const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-
-  const oscillator = audioCtx.createOscillator();
-  const gainNode = audioCtx.createGain();
-
-  oscillator.type = 'sine';       // eng yoqimli tovush
-  oscillator.frequency.value = 880; // chiroyli bell (A5)
-
-  gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
-  gainNode.gain.linearRampToValueAtTime(0.3, audioCtx.currentTime + 0.05);
-  gainNode.gain.exponentialRampToValueAtTime(
-      0.001,
-      audioCtx.currentTime + 0.8
-  );
-
-  oscillator.connect(gainNode);
-  gainNode.connect(audioCtx.destination);
-
-  oscillator.start();
-  oscillator.stop(audioCtx.currentTime + 0.8);
-};
-
-
-// Notification sound as base64 (short beep sound)
-const NOTIFICATION_SOUND_BASE64 = playNotificationSound();
+// Notification sound disabled for now
+// export const playNotificationSound = () => { ... };
 
 
 export function NotificationBell() {
@@ -67,27 +43,9 @@ export function NotificationBell() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const hasPlayedInitialSound = useRef(false);
 
-  // Initialize audio on mount
-  const audioContextRef = useRef<AudioContext | null>(null);
-
-  useEffect(() => {
-    audioContextRef.current =
-        new (window.AudioContext || (window as any).webkitAudioContext)();
-
-    return () => {
-      audioContextRef.current?.close();
-      audioContextRef.current = null;
-    };
-  }, []);
-
-
+  // Notification sound disabled for now
   const playNotificationSound = useCallback(() => {
-    if (audioRef.current) {
-      audioRef.current.currentTime = 0;
-      audioRef.current.play().catch(err => {
-        console.log('Could not play notification sound:', err);
-      });
-    }
+    // Sound disabled
   }, []);
 
   const fetchUnreadCount = useCallback(async () => {
