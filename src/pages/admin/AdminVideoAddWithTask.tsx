@@ -162,8 +162,8 @@ export default function AdminVideoAddWithTask() {
             toast({title: 'Xatolik', description: 'Sarlavha va kategoriyani to\'ldiring', variant: 'destructive'});
             return;
         }
-        if (!videoFile && !formData.videoUrl) {
-            toast({title: 'Xatolik', description: 'Video yuklang yoki URL kiriting', variant: 'destructive'});
+        if (!videoFile) {
+            toast({title: 'Xatolik', description: 'Video faylni yuklang', variant: 'destructive'});
             return;
         }
         if (!thumbnailFile && !formData.thumbnail) {
@@ -175,19 +175,14 @@ export default function AdminVideoAddWithTask() {
         try {
             const formDataToSend = new FormData();
             formDataToSend.append('title', formData.title);
-            formDataToSend.append('description', formData.description);
+            formDataToSend.append('description', formData.description || '');
             formDataToSend.append('category', formData.categoryId);
-            formDataToSend.append('duration', formData.duration);
-
-            if (videoFile) {
-                formDataToSend.append('video_file', videoFile);
-            } else {
-                formDataToSend.append('video_url', formData.videoUrl);
-            }
+            formDataToSend.append('duration', formData.duration || '0:00');
+            formDataToSend.append('video_file', videoFile);
 
             if (thumbnailFile) {
-                formDataToSend.append('thumbnail', thumbnailFile);
-            } else {
+                formDataToSend.append('thumbnail_file', thumbnailFile);
+            } else if (formData.thumbnail) {
                 formDataToSend.append('thumbnail_url', formData.thumbnail);
             }
 
@@ -346,35 +341,40 @@ export default function AdminVideoAddWithTask() {
                                     <span>Faqat MP4 formatda, maksimal hajmi 150MB</span>
                                 </p>
                             </div>
-                            <Tabs defaultValue="file" className="w-full">
-                                <TabsList className="grid w-full grid-cols-2">
-                                    <TabsTrigger value="file">Fayl yuklash</TabsTrigger>
-                                    <TabsTrigger value="url">URL</TabsTrigger>
-                                </TabsList>
-                                <TabsContent value="file" className="space-y-4 mt-4">
-                                    <input ref={videoInputRef} type="file" accept="video/mp4" className="hidden" onChange={handleVideoFileChange}/>
-                                    <Button type="button" variant="outline" className={`w-full ${videoError ? 'border-destructive' : ''}`} onClick={() => videoInputRef.current?.click()}>
-                                        <Upload className="mr-2 h-4 w-4"/>
-                                        {videoFile ? videoFile.name : 'Video tanlang (MP4)'}
-                                    </Button>
-                                    {videoError && <p className="text-sm text-destructive">{videoError}</p>}
-                                </TabsContent>
-                                <TabsContent value="url" className="space-y-4 mt-4">
-                                    <Input
-                                        placeholder="https://..."
-                                        value={formData.videoUrl}
-                                        onChange={(e) => setFormData(prev => ({...prev, videoUrl: e.target.value}))}
-                                    />
-                                    <div className="space-y-2">
-                                        <Label>Davomiylik (mm:ss)</Label>
-                                        <Input
-                                            placeholder="15:30"
-                                            value={formData.duration}
-                                            onChange={(e) => setFormData(prev => ({...prev, duration: e.target.value}))}
-                                        />
+                            
+                            <input ref={videoInputRef} type="file" accept="video/mp4" className="hidden" onChange={handleVideoFileChange}/>
+                            <Button type="button" variant="outline" className={`w-full ${videoError ? 'border-destructive' : ''}`} onClick={() => videoInputRef.current?.click()}>
+                                <Upload className="mr-2 h-4 w-4"/>
+                                {videoFile ? videoFile.name : 'Video tanlang (MP4)'}
+                            </Button>
+                            {videoError && <p className="text-sm text-destructive">{videoError}</p>}
+                            
+                            {/* Video metadata after file selected */}
+                            {videoFile && (
+                                <div className="p-4 rounded-lg bg-muted/50 border border-border space-y-2">
+                                    <h3 className="font-medium text-sm text-foreground">Video ma'lumotlari</h3>
+                                    <div className="grid grid-cols-2 gap-2 text-sm">
+                                        <div>
+                                            <span className="text-muted-foreground">Fayl nomi: </span>
+                                            <span className="text-foreground">{videoFile.name}</span>
+                                        </div>
+                                        <div>
+                                            <span className="text-muted-foreground">Hajmi: </span>
+                                            <span className="text-foreground">{(videoFile.size / (1024 * 1024)).toFixed(2)} MB</span>
+                                        </div>
+                                        <div>
+                                            <span className="text-muted-foreground">Format: </span>
+                                            <span className="text-foreground">{videoFile.type}</span>
+                                        </div>
+                                        {formData.duration && (
+                                            <div>
+                                                <span className="text-muted-foreground">Davomiylik: </span>
+                                                <span className="text-foreground">{formData.duration}</span>
+                                            </div>
+                                        )}
                                     </div>
-                                </TabsContent>
-                            </Tabs>
+                                </div>
+                            )}
                         </div>
 
                         {/* Thumbnail */}

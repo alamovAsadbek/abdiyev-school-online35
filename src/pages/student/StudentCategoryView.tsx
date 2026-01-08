@@ -119,7 +119,16 @@ export default function StudentCategoryView() {
         navigate(`/student/video/${video.id}`);
     };
 
-    const columns: Column[] = [
+    interface VideoType {
+        id: string;
+        title: string;
+        description: string;
+        thumbnail: string;
+        duration: string;
+        order: number;
+    }
+
+    const columns: Column<VideoType>[] = [
         // {
         //     key: 'order',
         //     header: '№',

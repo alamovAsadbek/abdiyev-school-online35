@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from .models import Payment
 from .serializers import PaymentSerializer, PaymentCreateSerializer
+from apps.notifacations.models import Notification, UserNotification
 
 
 class PaymentViewSet(viewsets.ModelViewSet):
@@ -50,5 +51,32 @@ class PaymentViewSet(viewsets.ModelViewSet):
         payment.status = new_status
         payment.save()
         
+        # Send notification to user when payment is saved/updated
+        if payment.user:
+            notification = Notification.objects.create(
+                title="To'lov saqlandi",
+                message=f"Sizning to'lovingiz ({payment.amount} so'm) muvaffaqiyatli saqlandi. Holat: {new_status}",
+                type='payment'
+            )
+            UserNotification.objects.create(
+                user=payment.user,
+                notification=notification
+            )
+        
         serializer = self.get_serializer(payment)
         return Response(serializer.data)
+    
+    def perform_create(self, serializer):
+        """Send notification when new payment is created"""
+        payment = serializer.save()
+        
+        if payment.user:
+            notification = Notification.objects.create(
+                title="Yangi to'lov",
+                message=f"Sizning to'lovingiz ({payment.amount} so'm) qabul qilindi va ko'rib chiqilmoqda.",
+                type='payment'
+            )
+            UserNotification.objects.create(
+                user=payment.user,
+                notification=notification
+            )
