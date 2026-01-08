@@ -121,6 +121,17 @@ class VideoViewSet(viewsets.ModelViewSet):
             return Response(serializer.data)
         return Response({'error': 'category_id is required'}, status=status.HTTP_400_BAD_REQUEST)
 
+    @action(detail=True, methods=['get'])
+    def stats(self, request, pk=None):
+        video = self.get_object()
+        # Real statistika qaytaring
+
+    @action(detail=False, methods=['post'])
+    def bulk_update_order(self, request):
+        updates = request.data.get('updates', [])
+        for item in updates:
+            Video.objects.filter(id=item['id']).update(order=item['order'])
+        return Response({'status': 'success'})
 
 class TaskViewSet(viewsets.ModelViewSet):
     queryset = Task.objects.all()

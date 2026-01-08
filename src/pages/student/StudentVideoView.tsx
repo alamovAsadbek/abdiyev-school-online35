@@ -61,6 +61,7 @@ export default function StudentVideoView() {
     const targetIndex = categoryVideos.findIndex(v => v.id === targetVideoId);
     if (targetIndex === 0) return false;
     const previousVideo = categoryVideos[targetIndex - 1];
+    console.log(previousVideo, targetVideoId)
     return !isVideoCompleted(previousVideo.id);
   };
 

@@ -134,6 +134,9 @@ export default function AdminUserDetail() {
         }
     }, [userId]);
 
+    useEffect(() => {
+        console.log(user)
+    }, [user]);
 
     if (!user) {
         return (

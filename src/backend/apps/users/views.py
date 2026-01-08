@@ -1,4 +1,6 @@
 import logging
+
+from django.utils import timezone
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -73,18 +75,19 @@ class UserViewSet(viewsets.ModelViewSet):
     def login(self, request):
         username = request.data.get('username')
         password = request.data.get('password')
-        
         logger.info(f"Login attempt for username: {username}")
+
         user = authenticate(username=username, password=password)
-        
+
         if user is not None:
             if user.is_blocked:
                 logger.warning(f"Blocked user tried to login: {username}")
-                return Response(
-                    {'error': 'Your account has been blocked'},
-                    status=status.HTTP_403_FORBIDDEN
-                )
-            
+                return Response({'error': 'Your account has been blocked'}, status=status.HTTP_403_FORBIDDEN)
+
+            # ✅ LAST_LOGIN update
+            user.last_login = timezone.now()
+            user.save(update_fields=['last_login'])
+
             refresh = RefreshToken.for_user(user)
             logger.info(f"User logged in successfully: {username}")
             return Response({
@@ -92,13 +95,10 @@ class UserViewSet(viewsets.ModelViewSet):
                 'refresh': str(refresh),
                 'access': str(refresh.access_token),
             })
-        
+
         logger.warning(f"Failed login attempt for username: {username}")
-        return Response(
-            {'error': 'Invalid credentials'},
-            status=status.HTTP_401_UNAUTHORIZED
-        )
-    
+        return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+
     @swagger_auto_schema(
         operation_description="Get current user profile",
         responses={200: UserDetailSerializer}

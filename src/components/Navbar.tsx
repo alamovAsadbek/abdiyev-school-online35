@@ -80,6 +80,9 @@ export function Navbar() {
                                 <LogOut className='mr-2' style={{fontSize: '10px'}}/>
                                 Chiqish
                             </DropdownMenuItem>
+                           <span className='text-xs font-bold text-gray-600 ml-2 align-middle'>
+                               version 1.0.0
+                           </span>
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </div>

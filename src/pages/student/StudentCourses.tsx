@@ -23,9 +23,7 @@ export default function StudentCourses() {
     const [courseGrantedBy, setCourseGrantedBy] = useState<Record<string, string>>({});
     const [isLoading, setIsLoading] = useState(true);
 
-    useEffect(() => {
-        loadData();
-    }, [user]);
+
 
     const loadData = async () => {
         try {
@@ -34,7 +32,6 @@ export default function StudentCourses() {
                 categoriesApi.getAll().catch(() => null),
                 userCoursesApi.getMyCourses().catch(() => null)
             ]);
-
             if (categoriesData) {
                 const list = (categoriesData as any)?.results || categoriesData;
                 setCategories(list);
@@ -127,6 +124,12 @@ export default function StudentCourses() {
         setSelectedCourse(null);
         navigate('/student/checkout');
     };
+
+
+    useEffect(() => {
+        loadData();
+    }, [user]);
+
 
     return (
         <DashboardLayout>

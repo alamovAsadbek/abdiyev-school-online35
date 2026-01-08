@@ -38,6 +38,7 @@ export default function AdminCategoryDetail() {
     const getCategory = async () => {
         try {
             const response = await categoriesApi.getById(categoryId!);
+            console.log(response)
             setCategory(response);
         } catch (error) {
             console.log(error);
