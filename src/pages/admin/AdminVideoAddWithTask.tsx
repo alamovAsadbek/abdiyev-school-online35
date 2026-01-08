@@ -1,6 +1,6 @@
 import {useState, useRef, useEffect} from 'react';
 import {useNavigate, useSearchParams} from 'react-router-dom';
-import {ArrowLeft, Upload, X, Image as ImageIcon, AlertTriangle, Plus, Trash2, Check, GripVertical} from 'lucide-react';
+import {ArrowLeft, Upload, X, Image as ImageIcon, AlertTriangle, Plus, Trash2, Check, GripVertical, FileText} from 'lucide-react';
 import {DashboardLayout} from '@/layouts/DashboardLayout';
 import {Button} from '@/components/ui/button';
 import {Input} from '@/components/ui/input';
@@ -12,6 +12,7 @@ import {Switch} from '@/components/ui/switch';
 import {RadioGroup, RadioGroupItem} from '@/components/ui/radio-group';
 import {useToast} from '@/hooks/use-toast';
 import {videosApi, categoriesApi, tasksApi} from '@/services/api';
+import {RichTextEditor} from '@/components/RichTextEditor';
 
 const MAX_VIDEO_SIZE = 150 * 1024 * 1024;
 const ALLOWED_VIDEO_TYPES = ['video/mp4'];
@@ -452,11 +453,19 @@ export default function AdminVideoAddWithTask() {
                                 </div>
                                 <div className="space-y-2">
                                     <Label>Tavsif</Label>
-                                    <Textarea
-                                        placeholder="Vazifa haqida qisqacha"
-                                        value={taskData.description}
-                                        onChange={(e) => setTaskData(prev => ({...prev, description: e.target.value}))}
-                                    />
+                                    {(taskType === 'text' || taskType === 'test') ? (
+                                        <RichTextEditor
+                                            value={taskData.description}
+                                            onChange={(value) => setTaskData(prev => ({...prev, description: value}))}
+                                            placeholder="Vazifa haqida qisqacha... Kimyoviy formulalar uchun subscript/superscript ishlating"
+                                        />
+                                    ) : (
+                                        <Textarea
+                                            placeholder="Vazifa haqida qisqacha"
+                                            value={taskData.description}
+                                            onChange={(e) => setTaskData(prev => ({...prev, description: e.target.value}))}
+                                        />
+                                    )}
                                 </div>
                                 <div className="flex items-center justify-between">
                                     <div>
@@ -464,6 +473,58 @@ export default function AdminVideoAddWithTask() {
                                         <p className="text-xs text-muted-foreground">O'quvchi testni qayta topshira olsinmi?</p>
                                     </div>
                                     <Switch checked={taskData.allowResubmission} onCheckedChange={(checked) => setTaskData(prev => ({...prev, allowResubmission: checked}))}/>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* File Upload Section */}
+                        {taskType === 'file' && (
+                            <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+                                <h2 className="text-lg font-semibold text-foreground">Fayl yuklash</h2>
+                                <p className="text-sm text-muted-foreground">
+                                    O'quvchilar yuklab olishi kerak bo'lgan fayl (PDF, Word, Excel va boshqalar)
+                                </p>
+                                
+                                <input 
+                                    type="file" 
+                                    accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+                                    className="hidden"
+                                    id="task-file-input"
+                                    onChange={(e) => setTaskFile(e.target.files?.[0] || null)}
+                                />
+                                
+                                <div 
+                                    onClick={() => document.getElementById('task-file-input')?.click()}
+                                    className="border-2 border-dashed border-border rounded-xl p-8 text-center cursor-pointer hover:border-primary/50 transition-colors"
+                                >
+                                    {taskFile ? (
+                                        <div className="space-y-2">
+                                            <FileText className="h-12 w-12 mx-auto text-primary" />
+                                            <p className="font-medium text-foreground">{taskFile.name}</p>
+                                            <p className="text-sm text-muted-foreground">
+                                                {(taskFile.size / (1024 * 1024)).toFixed(2)} MB
+                                            </p>
+                                            <Button 
+                                                type="button" 
+                                                variant="outline" 
+                                                size="sm"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setTaskFile(null);
+                                                }}
+                                            >
+                                                <X className="mr-1 h-4 w-4" /> O'chirish
+                                            </Button>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            <Upload className="h-12 w-12 mx-auto text-muted-foreground" />
+                                            <p className="font-medium text-foreground">Fayl yuklash uchun bosing</p>
+                                            <p className="text-sm text-muted-foreground">
+                                                PDF, Word, Excel, PowerPoint
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         )}
@@ -499,11 +560,11 @@ export default function AdminVideoAddWithTask() {
 
                                             <div className="space-y-2">
                                                 <Label>Savol matni *</Label>
-                                                <Textarea
-                                                    placeholder="Savolni kiriting..."
+                                                <RichTextEditor
                                                     value={q.question}
-                                                    onChange={(e) => updateQuestion(qIndex, 'question', e.target.value)}
-                                                    rows={2}
+                                                    onChange={(value) => updateQuestion(qIndex, 'question', value)}
+                                                    placeholder="Savolni kiriting... Kimyoviy formulalar uchun subscript ishlating"
+                                                    className="min-h-[100px]"
                                                 />
                                             </div>
 
