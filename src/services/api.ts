@@ -165,11 +165,29 @@ export const submissionsApi = {
   getAll: async (params?: Record<string, any>) => {
     return api.get('/submissions/', params);
   },
+  getById: async (id: string) => {
+    return api.get(`/submissions/${id}/`);
+  },
   getMySubmissions: async () => {
     return api.get('/submissions/my_submissions/');
   },
+  getByTask: async (taskId: string) => {
+    return api.get(`/submissions/by_task/?task_id=${taskId}`);
+  },
+  getByVideo: async (videoId: string) => {
+    return api.get(`/submissions/by_video/?video_id=${videoId}`);
+  },
+  getDetailWithAnswers: async (id: string) => {
+    return api.get(`/submissions/${id}/detail_with_answers/`);
+  },
   submit: async (data: FormData) => {
     return api.post('/submissions/submit/', data, true);
+  },
+  approve: async (id: string, feedback?: string) => {
+    return api.post(`/submissions/${id}/approve/`, { feedback });
+  },
+  reject: async (id: string, feedback: string) => {
+    return api.post(`/submissions/${id}/reject/`, { feedback });
   },
 };
 

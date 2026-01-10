@@ -190,7 +190,7 @@ export default function AdminVideoAddWithTask() {
             formDataToSend.append('description', formData.description || '');
             formDataToSend.append('category', formData.categoryId);
             formDataToSend.append('duration', formData.duration || '0:00');
-            formDataToSend.append('video', videoFile);
+            formDataToSend.append('video_file', videoFile);
 
             if (thumbnailFile) {
                 formDataToSend.append('thumbnail_file', thumbnailFile);

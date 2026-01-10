@@ -57,11 +57,19 @@ class Video(models.Model):
 
 
 class Task(models.Model):
+    TASK_TYPE_CHOICES = (
+        ('test', 'Test'),
+        ('file', 'File Upload'),
+        ('text', 'Text'),
+    )
+    
     video = models.ForeignKey(Video, on_delete=models.CASCADE, related_name='tasks')
     title = models.CharField(max_length=255)
-    description = models.TextField()
+    description = models.TextField(blank=True, null=True)
+    task_type = models.CharField(max_length=10, choices=TASK_TYPE_CHOICES, default='test')
     file = models.FileField(upload_to='tasks/', blank=True, null=True)
     allow_resubmission = models.BooleanField(default=True)
+    requires_approval = models.BooleanField(default=False)  # For file/text tasks
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -121,11 +129,22 @@ class StudentProgress(models.Model):
 
 
 class TaskSubmission(models.Model):
+    STATUS_CHOICES = (
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    )
+    
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='task_submissions')
     task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='submissions')
     file = models.FileField(upload_to='submissions/', blank=True, null=True)
+    text_content = models.TextField(blank=True, null=True)  # For text submissions
+    answers = models.JSONField(default=dict, blank=True)  # For test submissions: {question_id: selected_answer}
     score = models.IntegerField(default=0)
     total = models.IntegerField(default=0)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
+    feedback = models.TextField(blank=True, null=True)  # Teacher feedback
+    reviewed_at = models.DateTimeField(blank=True, null=True)
     submitted_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

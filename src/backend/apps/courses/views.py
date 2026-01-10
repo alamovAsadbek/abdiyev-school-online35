@@ -124,7 +124,20 @@ class VideoViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['get'])
     def stats(self, request, pk=None):
         video = self.get_object()
-        # Real statistika qaytaring
+        tasks = video.tasks.all()
+        
+        # Get all submissions for this video's tasks
+        submissions = TaskSubmission.objects.filter(task__in=tasks)
+        
+        stats_data = {
+            'view_count': video.view_count,
+            'task_count': tasks.count(),
+            'total_submissions': submissions.count(),
+            'pending_submissions': submissions.filter(status='pending').count(),
+            'approved_submissions': submissions.filter(status='approved').count(),
+            'rejected_submissions': submissions.filter(status='rejected').count(),
+        }
+        return Response(stats_data)
 
     @action(detail=False, methods=['post'])
     def bulk_update_order(self, request):
@@ -252,20 +265,166 @@ class TaskSubmissionViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(submissions, many=True)
         return Response(serializer.data)
     
+    @action(detail=False, methods=['get'])
+    def by_task(self, request):
+        """Get all submissions for a specific task with detailed answers"""
+        task_id = request.query_params.get('task_id')
+        if not task_id:
+            return Response({'error': 'task_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        submissions = TaskSubmission.objects.filter(task_id=task_id).select_related('user', 'task')
+        serializer = self.get_serializer(submissions, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def by_video(self, request):
+        """Get all submissions for a specific video's tasks"""
+        video_id = request.query_params.get('video_id')
+        if not video_id:
+            return Response({'error': 'video_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        submissions = TaskSubmission.objects.filter(task__video_id=video_id).select_related('user', 'task')
+        serializer = self.get_serializer(submissions, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['get'])
+    def detail_with_answers(self, request, pk=None):
+        """Get submission detail with question details"""
+        submission = self.get_object()
+        task = submission.task
+        questions = task.questions.all().order_by('order')
+        
+        serializer_data = self.get_serializer(submission).data
+        
+        # Add detailed question info with user answers
+        questions_detail = []
+        for q in questions:
+            user_answer = submission.answers.get(str(q.id))
+            questions_detail.append({
+                'id': q.id,
+                'question': q.question,
+                'options': q.options,
+                'correct_answer': q.correct_answer,
+                'user_answer': user_answer,
+                'is_correct': user_answer == q.correct_answer if user_answer is not None else False,
+            })
+        
+        serializer_data['questions_detail'] = questions_detail
+        return Response(serializer_data)
+    
     @action(detail=False, methods=['post'])
     def submit(self, request):
         task_id = request.data.get('task_id')
         file = request.FILES.get('file')
+        text_content = request.data.get('text_content', '')
+        answers = request.data.get('answers', {})
         score = request.data.get('score', 0)
         total = request.data.get('total', 0)
         
-        submission = TaskSubmission.objects.create(
-            user=request.user,
-            task_id=task_id,
-            file=file,
-            score=score,
-            total=total
-        )
+        try:
+            task = Task.objects.get(id=task_id)
+        except Task.DoesNotExist:
+            return Response({'error': 'Task not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Determine initial status based on task type
+        initial_status = 'pending'
+        if task.task_type == 'test':
+            initial_status = 'approved'  # Test auto-approved
+        
+        # Check if submission already exists
+        existing = TaskSubmission.objects.filter(user=request.user, task_id=task_id).first()
+        
+        if existing:
+            if not task.allow_resubmission:
+                return Response({'error': 'Resubmission not allowed'}, status=status.HTTP_400_BAD_REQUEST)
+            # Update existing submission
+            existing.file = file if file else existing.file
+            existing.text_content = text_content if text_content else existing.text_content
+            existing.answers = answers if answers else existing.answers
+            existing.score = score
+            existing.total = total
+            existing.status = initial_status
+            existing.feedback = None
+            existing.reviewed_at = None
+            existing.save()
+            submission = existing
+        else:
+            submission = TaskSubmission.objects.create(
+                user=request.user,
+                task_id=task_id,
+                file=file,
+                text_content=text_content,
+                answers=answers,
+                score=score,
+                total=total,
+                status=initial_status
+            )
         
         serializer = self.get_serializer(submission)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+    @action(detail=True, methods=['post'])
+    def approve(self, request, pk=None):
+        """Teacher approves a submission"""
+        from django.utils import timezone
+        submission = self.get_object()
+        feedback = request.data.get('feedback', '')
+        
+        submission.status = 'approved'
+        submission.feedback = feedback
+        submission.reviewed_at = timezone.now()
+        submission.save()
+        
+        # Send notification to student
+        try:
+            notification = Notification.objects.create(
+                title="Vazifangiz tasdiqlandi! ✅",
+                message=f"'{submission.task.title}' vazifangiz o'qituvchi tomonidan tasdiqlandi.",
+                type='task'
+            )
+            notification.recipients.add(submission.user)
+            notification.sent_count = 1
+            notification.save()
+            
+            UserNotification.objects.create(
+                user=submission.user,
+                notification=notification
+            )
+        except Exception as e:
+            print(f"Error sending approval notification: {e}")
+        
+        serializer = self.get_serializer(submission)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['post'])
+    def reject(self, request, pk=None):
+        """Teacher rejects a submission"""
+        from django.utils import timezone
+        submission = self.get_object()
+        feedback = request.data.get('feedback', '')
+        
+        submission.status = 'rejected'
+        submission.feedback = feedback
+        submission.reviewed_at = timezone.now()
+        submission.save()
+        
+        # Send notification to student
+        try:
+            notification = Notification.objects.create(
+                title="Vazifangiz qaytarildi ❌",
+                message=f"'{submission.task.title}' vazifangiz qaytarildi. Iltimos qayta topshiring. Izoh: {feedback}",
+                type='task'
+            )
+            notification.recipients.add(submission.user)
+            notification.sent_count = 1
+            notification.save()
+            
+            UserNotification.objects.create(
+                user=submission.user,
+                notification=notification
+            )
+        except Exception as e:
+            print(f"Error sending rejection notification: {e}")
+        
+        serializer = self.get_serializer(submission)
+        return Response(serializer.data)
