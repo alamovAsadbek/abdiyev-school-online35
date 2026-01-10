@@ -40,7 +40,7 @@ class VideoViewSet(viewsets.ModelViewSet):
         thumbnail_url = data.get('thumbnail_url', '')
         
         # Remove file fields from data to avoid serializer conflicts
-        fields_to_remove = ['video_file', 'thumbnail', 'thumbnail_url', 'video_url']
+        fields_to_remove = ['video_file', 'thumbnail', 'thumbnail_url']
         for field in fields_to_remove:
             data.pop(field, None)
         
