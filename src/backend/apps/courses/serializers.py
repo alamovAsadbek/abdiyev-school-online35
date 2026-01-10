@@ -21,8 +21,8 @@ class TaskSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Task
-        fields = ['id', 'video', 'title', 'description', 'file', 
-                  'allow_resubmission', 'questions', 'created_at']
+        fields = ['id', 'video', 'title', 'description', 'task_type', 'file', 
+                  'allow_resubmission', 'requires_approval', 'questions', 'created_at']
 
 
 class VideoSerializer(serializers.ModelSerializer):
@@ -126,9 +126,16 @@ class StudentProgressSerializer(serializers.ModelSerializer):
 
 class TaskSubmissionSerializer(serializers.ModelSerializer):
     task_title = serializers.CharField(source='task.title', read_only=True)
+    task_type = serializers.CharField(source='task.task_type', read_only=True)
     user_name = serializers.CharField(source='user.username', read_only=True)
+    user_full_name = serializers.SerializerMethodField()
+    video_title = serializers.CharField(source='task.video.title', read_only=True)
     
     class Meta:
         model = TaskSubmission
-        fields = ['id', 'user', 'user_name', 'task', 'task_title', 
-                  'file', 'score', 'total', 'submitted_at']
+        fields = ['id', 'user', 'user_name', 'user_full_name', 'task', 'task_title', 'task_type',
+                  'video_title', 'file', 'text_content', 'answers', 'score', 'total', 
+                  'status', 'feedback', 'reviewed_at', 'submitted_at']
+    
+    def get_user_full_name(self, obj):
+        return f"{obj.user.first_name} {obj.user.last_name}".strip() or obj.user.username
