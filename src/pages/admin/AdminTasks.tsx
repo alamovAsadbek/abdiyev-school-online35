@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Plus, Pencil, Trash2, HelpCircle } from 'lucide-react';
 import { DashboardLayout } from '@/layouts/DashboardLayout';
 import { DataTable, Column, Filter } from '@/components/DataTable';
@@ -60,6 +61,7 @@ interface Video {
 }
 
 export default function AdminTasks() {
+  const navigate = useNavigate();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
@@ -228,12 +230,15 @@ export default function AdminTasks() {
       key: 'title',
       header: 'Vazifa',
       render: (task) => (
-        <div className="flex items-center gap-3">
+        <div 
+          className="flex items-center gap-3 cursor-pointer"
+          onClick={() => navigate(`/admin/tasks/${task.id}`)}
+        >
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10 text-success">
             <HelpCircle className="h-5 w-5" />
           </div>
           <div>
-            <p className="font-medium text-card-foreground">{task.title}</p>
+            <p className="font-medium text-card-foreground hover:text-primary transition">{task.title}</p>
             <p className="text-xs text-muted-foreground line-clamp-1">{task.description}</p>
           </div>
         </div>

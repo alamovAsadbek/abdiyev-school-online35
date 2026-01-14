@@ -119,6 +119,9 @@ export const tasksApi = {
   getStats: async (taskId: string) => {
     return api.get(`/tasks/${taskId}/stats/`);
   },
+  linkToVideo: async (taskId: string, videoId: string) => {
+    return api.post(`/tasks/${taskId}/link_to_video/`, { video_id: videoId });
+  },
 };
 
 // Video Stats API
