@@ -248,10 +248,9 @@ export default function AdminVideoAddWithTask() {
             const payload: any = {
                 title: taskData.title,
                 description: taskData.description,
-                video_id: createdVideoId,
+                video: createdVideoId,
                 allow_resubmission: taskData.allowResubmission,
             };
-
             if (taskType === 'test') {
                 payload.questions = questions.map((q, idx) => ({
                     question: q.question,

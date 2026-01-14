@@ -24,6 +24,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { tasksApi, videosApi, categoriesApi } from '@/services/api';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { formatDate } from "@/lib/utils";
 
 interface TaskQuestion {
   id: string;
@@ -180,7 +181,7 @@ export default function AdminTasks() {
       const payload = {
         title: formData.title,
         description: formData.description,
-        video_id: formData.video_id,
+        video: formData.video_id,
         allow_resubmission: formData.allow_resubmission,
         questions: formData.questions,
       };
@@ -220,15 +221,6 @@ export default function AdminTasks() {
         setTaskToDelete(null);
       }
     }
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('uz-UZ', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    });
   };
 
   const columns: Column<Task>[] = [
