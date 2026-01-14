@@ -42,6 +42,7 @@ import AdminCategoryDetail from "./pages/admin/AdminCategoryDetail";
 import AdminNotifications from "./pages/admin/AdminNotifications";
 import AdminTaskStatistics from "@/pages/admin/AdminTaskStatistics.tsx";
 import AdminSubmissionDetail from "@/pages/admin/AdminSubmissionDetail.tsx";
+import AdminTaskDetail from "@/pages/admin/AdminTaskDetail.tsx";
 
 
 const queryClient = new QueryClient();
@@ -141,10 +142,10 @@ function AppRoutes() {
             <Route path="/admin/videos/:videoId/edit"
                    element={<ProtectedRoute allowedRole="admin"><AdminVideoEdit/></ProtectedRoute>}/>
             <Route path="/admin/tasks" element={<ProtectedRoute allowedRole="admin"><AdminTasks/></ProtectedRoute>}/>
+            <Route path="/admin/tasks/:taskId" element={<ProtectedRoute allowedRole="admin"><AdminTaskDetail/></ProtectedRoute>}/>
+            <Route path="/admin/tasks/:taskId/stats" element={<ProtectedRoute allowedRole="admin"><AdminTaskStatistics/></ProtectedRoute>}/>
             <Route path="/admin/notifications"
                    element={<ProtectedRoute allowedRole="admin"><AdminNotifications/></ProtectedRoute>}/>
-            <Route path="/admin/tasks/:taskId/stats"
-                   element={<ProtectedRoute allowedRole="admin"><AdminTaskStatistics/></ProtectedRoute>}/>
             <Route path="/admin/submissions/:submissionId"
                    element={<ProtectedRoute allowedRole="admin"><AdminSubmissionDetail/></ProtectedRoute>}/>
             

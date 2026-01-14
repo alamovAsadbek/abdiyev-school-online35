@@ -151,6 +151,60 @@ class TaskViewSet(viewsets.ModelViewSet):
     serializer_class = TaskSerializer
     permission_classes = [IsAuthenticated]
     
+    def create(self, request, *args, **kwargs):
+        """Handle task creation with questions"""
+        data = request.data.copy()
+        questions_data = data.pop('questions', [])
+        task_type = data.get('task_type', 'test')
+        
+        # Set requires_approval for file/text tasks
+        if task_type in ['file', 'text']:
+            data['requires_approval'] = True
+        
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        task = serializer.save()
+        
+        # Create questions if provided
+        for idx, q_data in enumerate(questions_data):
+            TaskQuestion.objects.create(
+                task=task,
+                question=q_data.get('question', ''),
+                options=q_data.get('options', []),
+                correct_answer=q_data.get('correct_answer', 0),
+                order=idx + 1
+            )
+        
+        # Refresh to include questions
+        task.refresh_from_db()
+        return Response(self.get_serializer(task).data, status=status.HTTP_201_CREATED)
+    
+    def update(self, request, *args, **kwargs):
+        """Handle task update with questions"""
+        instance = self.get_object()
+        data = request.data.copy()
+        questions_data = data.pop('questions', None)
+        
+        serializer = self.get_serializer(instance, data=data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        task = serializer.save()
+        
+        # Update questions if provided
+        if questions_data is not None:
+            # Delete existing questions and recreate
+            task.questions.all().delete()
+            for idx, q_data in enumerate(questions_data):
+                TaskQuestion.objects.create(
+                    task=task,
+                    question=q_data.get('question', ''),
+                    options=q_data.get('options', []),
+                    correct_answer=q_data.get('correct_answer', 0),
+                    order=idx + 1
+                )
+        
+        task.refresh_from_db()
+        return Response(self.get_serializer(task).data)
+    
     @action(detail=False, methods=['get'])
     def by_video(self, request):
         video_id = request.query_params.get('video_id')
@@ -159,6 +213,69 @@ class TaskViewSet(viewsets.ModelViewSet):
             serializer = self.get_serializer(tasks, many=True)
             return Response(serializer.data)
         return Response({'error': 'video_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=True, methods=['get'])
+    def stats(self, request, pk=None):
+        """Get task statistics with all submissions"""
+        task = self.get_object()
+        submissions = TaskSubmission.objects.filter(task=task).select_related('user')
+        
+        stats_data = {
+            'total_submissions': submissions.count(),
+            'pending': submissions.filter(status='pending').count(),
+            'approved': submissions.filter(status='approved').count(),
+            'rejected': submissions.filter(status='rejected').count(),
+            'average_score': 0,
+        }
+        
+        # Calculate average for tests
+        test_subs = submissions.filter(total__gt=0)
+        if test_subs.exists():
+            total_percent = sum((s.score / s.total) * 100 for s in test_subs)
+            stats_data['average_score'] = round(total_percent / test_subs.count(), 1)
+        
+        return Response(stats_data)
+    
+    @action(detail=True, methods=['post'])
+    def link_to_video(self, request, pk=None):
+        """Create a copy of this task linked to another video"""
+        task = self.get_object()
+        video_id = request.data.get('video_id')
+        
+        if not video_id:
+            return Response({'error': 'video_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            video = Video.objects.get(id=video_id)
+        except Video.DoesNotExist:
+            return Response({'error': 'Video not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Check if task already linked to this video
+        existing = Task.objects.filter(video=video, title=task.title).first()
+        if existing:
+            return Response({'error': 'Task already linked to this video'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Create new task copy
+        new_task = Task.objects.create(
+            video=video,
+            title=task.title,
+            description=task.description,
+            task_type=task.task_type,
+            allow_resubmission=task.allow_resubmission,
+            requires_approval=task.requires_approval
+        )
+        
+        # Copy questions
+        for q in task.questions.all():
+            TaskQuestion.objects.create(
+                task=new_task,
+                question=q.question,
+                options=q.options,
+                correct_answer=q.correct_answer,
+                order=q.order
+            )
+        
+        return Response(self.get_serializer(new_task).data, status=status.HTTP_201_CREATED)
 
 
 class TaskQuestionViewSet(viewsets.ModelViewSet):
