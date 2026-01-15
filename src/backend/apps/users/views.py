@@ -11,26 +11,27 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from .models import User
 from .serializers import (
-    UserSerializer, UserRegisterSerializer, 
+    UserSerializer, UserRegisterSerializer,
     UserDetailSerializer, ChangePasswordSerializer
 )
 
 logger = logging.getLogger(__name__)
 
+
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
-    
+
     def get_serializer_class(self):
         if self.action == 'retrieve':
             return UserDetailSerializer
         return UserSerializer
-    
+
     def get_permissions(self):
         if self.action in ['register', 'login']:
             return [AllowAny()]
         return [IsAuthenticated()]
-    
+
     @swagger_auto_schema(
         operation_description="Register a new user",
         request_body=UserRegisterSerializer,
@@ -54,7 +55,7 @@ class UserViewSet(viewsets.ModelViewSet):
             }, status=status.HTTP_201_CREATED)
         logger.warning(f"Registration failed: {serializer.errors}")
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
+
     @swagger_auto_schema(
         operation_description="Login with username and password",
         request_body=openapi.Schema(
@@ -108,7 +109,7 @@ class UserViewSet(viewsets.ModelViewSet):
         logger.info(f"User profile requested: {request.user.username}")
         serializer = UserDetailSerializer(request.user)
         return Response(serializer.data)
-    
+
     @swagger_auto_schema(
         operation_description="Change user password",
         request_body=ChangePasswordSerializer,
@@ -130,7 +131,7 @@ class UserViewSet(viewsets.ModelViewSet):
             logger.info(f"Password changed for user: {user.username}")
             return Response({'message': 'Password changed successfully'})
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
+
     @swagger_auto_schema(
         operation_description="Block a user",
         responses={200: 'User blocked successfully'}
@@ -142,7 +143,17 @@ class UserViewSet(viewsets.ModelViewSet):
         user.save()
         logger.info(f"User blocked: {user.username} by {request.user.username}")
         return Response({'message': 'User blocked successfully'})
-    
+
+    @action(detail=True, methods=['post'])
+    def reset_password(self, request, pk=None):
+        user = self.get_object()
+        new_password = request.data.get('new_password')
+        user.set_password(new_password)
+        user.save()
+        return Response({'message': 'Password reset successfully'})
+
+
+
     @swagger_auto_schema(
         operation_description="Unblock a user",
         responses={200: 'User unblocked successfully'}
@@ -154,7 +165,7 @@ class UserViewSet(viewsets.ModelViewSet):
         user.save()
         logger.info(f"User unblocked: {user.username} by {request.user.username}")
         return Response({'message': 'User unblocked successfully'})
-    
+
     @swagger_auto_schema(
         operation_description="Reset user password (admin only)",
         request_body=openapi.Schema(
