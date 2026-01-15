@@ -50,6 +50,9 @@ export const usersApi = {
   getStats: async () => {
     return api.get('/users/stats/');
   },
+  resetPassword: async (id: string, newPassword: string) => {
+    return api.post(`/users/${id}/reset_password/`, { new_password: newPassword });
+  },
 };
 
 // Categories API
@@ -160,6 +163,9 @@ export const progressApi = {
   },
   completeTask: async (taskId: string) => {
     return api.post('/progress/complete_task/', { task_id: taskId });
+  },
+  getUserProgress: async (userId: string) => {
+    return api.get(`/progress/user_progress/?user_id=${userId}`);
   },
 };
 

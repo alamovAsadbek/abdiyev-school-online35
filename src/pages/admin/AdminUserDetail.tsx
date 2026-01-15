@@ -1,6 +1,6 @@
 import {useEffect, useState} from 'react';
 import {useParams, useNavigate} from 'react-router-dom';
-import {ArrowLeft, Mail, Phone, Calendar, Ban, CheckCircle2, Gift, Plus, Trash2, CalendarClock, Edit} from 'lucide-react';
+import {ArrowLeft, Mail, Phone, Calendar, Ban, CheckCircle2, Gift, Plus, Trash2, CalendarClock, Edit, Lock, Eye, EyeOff, ClipboardList, PlayCircle, XCircle, Clock} from 'lucide-react';
 import {DashboardLayout} from '@/layouts/DashboardLayout';
 import {Button} from '@/components/ui/button';
 import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs';
@@ -23,7 +23,7 @@ import {
 import {useToast} from '@/hooks/use-toast';
 import {formatCurrency} from '@/data/demoData';
 import {cn} from '@/lib/utils';
-import {usersApi, paymentsApi, userCoursesApi, categoriesApi, notificationsApi} from "@/services/api";
+import {usersApi, paymentsApi, userCoursesApi, categoriesApi, notificationsApi, submissionsApi, progressApi} from "@/services/api";
 import {formatDate} from "@/lib/utils.ts";
 
 interface User {
@@ -78,6 +78,33 @@ interface UserNotification {
     received_at: string;
 }
 
+interface Submission {
+    id: string;
+    task: {
+        id: string;
+        title: string;
+        task_type: string;
+        video?: {
+            id: string;
+            title: string;
+        };
+    };
+    status: 'pending' | 'approved' | 'rejected';
+    score?: number;
+    total?: number;
+    submitted_at: string;
+}
+
+interface VideoProgress {
+    video_id: string;
+    video_title: string;
+    category_name: string;
+    completed_at: string;
+    task_score?: number;
+    task_total?: number;
+    task_status?: string;
+}
+
 export default function AdminUserDetail() {
     const {userId} = useParams();
     const navigate = useNavigate();
@@ -87,6 +114,8 @@ export default function AdminUserDetail() {
     const [courses, setCourses] = useState<UserCourse[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
     const [loading, setLoading] = useState(true);
+    const [submissions, setSubmissions] = useState<Submission[]>([]);
+    const [videoProgress, setVideoProgress] = useState<VideoProgress[]>([]);
 
     const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
     const [isCourseDialogOpen, setIsCourseDialogOpen] = useState(false);
@@ -94,6 +123,12 @@ export default function AdminUserDetail() {
     const [selectedCategoryId, setSelectedCategoryId] = useState('');
 
     const [userNotifications, setUserNotifications] = useState<UserNotification[]>([]);
+
+    // Password change state
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+    const [changingPassword, setChangingPassword] = useState(false);
 
     // Confirmation dialog states
     const [courseToDelete, setCourseToDelete] = useState<string | null>(null);
@@ -104,18 +139,22 @@ export default function AdminUserDetail() {
 
     const fetchData = async () => {
         try {
-            const [userRes, paymentsRes, coursesRes, categoriesRes, userNotifsRes] = await Promise.all([
+            const [userRes, paymentsRes, coursesRes, categoriesRes, userNotifsRes, submissionsRes, progressRes] = await Promise.all([
                 usersApi.getById(userId!),
                 paymentsApi.getAll({user: userId}),
                 userCoursesApi.getAll({user: userId}),
                 categoriesApi.getAll(),
                 notificationsApi.getUserNotifications(userId!),
+                submissionsApi.getAll({user: userId}),
+                progressApi.getUserProgress ? progressApi.getUserProgress(userId!) : Promise.resolve([]),
             ]);
             setUser(userRes);
             setPayments(paymentsRes?.results || paymentsRes || []);
             setCourses(coursesRes?.results || coursesRes || []);
             setCategories(categoriesRes?.results || categoriesRes || []);
             setUserNotifications(userNotifsRes?.results || userNotifsRes || []);
+            setSubmissions(submissionsRes?.results || submissionsRes || []);
+            setVideoProgress(progressRes?.results || progressRes || []);
         } catch (error) {
             console.log(error);
             toast({
@@ -134,9 +173,52 @@ export default function AdminUserDetail() {
         }
     }, [userId]);
 
-    useEffect(() => {
-        console.log(user)
-    }, [user]);
+    const handleChangePassword = async () => {
+        if (!newPassword || !confirmPassword) {
+            toast({title: 'Xatolik', description: 'Parolni kiriting', variant: 'destructive'});
+            return;
+        }
+        if (newPassword !== confirmPassword) {
+            toast({title: 'Xatolik', description: 'Parollar mos kelmadi', variant: 'destructive'});
+            return;
+        }
+        if (newPassword.length < 6) {
+            toast({title: 'Xatolik', description: 'Parol kamida 6 ta belgi bo\'lishi kerak', variant: 'destructive'});
+            return;
+        }
+
+        setChangingPassword(true);
+        try {
+            await usersApi.resetPassword(userId!, newPassword);
+            toast({title: 'Muvaffaqiyat', description: 'Parol yangilandi'});
+            setNewPassword('');
+            setConfirmPassword('');
+        } catch (error) {
+            toast({title: 'Xatolik', description: 'Parolni yangilashda xatolik', variant: 'destructive'});
+        } finally {
+            setChangingPassword(false);
+        }
+    };
+
+    const handleApproveSubmission = async (submissionId: string) => {
+        try {
+            await submissionsApi.approve(submissionId);
+            toast({title: 'Muvaffaqiyat', description: 'Vazifa tasdiqlandi'});
+            fetchData();
+        } catch (error) {
+            toast({title: 'Xatolik', description: 'Tasdiqlashda xatolik', variant: 'destructive'});
+        }
+    };
+
+    const handleRejectSubmission = async (submissionId: string) => {
+        try {
+            await submissionsApi.reject(submissionId, 'Qaytarildi');
+            toast({title: 'Muvaffaqiyat', description: 'Vazifa qaytarildi'});
+            fetchData();
+        } catch (error) {
+            toast({title: 'Xatolik', description: 'Qaytarishda xatolik', variant: 'destructive'});
+        }
+    };
 
     if (!user) {
         return (
@@ -336,13 +418,239 @@ export default function AdminUserDetail() {
                 </div>
             </div>
 
+            {/* Password Reset Card */}
+            <div className="rounded-xl border border-border bg-card p-6 mb-6 animate-fade-in" style={{animationDelay: '0.05s'}}>
+                <div className="flex items-center gap-3 mb-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-warning/10 text-warning">
+                        <Lock className="h-5 w-5"/>
+                    </div>
+                    <div>
+                        <h3 className="font-semibold text-foreground">Parolni yangilash</h3>
+                        <p className="text-sm text-muted-foreground">O'quvchi parolini o'zgartirish</p>
+                    </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                        <Label>Yangi parol</Label>
+                        <div className="relative">
+                            <Input
+                                type={showPassword ? 'text' : 'password'}
+                                value={newPassword}
+                                onChange={(e) => setNewPassword(e.target.value)}
+                                placeholder="Yangi parol"
+                            />
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="absolute right-0 top-0 h-full"
+                                onClick={() => setShowPassword(!showPassword)}
+                            >
+                                {showPassword ? <EyeOff className="h-4 w-4"/> : <Eye className="h-4 w-4"/>}
+                            </Button>
+                        </div>
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Parolni tasdiqlash</Label>
+                        <Input
+                            type={showPassword ? 'text' : 'password'}
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            placeholder="Parolni tasdiqlang"
+                        />
+                    </div>
+                    <div className="flex items-end">
+                        <Button 
+                            onClick={handleChangePassword} 
+                            disabled={changingPassword}
+                            className="gradient-primary text-primary-foreground"
+                        >
+                            <Lock className="mr-2 h-4 w-4"/>
+                            {changingPassword ? 'Saqlanmoqda...' : 'Parolni yangilash'}
+                        </Button>
+                    </div>
+                </div>
+            </div>
+
             {/* Tabs */}
-            <Tabs defaultValue="courses" className="animate-fade-in" style={{animationDelay: '0.1s'}}>
+            <Tabs defaultValue="submissions" className="animate-fade-in" style={{animationDelay: '0.1s'}}>
                 <TabsList className="mb-6">
+                    <TabsTrigger value="submissions">Topshiriqlar ({submissions.length})</TabsTrigger>
+                    <TabsTrigger value="progress">Ko'rilgan darslar ({videoProgress.length})</TabsTrigger>
                     <TabsTrigger value="courses">Kurslar ({courses.length})</TabsTrigger>
                     <TabsTrigger value="payments">To'lovlar ({payments.length})</TabsTrigger>
                     <TabsTrigger value="notifications">Xabarnomalar ({userNotifications.length})</TabsTrigger>
                 </TabsList>
+
+                {/* Submissions Tab */}
+                <TabsContent value="submissions">
+                    <div className="rounded-xl border border-border bg-card overflow-hidden">
+                        <table className="w-full">
+                            <thead>
+                            <tr className="border-b border-border bg-muted/50">
+                                <th className="text-left p-4 font-medium text-muted-foreground">Vazifa</th>
+                                <th className="text-left p-4 font-medium text-muted-foreground">Turi</th>
+                                <th className="text-left p-4 font-medium text-muted-foreground">Natija</th>
+                                <th className="text-left p-4 font-medium text-muted-foreground">Holat</th>
+                                <th className="text-left p-4 font-medium text-muted-foreground">Sana</th>
+                                <th className="text-left p-4 font-medium text-muted-foreground">Amallar</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {submissions.length > 0 ? submissions.map((sub) => (
+                                <tr key={sub.id} className="border-b border-border last:border-0">
+                                    <td className="p-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                                                <ClipboardList className="h-5 w-5"/>
+                                            </div>
+                                            <div>
+                                                <p className="font-medium text-foreground">{sub.task?.title || 'Noma\'lum'}</p>
+                                                {sub.task?.video && (
+                                                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                                        <PlayCircle className="h-3 w-3"/>
+                                                        {sub.task.video.title}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td className="p-4">
+                                        <span className="status-badge bg-muted text-muted-foreground">
+                                            {sub.task?.task_type === 'test' ? 'Test' : 
+                                             sub.task?.task_type === 'file' ? 'Fayl' : 'Matn'}
+                                        </span>
+                                    </td>
+                                    <td className="p-4">
+                                        {sub.task?.task_type === 'test' && sub.score !== undefined ? (
+                                            <span className={cn(
+                                                "font-semibold",
+                                                sub.score === sub.total ? "text-green-600" :
+                                                sub.score >= (sub.total || 0) / 2 ? "text-warning" : "text-destructive"
+                                            )}>
+                                                {sub.score}/{sub.total}
+                                            </span>
+                                        ) : '-'}
+                                    </td>
+                                    <td className="p-4">
+                                        <span className={cn(
+                                            "status-badge",
+                                            sub.status === 'approved' && "bg-green-500/15 text-green-600",
+                                            sub.status === 'pending' && "bg-warning/15 text-warning",
+                                            sub.status === 'rejected' && "bg-destructive/15 text-destructive"
+                                        )}>
+                                            {sub.status === 'approved' ? 'Tasdiqlangan' : 
+                                             sub.status === 'pending' ? 'Kutilmoqda' : 'Qaytarilgan'}
+                                        </span>
+                                    </td>
+                                    <td className="p-4 text-muted-foreground">{formatDate(sub.submitted_at)}</td>
+                                    <td className="p-4">
+                                        <div className="flex gap-1">
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => navigate(`/admin/submissions/${sub.id}`)}
+                                            >
+                                                Ko'rish
+                                            </Button>
+                                            {sub.status === 'pending' && sub.task?.task_type !== 'test' && (
+                                                <>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        onClick={() => handleApproveSubmission(sub.id)}
+                                                        className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                                    >
+                                                        <CheckCircle2 className="h-4 w-4"/>
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        onClick={() => handleRejectSubmission(sub.id)}
+                                                        className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                                    >
+                                                        <XCircle className="h-4 w-4"/>
+                                                    </Button>
+                                                </>
+                                            )}
+                                        </div>
+                                    </td>
+                                </tr>
+                            )) : (
+                                <tr>
+                                    <td colSpan={6} className="p-8 text-center text-muted-foreground">
+                                        Topshiriqlar topilmadi
+                                    </td>
+                                </tr>
+                            )}
+                            </tbody>
+                        </table>
+                    </div>
+                </TabsContent>
+
+                {/* Video Progress Tab */}
+                <TabsContent value="progress">
+                    <div className="rounded-xl border border-border bg-card overflow-hidden">
+                        <table className="w-full">
+                            <thead>
+                            <tr className="border-b border-border bg-muted/50">
+                                <th className="text-left p-4 font-medium text-muted-foreground">Video</th>
+                                <th className="text-left p-4 font-medium text-muted-foreground">Kurs</th>
+                                <th className="text-left p-4 font-medium text-muted-foreground">Vazifa natijasi</th>
+                                <th className="text-left p-4 font-medium text-muted-foreground">Ko'rilgan sana</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {videoProgress.length > 0 ? videoProgress.map((prog, idx) => (
+                                <tr key={idx} className="border-b border-border last:border-0">
+                                    <td className="p-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                                                <PlayCircle className="h-5 w-5"/>
+                                            </div>
+                                            <span className="font-medium text-foreground">{prog.video_title}</span>
+                                        </div>
+                                    </td>
+                                    <td className="p-4 text-muted-foreground">{prog.category_name}</td>
+                                    <td className="p-4">
+                                        {prog.task_score !== undefined ? (
+                                            <div className="flex items-center gap-2">
+                                                <span className={cn(
+                                                    "font-semibold",
+                                                    prog.task_score === prog.task_total ? "text-green-600" :
+                                                    prog.task_score >= (prog.task_total || 0) / 2 ? "text-warning" : "text-destructive"
+                                                )}>
+                                                    {prog.task_score}/{prog.task_total}
+                                                </span>
+                                                {prog.task_status && (
+                                                    <span className={cn(
+                                                        "status-badge text-xs",
+                                                        prog.task_status === 'approved' && "bg-green-500/15 text-green-600",
+                                                        prog.task_status === 'pending' && "bg-warning/15 text-warning",
+                                                        prog.task_status === 'rejected' && "bg-destructive/15 text-destructive"
+                                                    )}>
+                                                        {prog.task_status === 'approved' ? <CheckCircle2 className="h-3 w-3"/> : 
+                                                         prog.task_status === 'pending' ? <Clock className="h-3 w-3"/> : <XCircle className="h-3 w-3"/>}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <span className="text-muted-foreground">-</span>
+                                        )}
+                                    </td>
+                                    <td className="p-4 text-muted-foreground">{formatDate(prog.completed_at)}</td>
+                                </tr>
+                            )) : (
+                                <tr>
+                                    <td colSpan={4} className="p-8 text-center text-muted-foreground">
+                                        Ko'rilgan darslar topilmadi
+                                    </td>
+                                </tr>
+                            )}
+                            </tbody>
+                        </table>
+                    </div>
+                </TabsContent>
 
                 {/* Courses Tab */}
                 <TabsContent value="courses">

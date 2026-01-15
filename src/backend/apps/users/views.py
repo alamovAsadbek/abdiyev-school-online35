@@ -154,3 +154,25 @@ class UserViewSet(viewsets.ModelViewSet):
         user.save()
         logger.info(f"User unblocked: {user.username} by {request.user.username}")
         return Response({'message': 'User unblocked successfully'})
+    
+    @swagger_auto_schema(
+        operation_description="Reset user password (admin only)",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=['new_password'],
+            properties={
+                'new_password': openapi.Schema(type=openapi.TYPE_STRING),
+            }
+        ),
+        responses={200: 'Password reset successfully'}
+    )
+    @action(detail=True, methods=['post'])
+    def reset_password(self, request, pk=None):
+        user = self.get_object()
+        new_password = request.data.get('new_password')
+        if not new_password:
+            return Response({'error': 'New password required'}, status=status.HTTP_400_BAD_REQUEST)
+        user.set_password(new_password)
+        user.save()
+        logger.info(f"Password reset for user: {user.username} by {request.user.username}")
+        return Response({'message': 'Password reset successfully'})
