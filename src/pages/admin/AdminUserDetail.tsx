@@ -20,7 +20,10 @@ import {
     XCircle,
     Clock,
     ChevronDown,
-    Delete
+    Delete,
+    Key,
+    SaveIcon,
+    CircleUser
 } from 'lucide-react';
 import {DashboardLayout} from '@/layouts/DashboardLayout';
 import {Button} from '@/components/ui/button';
@@ -44,7 +47,15 @@ import {
 import {useToast} from '@/hooks/use-toast';
 import {formatCurrency} from '@/data/demoData';
 import {cn} from '@/lib/utils';
-import {usersApi, paymentsApi, userCoursesApi, categoriesApi, notificationsApi, submissionsApi, progressApi} from "@/services/api";
+import {
+    usersApi,
+    paymentsApi,
+    userCoursesApi,
+    categoriesApi,
+    notificationsApi,
+    submissionsApi,
+    progressApi
+} from "@/services/api";
 import {formatDate} from "@/lib/utils.ts";
 
 interface User {
@@ -197,6 +208,10 @@ export default function AdminUserDetail() {
         }
     }, [userId]);
 
+    useEffect(() => {
+        console.log('user', user)
+    }, [user]);
+
     const handleChangePassword = async () => {
         if (!newPassword || !confirmPassword) {
             toast({title: 'Xatolik', description: 'Parolni kiriting', variant: 'destructive'});
@@ -225,7 +240,7 @@ export default function AdminUserDetail() {
     };
 
     // clear input
-    const handleClearInputs=()=>{
+    const handleClearInputs = () => {
         setNewPassword('');
         setConfirmPassword('');
         toast({
@@ -362,15 +377,24 @@ export default function AdminUserDetail() {
     const handleDeleteUser = async () => {
         try {
             await usersApi.delete(userId!);
-            toast({ title: 'O\'chirildi', description: 'Foydalanuvchi o\'chirildi' });
+            toast({title: 'O\'chirildi', description: 'Foydalanuvchi o\'chirildi'});
             navigate('/admin/users');
         } catch (error) {
-            toast({ title: 'Xatolik', description: 'Foydalanuvchini o\'chirishda xatolik', variant: 'destructive' });
+            toast({title: 'Xatolik', description: 'Foydalanuvchini o\'chirishda xatolik', variant: 'destructive'});
         } finally {
             setShowDeleteConfirm(false);
         }
     };
 
+    const generatePassword = () => {
+        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+        let pass = "";
+        for (let i = 0; i < 10; i++) {
+            pass += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        setNewPassword(pass);
+        setConfirmPassword(pass);
+    };
 
 
     return (
@@ -393,7 +417,7 @@ export default function AdminUserDetail() {
                     <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
                             <h1 className="text-2xl font-bold text-foreground">
-                                {user.first_name || user.username || "Ism mavjud emas"} {user.last_name || ""}
+                                {user.first_name || "Ism mavjud emas"} {user.last_name || ""}
                             </h1>
                             <span className={cn(
                                 "status-badge",
@@ -410,17 +434,17 @@ export default function AdminUserDetail() {
                                 </div>
                             )}
                             <div className="flex items-center gap-2">
-                                <Phone className="h-4 w-4"/>
-                                {user.phone || "Mavjud emas"}
+                                {/*<Phone className="h-4 w-4"/>*/}
+                                @{user.username || "Mavjud emas"}
                             </div>
-                            <div className="flex items-center gap-2">
-                                <Calendar className="h-4 w-4"/>
-                                {formatDate(user.created_at)}
-                            </div>
-                            <div className="flex items-center gap-2" title='Hisobga kirilgan sana'>
-                                <CalendarClock className="h-4 w-4"/>
-                                {formatDate(user.last_login) || ""}
-                            </div>
+                            {/*<div className="flex items-center gap-2">*/}
+                            {/*    <Calendar className="h-4 w-4"/>*/}
+                            {/*    {formatDate(user.created_at)}*/}
+                            {/*</div>*/}
+                            {/*<div className="flex items-center gap-2" title='Hisobga kirilgan sana'>*/}
+                            {/*    <CalendarClock className="h-4 w-4"/>*/}
+                            {/*    {formatDate(user.last_login) || ""}*/}
+                            {/*</div>*/}
                         </div>
                     </div>
                     <div className="flex gap-2">
@@ -436,7 +460,7 @@ export default function AdminUserDetail() {
                             variant="destructive"
                             onClick={() => setShowDeleteConfirm(true)}
                         >
-                            <Trash2 className="mr-2 h-4 w-4" />
+                            <Trash2 className="mr-2 h-4 w-4"/>
                             O'chirish
                         </Button>
                         <Button
@@ -444,7 +468,8 @@ export default function AdminUserDetail() {
                             onClick={() => setShowBlockConfirm(true)}
                             className={user.is_blocked ? "text-success border-success hover:bg-success/10" : "text-warning border-warning hover:bg-warning/10"}
                         >
-                            {user.is_blocked ? <CheckCircle2 className="mr-2 h-4 w-4"/> : <Ban className="mr-2 h-4 w-4"/>}
+                            {user.is_blocked ? <CheckCircle2 className="mr-2 h-4 w-4"/> :
+                                <Ban className="mr-2 h-4 w-4"/>}
                             {user.is_blocked ? 'Faollashtirish' : 'Bloklash'}
                         </Button>
 
@@ -453,88 +478,261 @@ export default function AdminUserDetail() {
             </div>
 
             {/* Password Reset Card */}
-            <div className="rounded-xl border border-border bg-card mb-6 overflow-hidden">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div className="rounded-xl border border-border bg-card overflow-hidden">
 
-                {/* Header */}
-                <button
-                    onClick={() => setOpen(!open)}
-                    className="w-full flex items-center justify-between p-6 hover:bg-muted/50 transition"
-                >
-                    <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-warning/10 text-warning">
-                            <Lock className="h-5 w-5"/>
+                    <button
+                        onClick={() => setOpen(!open)}
+                        className="w-full flex items-center justify-between p-6 hover:bg-muted/50 transition"
+                    >
+                        <div className="flex items-center gap-3">
+                            <div
+                                className="flex h-10 w-10 items-center justify-center rounded-lg bg-warning/10 text-warning">
+                                <Lock className="h-5 w-5"/>
+                            </div>
+                            <div className="text-left">
+                                <h3 className="font-semibold">Parolni yangilash</h3>
+                                <p className="text-sm text-muted-foreground">O'quvchi parolini o'zgartirish</p>
+                            </div>
                         </div>
-                        <div className="text-left">
-                            <h3 className="font-semibold text-foreground">Parolni yangilash</h3>
-                            <p className="text-sm text-muted-foreground">O'quvchi parolini o'zgartirish</p>
-                        </div>
-                    </div>
 
-                    <ChevronDown
-                        className={`h-5 w-5 transition-transform ${open ? 'rotate-180' : ''}`}
-                    />
-                </button>
+                        <ChevronDown className={`h-5 w-5 transition-transform ${open ? 'rotate-180' : ''}`}/>
+                    </button>
 
-                {/* Content */}
-                {open && (
-                    <div className="p-6 pt-0 animate-fade-in">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {open && (
+                        <div className="p-6 pt-0 animate-fade-in">
+                            <div className=" space-y-4">
 
-                            <div className="space-y-2">
-                                <Label>Yangi parol</Label>
-                                <div className="relative">
+
+                                <div className="space-y-2">
+                                    <Label>Yangi parol</Label>
+                                    <div className="relative">
+                                        <Input
+                                            type={showPassword ? "text" : "password"}
+                                            value={newPassword}
+                                            onChange={(e) => setNewPassword(e.target.value)}
+                                            placeholder="Yangi parol"
+                                        />
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            className="absolute right-0 top-0 h-full"
+                                            onClick={() => setShowPassword(!showPassword)}
+                                        >
+                                            {showPassword ? <EyeOff className="h-4 w-4"/> : <Eye className="h-4 w-4"/>}
+                                        </Button>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label>Parolni tasdiqlash</Label>
                                     <Input
-                                        type={showPassword ? 'text' : 'password'}
-                                        value={newPassword}
-                                        onChange={(e) => setNewPassword(e.target.value)}
-                                        placeholder="Yangi parol"
+                                        type={showPassword ? "text" : "password"}
+                                        value={confirmPassword}
+                                        onChange={(e) => setConfirmPassword(e.target.value)}
+                                        placeholder="Parolni tasdiqlang"
                                     />
+                                </div>
+
+                                <div className="flex flex-wrap gap-3 pt-2">
+
                                     <Button
                                         type="button"
-                                        variant="ghost"
-                                        size="icon"
-                                        className="absolute right-0 top-0 h-full"
-                                        onClick={() => setShowPassword(!showPassword)}
+                                        variant="outline"
+                                        onClick={generatePassword}
                                     >
-                                        {showPassword ? <EyeOff className="h-4 w-4"/> : <Eye className="h-4 w-4"/>}
+                                        <Key/>
+                                        Parol generatsiya qilish
                                     </Button>
+
+                                    <Button
+                                        type="button"
+                                        className="bg-destructive text-white hover:bg-red-600"
+                                        onClick={handleClearInputs}
+                                    >
+                                        <Delete/>
+                                        Tozalash
+                                    </Button>
+
+                                    <Button
+                                        type="button"
+                                        className="gradient-primary text-primary-foreground ml-auto"
+                                        onClick={handleChangePassword}
+                                    >
+                                        <SaveIcon/>
+                                        Saqlash
+                                    </Button>
+
                                 </div>
-                            </div>
 
-                            <div className="space-y-2">
-                                <Label>Parolni tasdiqlash</Label>
-                                <Input
-                                    type={showPassword ? 'text' : 'password'}
-                                    value={confirmPassword}
-                                    onChange={(e) => setConfirmPassword(e.target.value)}
-                                    placeholder="Parolni tasdiqlang"
-                                />
 
                             </div>
+                        </div>
+                    )}
 
-                            <div className="flex items-end">
-                                <Button
-                                    onClick={handleClearInputs}
-                                    className="bg-destructive hover:bg-red-500 mr-2 text-white"
-                                >
-                                    <Delete className="mr-2 h-4 w-4"/>
-                                    Tozalash
-                                </Button>
-                                <Button
-                                    onClick={handleChangePassword}
-                                    disabled={changingPassword}
-                                    className="gradient-primary text-primary-foreground"
-                                >
-                                    <Lock className="mr-2 h-4 w-4"/>
-                                    {changingPassword ? 'Saqlanmoqda...' : 'Parolni yangilash'}
-                                </Button>
+                </div>
+
+
+                <div className="rounded-xl border border-border bg-card overflow-hidden">
+
+                    <button
+                        onClick={() => setOpen(!open)}
+                        className="w-full flex items-center justify-between p-6 hover:bg-muted/50 transition"
+                    >
+                        <div className="flex items-center gap-3">
+                            <div
+                                className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                                <CircleUser className="h-5 w-5"/>
+                            </div>
+                            <div className="text-left">
+                                <h3 className="font-semibold">Foydalanuvchi ma'lumotlari</h3>
+                                <p className="text-sm text-muted-foreground">Profil haqida ma'lumot</p>
+                            </div>
+                        </div>
+
+                        <ChevronDown className={`h-5 w-5 transition-transform ${open ? 'rotate-180' : ''}`}/>
+                    </button>
+
+                    {open && (
+                        <div className="p-6 pt-0 animate-fade-in space-y-3 text-sm">
+
+                            <div className="flex justify-between">
+                                <span className="text-muted-foreground">Ism:</span>
+                                <span className="font-medium">{user.first_name} {user.last_name}</span>
+                            </div>
+
+                            {/*<div className="flex justify-between">*/}
+                            {/*    <span className="text-muted-foreground">Email:</span>*/}
+                            {/*    <span className="font-medium">{user.email}</span>*/}
+                            {/*</div>*/}
+
+                            <div className="flex justify-between">
+                                <span className="text-muted-foreground">Username:</span>
+                                <span className="font-medium">@{user?.role || '-'}</span>
+                            </div>
+
+                            <div className="flex justify-between">
+                                <span className="text-muted-foreground">Holati:</span>
+                                <span className={cn(
+                                    "status-badge",
+                                    user.is_blocked ? "bg-destructive/15 text-destructive" : "status-completed"
+                                )}>
+                                {user.is_blocked ? 'Bloklangan' : 'Faol'}
+                            </span>
+                            </div>
+
+                            <div className="flex justify-between">
+                                <span className="text-muted-foreground">Telefon raqam:</span>
+                                <span className="font-medium">{user.phone || '-'}</span>
+                            </div>
+
+                            <div className="flex justify-between">
+                                <span className="text-muted-foreground">Unique ID:</span>
+                                <span className="font-medium">{user.watermark_id || '-'}</span>
+                            </div>
+
+                            <div className="flex justify-between">
+                                <span className="text-muted-foreground">Oxirgi kirish vaqti:</span>
+                                <span className="font-medium">{formatDate(user.last_login) || '-'}</span>
+                            </div>
+
+                            <div className="flex justify-between">
+                                <span className="text-muted-foreground">Yaratilgan vaqti:</span>
+                                <span className="font-medium">{formatDate(user.created_at) || '-'}</span>
                             </div>
 
                         </div>
-                    </div>
-                )}
+                    )}
+
+                </div>
+
 
             </div>
+
+
+            {/*<div className="rounded-xl border border-border bg-card mb-6 overflow-hidden">*/}
+
+            {/*    /!* Header *!/*/}
+            {/*    <button*/}
+            {/*        onClick={() => setOpen(!open)}*/}
+            {/*        className="w-full flex items-center justify-between p-6 hover:bg-muted/50 transition"*/}
+            {/*    >*/}
+            {/*        <div className="flex items-center gap-3">*/}
+            {/*            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-warning/10 text-warning">*/}
+            {/*                <Lock className="h-5 w-5"/>*/}
+            {/*            </div>*/}
+            {/*            <div className="text-left">*/}
+            {/*                <h3 className="font-semibold text-foreground">Parolni yangilash</h3>*/}
+            {/*                <p className="text-sm text-muted-foreground">O'quvchi parolini o'zgartirish</p>*/}
+            {/*            </div>*/}
+            {/*        </div>*/}
+
+            {/*        <ChevronDown*/}
+            {/*            className={`h-5 w-5 transition-transform ${open ? 'rotate-180' : ''}`}*/}
+            {/*        />*/}
+            {/*    </button>*/}
+
+            {/*    /!* Content *!/*/}
+            {/*    {open && (*/}
+            {/*        <div className="p-6 pt-0 animate-fade-in">*/}
+            {/*            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">*/}
+
+            {/*                <div className="space-y-2">*/}
+            {/*                    <Label>Yangi parol</Label>*/}
+            {/*                    <div className="relative">*/}
+            {/*                        <Input*/}
+            {/*                            type={showPassword ? 'text' : 'password'}*/}
+            {/*                            value={newPassword}*/}
+            {/*                            onChange={(e) => setNewPassword(e.target.value)}*/}
+            {/*                            placeholder="Yangi parol"*/}
+            {/*                        />*/}
+            {/*                        <Button*/}
+            {/*                            type="button"*/}
+            {/*                            variant="ghost"*/}
+            {/*                            size="icon"*/}
+            {/*                            className="absolute right-0 top-0 h-full"*/}
+            {/*                            onClick={() => setShowPassword(!showPassword)}*/}
+            {/*                        >*/}
+            {/*                            {showPassword ? <EyeOff className="h-4 w-4"/> : <Eye className="h-4 w-4"/>}*/}
+            {/*                        </Button>*/}
+            {/*                    </div>*/}
+            {/*                </div>*/}
+
+            {/*                <div className="space-y-2">*/}
+            {/*                    <Label>Parolni tasdiqlash</Label>*/}
+            {/*                    <Input*/}
+            {/*                        type={showPassword ? 'text' : 'password'}*/}
+            {/*                        value={confirmPassword}*/}
+            {/*                        onChange={(e) => setConfirmPassword(e.target.value)}*/}
+            {/*                        placeholder="Parolni tasdiqlang"*/}
+            {/*                    />*/}
+
+            {/*                </div>*/}
+
+            {/*                <div className="flex items-end">*/}
+            {/*                    <Button*/}
+            {/*                        onClick={handleClearInputs}*/}
+            {/*                        className="bg-destructive hover:bg-red-500 mr-2 text-white"*/}
+            {/*                    >*/}
+            {/*                        <Delete className="mr-2 h-4 w-4"/>*/}
+            {/*                        Tozalash*/}
+            {/*                    </Button>*/}
+            {/*                    <Button*/}
+            {/*                        onClick={handleChangePassword}*/}
+            {/*                        disabled={changingPassword}*/}
+            {/*                        className="gradient-primary text-primary-foreground"*/}
+            {/*                    >*/}
+            {/*                        <Lock className="mr-2 h-4 w-4"/>*/}
+            {/*                        {changingPassword ? 'Saqlanmoqda...' : 'Parolni yangilash'}*/}
+            {/*                    </Button>*/}
+            {/*                </div>*/}
+
+            {/*            </div>*/}
+            {/*        </div>*/}
+            {/*    )}*/}
+
+            {/*</div>*/}
 
             {/* Tabs */}
             <Tabs defaultValue="submissions" className="animate-fade-in" style={{animationDelay: '0.1s'}}>
@@ -565,7 +763,8 @@ export default function AdminUserDetail() {
                                 <tr key={sub.id} className="border-b border-border last:border-0">
                                     <td className="p-4">
                                         <div className="flex items-center gap-3">
-                                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                                            <div
+                                                className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
                                                 <ClipboardList className="h-5 w-5"/>
                                             </div>
                                             <div>
@@ -581,8 +780,8 @@ export default function AdminUserDetail() {
                                     </td>
                                     <td className="p-4">
                                         <span className="status-badge bg-muted text-muted-foreground">
-                                            {sub.task?.task_type === 'test' ? 'Test' : 
-                                             sub.task?.task_type === 'file' ? 'Fayl' : 'Matn'}
+                                            {sub.task?.task_type === 'test' ? 'Test' :
+                                                sub.task?.task_type === 'file' ? 'Fayl' : 'Matn'}
                                         </span>
                                     </td>
                                     <td className="p-4">
@@ -590,7 +789,7 @@ export default function AdminUserDetail() {
                                             <span className={cn(
                                                 "font-semibold",
                                                 sub.score === sub.total ? "text-green-600" :
-                                                sub.score >= (sub.total || 0) / 2 ? "text-warning" : "text-destructive"
+                                                    sub.score >= (sub.total || 0) / 2 ? "text-warning" : "text-destructive"
                                             )}>
                                                 {sub.score}/{sub.total}
                                             </span>
@@ -603,8 +802,8 @@ export default function AdminUserDetail() {
                                             sub.status === 'pending' && "bg-warning/15 text-warning",
                                             sub.status === 'rejected' && "bg-destructive/15 text-destructive"
                                         )}>
-                                            {sub.status === 'approved' ? 'Tasdiqlangan' : 
-                                             sub.status === 'pending' ? 'Kutilmoqda' : 'Qaytarilgan'}
+                                            {sub.status === 'approved' ? 'Tasdiqlangan' :
+                                                sub.status === 'pending' ? 'Kutilmoqda' : 'Qaytarilgan'}
                                         </span>
                                     </td>
                                     <td className="p-4 text-muted-foreground">{formatDate(sub.submitted_at)}</td>
@@ -669,7 +868,8 @@ export default function AdminUserDetail() {
                                 <tr key={idx} className="border-b border-border last:border-0">
                                     <td className="p-4">
                                         <div className="flex items-center gap-3">
-                                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                                            <div
+                                                className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
                                                 <PlayCircle className="h-5 w-5"/>
                                             </div>
                                             <span className="font-medium text-foreground">{prog.video_title}</span>
@@ -682,7 +882,7 @@ export default function AdminUserDetail() {
                                                 <span className={cn(
                                                     "font-semibold",
                                                     prog.task_score === prog.task_total ? "text-green-600" :
-                                                    prog.task_score >= (prog.task_total || 0) / 2 ? "text-warning" : "text-destructive"
+                                                        prog.task_score >= (prog.task_total || 0) / 2 ? "text-warning" : "text-destructive"
                                                 )}>
                                                     {prog.task_score}/{prog.task_total}
                                                 </span>
@@ -693,8 +893,11 @@ export default function AdminUserDetail() {
                                                         prog.task_status === 'pending' && "bg-warning/15 text-warning",
                                                         prog.task_status === 'rejected' && "bg-destructive/15 text-destructive"
                                                     )}>
-                                                        {prog.task_status === 'approved' ? <CheckCircle2 className="h-3 w-3"/> : 
-                                                         prog.task_status === 'pending' ? <Clock className="h-3 w-3"/> : <XCircle className="h-3 w-3"/>}
+                                                        {prog.task_status === 'approved' ?
+                                                            <CheckCircle2 className="h-3 w-3"/> :
+                                                            prog.task_status === 'pending' ?
+                                                                <Clock className="h-3 w-3"/> :
+                                                                <XCircle className="h-3 w-3"/>}
                                                     </span>
                                                 )}
                                             </div>
@@ -743,7 +946,8 @@ export default function AdminUserDetail() {
                                         <td className="p-4">
                                             <div className="flex items-center gap-3">
                                                 <span className="text-xl">{category?.icon}</span>
-                                                <span className="font-medium">{category?.name || course.category_name}</span>
+                                                <span
+                                                    className="font-medium">{category?.name || course.category_name}</span>
                                             </div>
                                         </td>
                                         <td className="p-4 text-muted-foreground">{formatDate(course.granted_at)}</td>
@@ -957,8 +1161,10 @@ export default function AdminUserDetail() {
                             />
                         </div>
                         <div className="flex justify-end gap-3 pt-4">
-                            <Button variant="outline" onClick={() => setIsPaymentDialogOpen(false)}>Bekor qilish</Button>
-                            <Button onClick={handleAddPayment} className="gradient-primary text-primary-foreground">Saqlash</Button>
+                            <Button variant="outline" onClick={() => setIsPaymentDialogOpen(false)}>Bekor
+                                qilish</Button>
+                            <Button onClick={handleAddPayment}
+                                    className="gradient-primary text-primary-foreground">Saqlash</Button>
                         </div>
                     </div>
                 </DialogContent>

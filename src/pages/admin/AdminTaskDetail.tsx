@@ -296,7 +296,7 @@ export default function AdminTaskDetail() {
                 </div>
             </div>
 
-            <div className="max-w-4xl mx-auto">
+            <div className="w-full mx-auto">
                 {/* Task Info */}
                 <div className="rounded-xl border border-border bg-card p-6 mb-6">
                     <div className="flex items-start gap-4 mb-4">

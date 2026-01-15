@@ -1,6 +1,6 @@
 import {useState, useEffect} from 'react';
 import {useNavigate} from 'react-router-dom';
-import {Plus, Pencil, Trash2, Ban, CheckCircle2, Phone} from 'lucide-react';
+import {Plus, Pencil, Trash2, Ban, CheckCircle2, Phone, Key} from 'lucide-react';
 import {DashboardLayout} from '@/layouts/DashboardLayout';
 import {DataTable, Column, Filter} from '@/components/DataTable';
 import {Button} from '@/components/ui/button';
@@ -79,6 +79,11 @@ export default function AdminUsers() {
             setLoading(false);
         }
     };
+
+    useEffect(() => {
+        console.log(users)
+    }, [users]);
+
 
     const handleOpenDialog = (user?: User) => {
         if (user) {
@@ -203,6 +208,16 @@ export default function AdminUsers() {
                 <div className="flex items-center gap-2 text-muted-foreground">
                     <Phone className="h-4 w-4"/>
                     {user.phone || '-'}
+                </div>
+            ),
+        },
+        {
+            key: 'watermark_id',
+            header: 'Unique ID',
+            render: (user) => (
+                <div className="flex items-center gap-2 text-muted-foreground">
+                    <Key className="h-4 w-4"/>
+                    {user.watermark_id || '-'}
                 </div>
             ),
         },
