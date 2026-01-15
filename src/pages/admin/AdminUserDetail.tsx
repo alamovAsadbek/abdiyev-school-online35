@@ -1,6 +1,27 @@
 import {useEffect, useState} from 'react';
 import {useParams, useNavigate} from 'react-router-dom';
-import {ArrowLeft, Mail, Phone, Calendar, Ban, CheckCircle2, Gift, Plus, Trash2, CalendarClock, Edit, Lock, Eye, EyeOff, ClipboardList, PlayCircle, XCircle, Clock} from 'lucide-react';
+import {
+    ArrowLeft,
+    Mail,
+    Phone,
+    Calendar,
+    Ban,
+    CheckCircle2,
+    Gift,
+    Plus,
+    Trash2,
+    CalendarClock,
+    Edit,
+    Lock,
+    Eye,
+    EyeOff,
+    ClipboardList,
+    PlayCircle,
+    XCircle,
+    Clock,
+    ChevronDown,
+    Delete
+} from 'lucide-react';
 import {DashboardLayout} from '@/layouts/DashboardLayout';
 import {Button} from '@/components/ui/button';
 import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs';
@@ -136,6 +157,9 @@ export default function AdminUserDetail() {
     const [showBlockConfirm, setShowBlockConfirm] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
+    // reset password
+    const [open, setOpen] = useState(false);
+
 
     const fetchData = async () => {
         try {
@@ -199,6 +223,16 @@ export default function AdminUserDetail() {
             setChangingPassword(false);
         }
     };
+
+    // clear input
+    const handleClearInputs=()=>{
+        setNewPassword('');
+        setConfirmPassword('');
+        toast({
+            title: 'Tozalandi!',
+            description: "Ma'lumotlar tozalandi!"
+        })
+    }
 
     const handleApproveSubmission = async (submissionId: string) => {
         try {
@@ -419,57 +453,87 @@ export default function AdminUserDetail() {
             </div>
 
             {/* Password Reset Card */}
-            <div className="rounded-xl border border-border bg-card p-6 mb-6 animate-fade-in" style={{animationDelay: '0.05s'}}>
-                <div className="flex items-center gap-3 mb-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-warning/10 text-warning">
-                        <Lock className="h-5 w-5"/>
-                    </div>
-                    <div>
-                        <h3 className="font-semibold text-foreground">Parolni yangilash</h3>
-                        <p className="text-sm text-muted-foreground">O'quvchi parolini o'zgartirish</p>
-                    </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                        <Label>Yangi parol</Label>
-                        <div className="relative">
-                            <Input
-                                type={showPassword ? 'text' : 'password'}
-                                value={newPassword}
-                                onChange={(e) => setNewPassword(e.target.value)}
-                                placeholder="Yangi parol"
-                            />
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="absolute right-0 top-0 h-full"
-                                onClick={() => setShowPassword(!showPassword)}
-                            >
-                                {showPassword ? <EyeOff className="h-4 w-4"/> : <Eye className="h-4 w-4"/>}
-                            </Button>
+            <div className="rounded-xl border border-border bg-card mb-6 overflow-hidden">
+
+                {/* Header */}
+                <button
+                    onClick={() => setOpen(!open)}
+                    className="w-full flex items-center justify-between p-6 hover:bg-muted/50 transition"
+                >
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-warning/10 text-warning">
+                            <Lock className="h-5 w-5"/>
+                        </div>
+                        <div className="text-left">
+                            <h3 className="font-semibold text-foreground">Parolni yangilash</h3>
+                            <p className="text-sm text-muted-foreground">O'quvchi parolini o'zgartirish</p>
                         </div>
                     </div>
-                    <div className="space-y-2">
-                        <Label>Parolni tasdiqlash</Label>
-                        <Input
-                            type={showPassword ? 'text' : 'password'}
-                            value={confirmPassword}
-                            onChange={(e) => setConfirmPassword(e.target.value)}
-                            placeholder="Parolni tasdiqlang"
-                        />
+
+                    <ChevronDown
+                        className={`h-5 w-5 transition-transform ${open ? 'rotate-180' : ''}`}
+                    />
+                </button>
+
+                {/* Content */}
+                {open && (
+                    <div className="p-6 pt-0 animate-fade-in">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+                            <div className="space-y-2">
+                                <Label>Yangi parol</Label>
+                                <div className="relative">
+                                    <Input
+                                        type={showPassword ? 'text' : 'password'}
+                                        value={newPassword}
+                                        onChange={(e) => setNewPassword(e.target.value)}
+                                        placeholder="Yangi parol"
+                                    />
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="absolute right-0 top-0 h-full"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                    >
+                                        {showPassword ? <EyeOff className="h-4 w-4"/> : <Eye className="h-4 w-4"/>}
+                                    </Button>
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label>Parolni tasdiqlash</Label>
+                                <Input
+                                    type={showPassword ? 'text' : 'password'}
+                                    value={confirmPassword}
+                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                    placeholder="Parolni tasdiqlang"
+                                />
+
+                            </div>
+
+                            <div className="flex items-end">
+                                <Button
+                                    onClick={handleClearInputs}
+                                    className="bg-destructive hover:bg-red-500 mr-2 text-white"
+                                >
+                                    <Delete className="mr-2 h-4 w-4"/>
+                                    Tozalash
+                                </Button>
+                                <Button
+                                    onClick={handleChangePassword}
+                                    disabled={changingPassword}
+                                    className="gradient-primary text-primary-foreground"
+                                >
+                                    <Lock className="mr-2 h-4 w-4"/>
+                                    {changingPassword ? 'Saqlanmoqda...' : 'Parolni yangilash'}
+                                </Button>
+                            </div>
+
+                        </div>
                     </div>
-                    <div className="flex items-end">
-                        <Button 
-                            onClick={handleChangePassword} 
-                            disabled={changingPassword}
-                            className="gradient-primary text-primary-foreground"
-                        >
-                            <Lock className="mr-2 h-4 w-4"/>
-                            {changingPassword ? 'Saqlanmoqda...' : 'Parolni yangilash'}
-                        </Button>
-                    </div>
-                </div>
+                )}
+
             </div>
 
             {/* Tabs */}

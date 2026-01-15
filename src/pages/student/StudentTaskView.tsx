@@ -274,7 +274,7 @@ export default function StudentTaskView() {
           Orqaga
         </Button>
 
-        <div className="max-w-3xl mx-auto">
+        <div className="w-full mx-auto">
           <div className="mb-8 animate-fade-in rounded-xl border border-border bg-card p-6">
             <div className="flex items-start gap-4 mb-4">
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted text-muted-foreground">
@@ -306,7 +306,7 @@ export default function StudentTaskView() {
             )}
           </div>
 
-          <div className="flex flex-col items-center justify-center min-h-[300px] text-center">
+          <div className="flex flex-col items-center justify-center w-full text-center">
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted mb-4">
               <Lock className="h-8 w-8 text-muted-foreground" />
             </div>
