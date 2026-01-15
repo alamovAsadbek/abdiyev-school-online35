@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, CheckCircle2, XCircle, Trophy, Ban, PlayCircle, Lock, 
-  Upload, FileText, Clock, Send, AlertCircle
+  Upload, FileText, Clock, Send, AlertCircle, ChevronRight
 } from 'lucide-react';
 import { DashboardLayout } from '@/layouts/DashboardLayout';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { RichTextEditor } from '@/components/RichTextEditor';
 import { cn } from '@/lib/utils';
 import { tasksApi, submissionsApi, videosApi, progressApi } from '@/services/api';
+import { useProgress } from '@/contexts/ProgressContext';
 
 interface TaskQuestion {
   id: number;
@@ -43,14 +44,24 @@ interface Submission {
   submitted_at: string;
 }
 
+interface Video {
+  id: string;
+  title: string;
+  category: string;
+  category_name: string;
+  order: number;
+}
+
 export default function StudentTaskView() {
   const { taskId } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { isVideoCompleted, markVideoCompleted, markTaskCompleted } = useProgress();
   
   const [task, setTask] = useState<Task | null>(null);
-  const [video, setVideo] = useState<any>(null);
+  const [video, setVideo] = useState<Video | null>(null);
+  const [nextVideo, setNextVideo] = useState<Video | null>(null);
   const [submission, setSubmission] = useState<Submission | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -77,24 +88,51 @@ export default function StudentTaskView() {
       if (taskData.video) {
         const videoData = await videosApi.getById(String(taskData.video));
         setVideo(videoData);
+        
+        // Check local progress first
+        const localCompleted = isVideoCompleted(String(taskData.video));
+        
+        // Also check backend progress
+        let backendCompleted = false;
+        try {
+          const progressData = await progressApi.getMyProgress();
+          const completedVideos = progressData?.completed_videos || [];
+          backendCompleted = completedVideos.includes(String(taskData.video)) || completedVideos.includes(taskData.video);
+        } catch {
+          // If backend fails, use local
+        }
+        
+        // Use either local or backend - if any says completed
+        setVideoCompleted(localCompleted || backendCompleted);
+        
+        // Find next video in same category
+        try {
+          const categoryVideos = await videosApi.getByCategory(String(videoData.category));
+          const videos = (categoryVideos?.results || categoryVideos || []).sort((a: Video, b: Video) => a.order - b.order);
+          const currentIndex = videos.findIndex((v: Video) => String(v.id) === String(videoData.id));
+          if (currentIndex >= 0 && currentIndex < videos.length - 1) {
+            setNextVideo(videos[currentIndex + 1]);
+          }
+        } catch {
+          // No next video
+        }
       }
       
-      // Load user progress to check if video is completed
-      const progressData = await progressApi.getMyProgress();
-      const completedVideos = progressData.completed_videos || [];
-      setVideoCompleted(completedVideos.includes(String(taskData.video)) || completedVideos.includes(taskData.video));
-      
       // Load existing submission
-      const submissions = await submissionsApi.getMySubmissions();
-      const existing = submissions.find((s: any) => s.task === taskData.id);
-      if (existing) {
-        setSubmission(existing);
-        setAnswers(existing.answers || {});
-        setTextContent(existing.text_content || '');
-        if (existing.status === 'approved' || (taskData.task_type === 'test' && existing.score !== undefined)) {
-          setSubmitted(true);
-          setScore({ correct: existing.score, total: existing.total });
+      try {
+        const submissions = await submissionsApi.getMySubmissions();
+        const existing = (submissions?.results || submissions || []).find((s: any) => s.task === taskData.id || s.task?.id === taskData.id);
+        if (existing) {
+          setSubmission(existing);
+          setAnswers(existing.answers || {});
+          setTextContent(existing.text_content || '');
+          if (existing.status === 'approved' || (taskData.task_type === 'test' && existing.score !== undefined)) {
+            setSubmitted(true);
+            setScore({ correct: existing.score, total: existing.total });
+          }
         }
+      } catch {
+        // No submission
       }
     } catch (error) {
       console.error('Error loading task:', error);
@@ -142,8 +180,16 @@ export default function StudentTaskView() {
         setScore({ correct, total: task.questions.length });
         setSubmitted(true);
         
-        // Mark task as completed
-        await progressApi.completeTask(String(task.id));
+        // Mark task and video as completed in local context
+        markTaskCompleted(String(task.id), correct, task.questions.length);
+        if (video) {
+          markVideoCompleted(String(video.id));
+        }
+        
+        // Also mark on backend
+        try {
+          await progressApi.completeTask(String(task.id));
+        } catch {}
         
         toast({ 
           title: 'Muvaffaqiyat', 
@@ -188,6 +234,14 @@ export default function StudentTaskView() {
     setUploadedFile(null);
     setSubmitted(false);
     setScore(null);
+  };
+
+  const handleGoToNextVideo = () => {
+    if (nextVideo) {
+      navigate(`/student/video/${nextVideo.id}`);
+    } else {
+      navigate('/student/videos');
+    }
   };
 
   if (loading) {
@@ -385,6 +439,19 @@ export default function StudentTaskView() {
                 )}
               </div>
             </div>
+            
+            {/* Next video button for approved */}
+            {isApproved && nextVideo && (
+              <div className="mt-4 pt-4 border-t border-border/50">
+                <Button 
+                  onClick={handleGoToNextVideo}
+                  className="w-full gradient-primary text-primary-foreground"
+                >
+                  Keyingi darsga o'tish
+                  <ChevronRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+            )}
           </div>
         )}
 
@@ -422,22 +489,34 @@ export default function StudentTaskView() {
                 </p>
               </div>
             </div>
-            {!task.allow_resubmission && (
-              <div className="mt-4 pt-4 border-t border-border/50 flex items-center gap-2 text-muted-foreground">
-                <Ban className="h-4 w-4" />
-                <span className="text-sm">Bu vazifani qayta topshirish mumkin emas</span>
-              </div>
-            )}
+            
+            {/* Next video button for test completion */}
+            <div className="mt-4 pt-4 border-t border-border/50 flex gap-3">
+              {task.allow_resubmission && (
+                <Button 
+                  variant="outline" 
+                  onClick={handleRetry}
+                  className="flex-1"
+                >
+                  Qayta topshirish
+                </Button>
+              )}
+              <Button 
+                onClick={handleGoToNextVideo}
+                className="flex-1 gradient-primary text-primary-foreground"
+              >
+                {nextVideo ? "Keyingi darsga o'tish" : "Darslarga qaytish"}
+                <ChevronRight className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
           </div>
         )}
 
         {/* Test Questions */}
-        {task.task_type === 'test' && (
+        {task.task_type === 'test' && !submitted && (
           <div className="space-y-6">
             {task.questions.map((question, qIndex) => {
               const selectedAnswer = answers[String(question.id)];
-              const isCorrect = submitted && selectedAnswer === question.correct_answer;
-              const isWrong = submitted && selectedAnswer !== undefined && selectedAnswer !== question.correct_answer;
 
               return (
                 <div 
@@ -455,157 +534,122 @@ export default function StudentTaskView() {
                     />
                   </div>
 
-                  <div className="space-y-3 pl-11">
-                    {question.options.map((option, oIndex) => {
-                      const isSelected = selectedAnswer === oIndex;
-                      const showCorrect = submitted && oIndex === question.correct_answer;
-                      const showWrong = submitted && isSelected && oIndex !== question.correct_answer;
-
-                      return (
-                        <button
-                          key={oIndex}
-                          onClick={() => handleSelectAnswer(String(question.id), oIndex)}
-                          disabled={submitted && !task.allow_resubmission}
-                          className={cn(
-                            "w-full flex items-center gap-3 p-4 rounded-lg border text-left transition-all",
-                            !submitted && isSelected && "border-primary bg-primary/5",
-                            !submitted && !isSelected && "border-border hover:border-primary/50 hover:bg-muted/50",
-                            showCorrect && "border-green-500 bg-green-500/10",
-                            showWrong && "border-destructive bg-destructive/10",
-                            submitted && !showCorrect && !showWrong && "opacity-60"
-                          )}
-                        >
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 ml-11">
+                    {question.options.map((option, optIndex) => (
+                      <button
+                        key={optIndex}
+                        onClick={() => handleSelectAnswer(String(question.id), optIndex)}
+                        className={cn(
+                          "p-4 rounded-lg border text-left transition-all",
+                          selectedAnswer === optIndex
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "border-border hover:border-primary/50 hover:bg-muted/50"
+                        )}
+                      >
+                        <span className="flex items-center gap-3">
                           <span className={cn(
-                            "flex h-6 w-6 items-center justify-center rounded-full border text-sm font-medium",
-                            isSelected && !submitted && "border-primary bg-primary text-primary-foreground",
-                            showCorrect && "border-green-500 bg-green-500 text-white",
-                            showWrong && "border-destructive bg-destructive text-destructive-foreground",
-                            !isSelected && !showCorrect && !showWrong && "border-muted-foreground/30"
+                            "flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium",
+                            selectedAnswer === optIndex 
+                              ? "bg-primary text-primary-foreground" 
+                              : "bg-muted text-muted-foreground"
                           )}>
-                            {showCorrect ? <CheckCircle2 className="h-4 w-4" /> : 
-                             showWrong ? <XCircle className="h-4 w-4" /> : 
-                             String.fromCharCode(65 + oIndex)}
+                            {String.fromCharCode(65 + optIndex)}
                           </span>
-                          <span className="flex-1">{option}</span>
-                        </button>
-                      );
-                    })}
+                          <span dangerouslySetInnerHTML={{ __html: option }} />
+                        </span>
+                      </button>
+                    ))}
                   </div>
                 </div>
               );
             })}
+
+            {/* Submit Button for Test */}
+            <div className="flex justify-end">
+              <Button
+                onClick={handleSubmit}
+                disabled={!canSubmit || submitting}
+                className="gradient-primary text-primary-foreground"
+                size="lg"
+              >
+                {submitting ? (
+                  <>
+                    <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    Yuborilmoqda...
+                  </>
+                ) : (
+                  <>
+                    <Send className="mr-2 h-4 w-4" />
+                    Javoblarni yuborish
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         )}
 
-        {/* File/Text Submission Form */}
-        {(task.task_type === 'file' || task.task_type === 'text') && (!submission || isRejected || task.allow_resubmission) && (
-          <div className="space-y-6">
-            {/* Text Input with Rich Editor */}
-            <div className="animate-fade-in rounded-xl border border-border bg-card p-6">
-              <h3 className="font-semibold text-foreground mb-4">
-                {task.task_type === 'file' ? 'Javobingizni yozing yoki fayl yuklang' : 'Javobingizni yozing'}
-              </h3>
-              
+        {/* File/Text submission form */}
+        {task.task_type !== 'test' && !isApproved && (!submission || isRejected || task.allow_resubmission) && (
+          <div className="animate-fade-in rounded-xl border border-border bg-card p-6 space-y-6">
+            <h3 className="text-lg font-semibold text-foreground">Javobingizni yuboring</h3>
+            
+            {/* Rich Text Editor */}
+            <div>
+              <p className="text-sm text-muted-foreground mb-2">Matn yozing yoki fayl yuklang</p>
               <RichTextEditor
                 value={textContent}
                 onChange={setTextContent}
-                placeholder="Javobingizni bu yerga yozing... Kimyoviy formulalar uchun subscript/superscript ishlating"
-                className="min-h-[200px]"
+                placeholder="Vazifa javobingizni bu yerga yozing... Kimyoviy formulalar uchun subscript/superscript ishlating"
               />
             </div>
 
             {/* File Upload */}
-            {task.task_type === 'file' && (
-              <div className="animate-fade-in rounded-xl border border-border bg-card p-6">
-                <h3 className="font-semibold text-foreground mb-4">Fayl yuklash (ixtiyoriy)</h3>
-                
+            {(task.task_type === 'file' || task.task_type === 'text') && (
+              <div>
                 <input
-                  ref={fileInputRef}
                   type="file"
-                  accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
-                  className="hidden"
+                  ref={fileInputRef}
                   onChange={handleFileChange}
+                  className="hidden"
                 />
-                
-                <div
+                <Button
+                  variant="outline"
                   onClick={() => fileInputRef.current?.click()}
-                  className="border-2 border-dashed border-border rounded-xl p-8 text-center cursor-pointer hover:border-primary/50 transition-colors"
+                  className="w-full h-24 border-dashed"
                 >
-                  {uploadedFile ? (
-                    <div className="space-y-2">
-                      <FileText className="h-12 w-12 mx-auto text-primary" />
-                      <p className="font-medium text-foreground">{uploadedFile.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {(uploadedFile.size / (1024 * 1024)).toFixed(2)} MB
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <Upload className="h-12 w-12 mx-auto text-muted-foreground" />
-                      <p className="font-medium text-foreground">Fayl yuklash uchun bosing</p>
-                      <p className="text-sm text-muted-foreground">PDF, Word, Excel, Rasm</p>
-                    </div>
-                  )}
-                </div>
+                  <div className="flex flex-col items-center gap-2">
+                    <Upload className="h-6 w-6 text-muted-foreground" />
+                    {uploadedFile ? (
+                      <span className="text-sm text-foreground">{uploadedFile.name}</span>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">Fayl yuklash uchun bosing</span>
+                    )}
+                  </div>
+                </Button>
               </div>
             )}
 
-            {/* Task file download if provided */}
-            {task.file && (
-              <div className="animate-fade-in rounded-xl border border-border bg-card p-6">
-                <h3 className="font-semibold text-foreground mb-4">Vazifa fayli</h3>
-                <a 
-                  href={task.file} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-3 p-4 rounded-lg bg-muted hover:bg-muted/80 transition-colors"
-                >
-                  <FileText className="h-8 w-8 text-primary" />
-                  <div>
-                    <p className="font-medium text-foreground">Vazifa faylini yuklab olish</p>
-                    <p className="text-sm text-muted-foreground">Bosib yuklab oling</p>
-                  </div>
-                </a>
-              </div>
-            )}
+            {/* Submit Button */}
+            <Button
+              onClick={handleSubmit}
+              disabled={!allAnswered || submitting}
+              className="w-full gradient-primary text-primary-foreground"
+              size="lg"
+            >
+              {submitting ? (
+                <>
+                  <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  Yuborilmoqda...
+                </>
+              ) : (
+                <>
+                  <Send className="mr-2 h-4 w-4" />
+                  Vazifani yuborish
+                </>
+              )}
+            </Button>
           </div>
         )}
-
-        {/* Actions */}
-        <div className="mt-8 flex justify-end gap-4">
-          {task.task_type === 'test' ? (
-            submitted ? (
-              task.allow_resubmission ? (
-                <Button onClick={handleRetry} className="gradient-primary text-primary-foreground">
-                  Qayta ishlash
-                </Button>
-              ) : (
-                <Button onClick={() => navigate('/student/tasks')} variant="outline">
-                  Vazifalar ro'yxatiga qaytish
-                </Button>
-              )
-            ) : (
-              <Button 
-                onClick={handleSubmit} 
-                disabled={!canSubmit || submitting}
-                className="gradient-primary text-primary-foreground"
-              >
-                {submitting ? 'Yuklanmoqda...' : 'Javoblarni tekshirish'}
-              </Button>
-            )
-          ) : (
-            (!submission || isRejected || task.allow_resubmission) && (
-              <Button 
-                onClick={handleSubmit} 
-                disabled={!canSubmit || submitting || isPending}
-                className="gradient-primary text-primary-foreground"
-              >
-                <Send className="mr-2 h-4 w-4" />
-                {submitting ? 'Yuklanmoqda...' : isPending ? 'Tekshirilmoqda' : 'Javobni yuborish'}
-              </Button>
-            )
-          )}
-        </div>
       </div>
     </DashboardLayout>
   );

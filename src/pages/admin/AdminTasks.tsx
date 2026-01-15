@@ -284,7 +284,7 @@ export default function AdminTasks() {
             size="icon"
             onClick={(e) => {
               e.stopPropagation();
-              handleOpenDialog(task);
+              navigate(`/admin/tasks/${task.id}`);
             }}
             className="h-8 w-8 text-muted-foreground hover:text-foreground"
           >
