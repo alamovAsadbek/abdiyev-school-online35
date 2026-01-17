@@ -123,7 +123,7 @@ export const tasksApi = {
     return api.get(`/tasks/${taskId}/stats/`);
   },
   linkToVideo: async (taskId: string, videoId: string) => {
-    return api.post(`/tasks/${taskId}/link_to_video/`, { video_id: videoId });
+    return api.post(`/tasks/${taskId}/link_to_video/`, { video_id: parseInt(videoId, 10) || videoId });
   },
 };
 
