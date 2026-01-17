@@ -68,6 +68,8 @@ interface User {
     is_blocked: boolean;
     created_at: string;
     last_login: string;
+    role?: string;
+    watermark_id?: string;
 }
 
 interface Payment {

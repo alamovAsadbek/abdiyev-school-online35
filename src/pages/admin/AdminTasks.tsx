@@ -318,125 +318,13 @@ export default function AdminTasks() {
             Test savollarini boshqaring
           </p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={() => handleOpenDialog()} className="gradient-primary text-primary-foreground">
-              <Plus className="mr-2 h-4 w-4" />
-              Yangi vazifa
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-            <DialogHeader>
-              <DialogTitle>{editingTask ? 'Vazifani tahrirlash' : 'Yangi vazifa'}</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 mt-4 overflow-y-auto flex-1 pr-2">
-              <div className="space-y-2">
-                <Label htmlFor="title">Sarlavha</Label>
-                <Input
-                  id="title"
-                  placeholder="Vazifa sarlavhasi"
-                  value={formData.title}
-                  onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="video">Video dars</Label>
-                <Select
-                  value={formData.video_id}
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, video_id: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Videoni tanlang" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {videos.map(vid => (
-                      <SelectItem key={vid.id} value={vid.id}>
-                        {vid.title}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="description">Tavsif</Label>
-                <Textarea
-                  id="description"
-                  placeholder="Qisqacha tavsif"
-                  value={formData.description}
-                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Qayta topshirishga ruxsat</Label>
-                  <p className="text-xs text-muted-foreground">O'quvchi testni qayta topshira olsinmi?</p>
-                </div>
-                <Switch
-                  checked={formData.allow_resubmission}
-                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, allow_resubmission: checked }))}
-                />
-              </div>
-
-              {/* Questions */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <Label>Savollar</Label>
-                  <Button variant="outline" size="sm" onClick={addQuestion}>
-                    <Plus className="mr-1 h-3 w-3" />
-                    Savol qo'shish
-                  </Button>
-                </div>
-
-                {formData.questions.map((q, qIndex) => (
-                  <div key={q.id} className="p-4 rounded-lg border border-border bg-muted/30 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Savol {qIndex + 1}</span>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeQuestion(qIndex)}
-                        className="h-7 w-7 text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <Input
-                      placeholder="Savol matni"
-                      value={q.question}
-                      onChange={(e) => updateQuestion(qIndex, 'question', e.target.value)}
-                    />
-                    <div className="grid grid-cols-2 gap-2">
-                      {q.options.map((opt, oIndex) => (
-                        <div key={oIndex} className="flex items-center gap-2">
-                          <input
-                            type="radio"
-                            name={`correct-${qIndex}`}
-                            checked={q.correct_answer === oIndex}
-                            onChange={() => updateQuestion(qIndex, 'correct_answer', oIndex)}
-                            className="accent-primary"
-                          />
-                          <Input
-                            placeholder={`Variant ${String.fromCharCode(65 + oIndex)}`}
-                            value={opt}
-                            onChange={(e) => updateOption(qIndex, oIndex, e.target.value)}
-                            className="flex-1"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                    <p className="text-xs text-muted-foreground">To'g'ri javobni belgilang</p>
-                  </div>
-                ))}
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4 sticky bottom-0 bg-background">
-                <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Bekor qilish</Button>
-                <Button onClick={handleSave} className="gradient-primary text-primary-foreground">Saqlash</Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <Button 
+          onClick={() => navigate('/admin/tasks/create')} 
+          className="gradient-primary text-primary-foreground"
+        >
+          <Plus className="mr-2 h-4 w-4" />
+          Yangi vazifa
+        </Button>
       </div>
 
       {/* Data Table */}

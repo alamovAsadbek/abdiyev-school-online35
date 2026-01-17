@@ -39,6 +39,7 @@ interface User {
     role: string;
     is_blocked: boolean;
     created_at: string;
+    watermark_id?: string;
 }
 
 export default function AdminUsers() {

@@ -306,7 +306,7 @@ export default function AdminVideoDetail() {
                                         </p>
                                         <Button
                                             variant="outline"
-                                            onClick={() => navigate("/admin/tasks")}
+                                            onClick={() => navigate(`/admin/tasks/create?video=${videoId}&category=${video.category}`)}
                                         >
                                             Vazifa qo'shish
                                         </Button>

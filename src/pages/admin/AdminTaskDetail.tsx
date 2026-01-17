@@ -162,26 +162,13 @@ export default function AdminTaskDetail() {
 
         setLinking(true);
         try {
-            // Call backend to link/copy task to another video
-            const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/tasks/${taskId}/link_to_video/`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-                },
-                body: JSON.stringify({video_id: selectedVideoId})
-            });
-
-            if (response.ok) {
-                toast({title: 'Muvaffaqiyat', description: 'Vazifa boshqa videoga ham qo\'shildi'});
-                setShowLinkDialog(false);
-                setSelectedVideoId('');
-            } else {
-                const data = await response.json();
-                toast({title: 'Xatolik', description: data.error || 'Xatolik yuz berdi', variant: 'destructive'});
-            }
-        } catch (error) {
-            toast({title: 'Xatolik', description: 'Xatolik yuz berdi', variant: 'destructive'});
+            await tasksApi.linkToVideo(taskId!, selectedVideoId);
+            toast({title: 'Muvaffaqiyat', description: 'Vazifa boshqa videoga ham qo\'shildi'});
+            setShowLinkDialog(false);
+            setSelectedVideoId('');
+        } catch (error: any) {
+            const errorMessage = error?.response?.data?.error || error?.message || 'Xatolik yuz berdi';
+            toast({title: 'Xatolik', description: errorMessage, variant: 'destructive'});
         } finally {
             setLinking(false);
         }

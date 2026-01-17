@@ -96,14 +96,34 @@ export default function StudentTaskView() {
         let backendCompleted = false;
         try {
           const progressData = await progressApi.getMyProgress();
-          const completedVideos = progressData?.completed_videos || [];
-          backendCompleted = completedVideos.includes(String(taskData.video)) || completedVideos.includes(taskData.video);
-        } catch {
+          const completedVideos = progressData?.completed_videos || progressData?.completedVideos || [];
+          
+          // Normalize IDs for comparison (handle both string and number IDs)
+          const normalizedVideoId = String(taskData.video);
+          backendCompleted = completedVideos.some((vid: any) => 
+            String(vid) === normalizedVideoId || 
+            String(vid?.id) === normalizedVideoId
+          );
+        } catch (e) {
+          console.log('Backend progress check failed:', e);
           // If backend fails, use local
         }
         
-        // Use either local or backend - if any says completed
-        setVideoCompleted(localCompleted || backendCompleted);
+        // If user has already submitted for this task, assume they watched the video
+        let hasSubmission = false;
+        try {
+          const submissions = await submissionsApi.getMySubmissions();
+          const existingSub = (submissions?.results || submissions || []).find((s: any) => 
+            String(s.task) === String(taskData.id) || String(s.task?.id) === String(taskData.id)
+          );
+          hasSubmission = !!existingSub;
+        } catch {
+          // No submission
+        }
+        
+        // Use either local, backend, or has submission - if any is true
+        const isCompleted = localCompleted || backendCompleted || hasSubmission;
+        setVideoCompleted(isCompleted);
         
         // Find next video in same category
         try {
@@ -116,12 +136,17 @@ export default function StudentTaskView() {
         } catch {
           // No next video
         }
+      } else {
+        // No video attached, allow task completion
+        setVideoCompleted(true);
       }
       
       // Load existing submission
       try {
         const submissions = await submissionsApi.getMySubmissions();
-        const existing = (submissions?.results || submissions || []).find((s: any) => s.task === taskData.id || s.task?.id === taskData.id);
+        const existing = (submissions?.results || submissions || []).find((s: any) => 
+          String(s.task) === String(taskData.id) || String(s.task?.id) === String(taskData.id)
+        );
         if (existing) {
           setSubmission(existing);
           setAnswers(existing.answers || {});
