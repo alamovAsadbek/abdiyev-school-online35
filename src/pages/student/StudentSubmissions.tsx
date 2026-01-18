@@ -26,7 +26,7 @@ interface Submission {
   submitted_at: string;
 }
 
-export default function StudentTasks() {
+export default function StudentSubmissions() {
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('card');
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');

@@ -21,6 +21,7 @@ import StudentVideos from "./pages/student/StudentVideos";
 import StudentVideoView from "./pages/student/StudentVideoView";
 import StudentTasks from "./pages/student/StudentTasks";
 import StudentTaskView from "./pages/student/StudentTaskView";
+import StudentSubmissionDetail from "./pages/student/StudentSubmissionDetail";
 import StudentProfile from "./pages/student/StudentProfile";
 import StudentCheckout from "./pages/student/StudentCheckout";
 
@@ -116,6 +117,8 @@ function AppRoutes() {
                    element={<ProtectedRoute allowedRole="student"><StudentTasks/></ProtectedRoute>}/>
             <Route path="/student/task/:taskId"
                    element={<ProtectedRoute allowedRole="student"><StudentTaskView/></ProtectedRoute>}/>
+            <Route path="/student/submission/:submissionId"
+                   element={<ProtectedRoute allowedRole="student"><StudentSubmissionDetail/></ProtectedRoute>}/>
             <Route path="/student/checkout"
                    element={<ProtectedRoute allowedRole="student"><StudentCheckout/></ProtectedRoute>}/>
 
