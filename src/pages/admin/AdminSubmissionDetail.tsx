@@ -136,7 +136,7 @@ export default function AdminSubmissionDetail() {
         
         <Badge className={cn(
           "text-sm py-1 px-3",
-          isApproved && "bg-green-500/10 text-green-600 border-green-500/30",
+          isApproved && "bg-green-500/10 text-green-600 border-green-500/30 hover:text-white",
           isPending && "bg-warning/10 text-warning border-warning/30",
           isRejected && "bg-destructive/10 text-destructive border-destructive/30"
         )}>

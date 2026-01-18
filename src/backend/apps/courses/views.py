@@ -1,3 +1,5 @@
+import json
+
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -427,8 +429,16 @@ class TaskSubmissionViewSet(viewsets.ModelViewSet):
 
         # Add detailed question info with user answers
         questions_detail = []
+
+        answers = submission.answers
+
+        if isinstance(answers, str):
+            answers = json.loads(answers)
+
         for q in questions:
-            user_answer = submission.answers.get(str(q.id))
+
+            user_answer = answers.get(str(q.id))
+
             questions_detail.append({
                 'id': q.id,
                 'question': q.question,
