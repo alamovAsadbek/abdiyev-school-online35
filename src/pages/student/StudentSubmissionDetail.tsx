@@ -5,7 +5,7 @@ import { DashboardLayout } from '@/layouts/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { submissionsApi, tasksApi, videosApi } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
+import {cn, formatDate} from '@/lib/utils';
 
 interface TaskQuestion {
   id: number;
@@ -150,7 +150,7 @@ export default function StudentSubmissionDetail() {
         Orqaga
       </Button>
 
-      <div className="max-w-3xl mx-auto">
+      <div className="w-full mx-auto">
         {/* Task Info Header */}
         <div className="mb-8 animate-fade-in rounded-xl border border-border bg-card p-6">
           <div className="flex items-start gap-4 mb-4">
@@ -192,13 +192,7 @@ export default function StudentSubmissionDetail() {
             <div className="flex items-center gap-2">
               <span className="text-muted-foreground">Topshirilgan:</span>
               <span className="font-medium text-foreground">
-                {new Date(submission.submitted_at).toLocaleDateString('uz-UZ', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })}
+                {formatDate(submission.submitted_at)}
               </span>
             </div>
           </div>
