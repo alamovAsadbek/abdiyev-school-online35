@@ -125,6 +125,8 @@ export default function AdminSubmissionDetail() {
   const isApproved = submission.status === 'approved';
   const isRejected = submission.status === 'rejected';
 
+  console.log('sub', submission)
+
   return (
     <DashboardLayout>
       {/* Header */}
@@ -156,7 +158,9 @@ export default function AdminSubmissionDetail() {
                 {submission.user_full_name.charAt(0).toUpperCase()}
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-foreground">{submission.user_full_name}</h2>
+                <h2 className="text-lg font-semibold text-primary cursor-pointer hover:text-success" onClick={()=>{
+                  navigate(`/admin/users/${submission.user}`)
+                }}>{submission.user_full_name}</h2>
                 <p className="text-muted-foreground">@{submission.user_name}</p>
               </div>
             </div>
@@ -176,27 +180,31 @@ export default function AdminSubmissionDetail() {
 
           {/* Task Info */}
           <div className="rounded-xl border border-border bg-card p-6">
-            <h3 className="font-semibold text-foreground mb-2">{submission.task_title}</h3>
-            <p className="text-sm text-muted-foreground mb-4">{submission.video_title}</p>
+            <h3 className="font-semibold text-foreground mb-2">Nomi: {submission.task_title}</h3>
+            <p className="text-sm text-primary mb-4 cursor-pointer hover:text-success" onClick={()=>{
+              navigate(`/admin/videos/${submission.video}`);
+            }}>Dars nomi: {submission.video_title}</p>
             
-            <div className="flex items-center gap-4">
-              <Badge variant="outline">
+            <div className="gap-4">
+              {submission.task_type === 'test' && (
+                  <div className="flex items-center gap-2">
+                    <Trophy className={cn(
+                        "h-5 w-5",
+                        submission.score / submission.total >= 0.7 ? "text-green-600" :
+                            submission.score / submission.total >= 0.5 ? "text-warning" : "text-destructive"
+                    )} />
+                    <span className="font-bold">
+                    {submission.score}/{submission.total} ({((submission.score / submission.total) * 100).toFixed(0)}%)
+                  </span>
+                  </div>
+              )}
+
+              <Badge variant="outline" className='mt-4'>
                 {submission.task_type === 'test' ? 'Test' : 
                  submission.task_type === 'file' ? 'Fayl yuklash' : 'Matn'}
               </Badge>
               
-              {submission.task_type === 'test' && (
-                <div className="flex items-center gap-2">
-                  <Trophy className={cn(
-                    "h-5 w-5",
-                    submission.score / submission.total >= 0.7 ? "text-green-600" :
-                    submission.score / submission.total >= 0.5 ? "text-warning" : "text-destructive"
-                  )} />
-                  <span className="font-bold">
-                    {submission.score}/{submission.total} ({((submission.score / submission.total) * 100).toFixed(0)}%)
-                  </span>
-                </div>
-              )}
+
             </div>
           </div>
         </div>
@@ -259,7 +267,7 @@ export default function AdminSubmissionDetail() {
                         </span>
                         <span className="flex-1">{option}</span>
                         {isUserAnswer && (
-                          <span className="text-xs text-muted-foreground">O'quvchi javabi</span>
+                          <span className="text-xs text-muted-foreground">O'quvchi javobi</span>
                         )}
                         {isCorrect && (
                           <span className="text-xs text-green-600">To'g'ri javob</span>
