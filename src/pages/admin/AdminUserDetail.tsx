@@ -185,6 +185,7 @@ export default function AdminUserDetail() {
                 submissionsApi.getAll({user: userId}),
                 progressApi.getUserProgress ? progressApi.getUserProgress(userId!) : Promise.resolve([]),
             ]);
+            console.log('res', userRes)
             setUser(userRes);
             setPayments(paymentsRes?.results || paymentsRes || []);
             setCourses(coursesRes?.results || coursesRes || []);

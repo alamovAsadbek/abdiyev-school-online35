@@ -1,3 +1,4 @@
+import datetime
 import json
 
 from rest_framework import viewsets, status
@@ -376,13 +377,15 @@ class StudentProgressViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def user_progress(self, request):
-        try:
-            user_id = request.query_params.get('user_id')
-            progress = StudentProgress.objects.get(user_id=user_id)
-            serializer = self.get_serializer(progress)
-            return Response(serializer.data)
-        except StudentProgress.DoesNotExist:
-            return Response({'error': 'Progress not found'}, status=status.HTTP_404_NOT_FOUND)
+        user_id = request.query_params.get('user_id')
+
+        progress = StudentProgress.objects.filter(user_id=user_id)
+
+        if not progress.exists():
+            return Response([], status=status.HTTP_200_OK)
+
+        serializer = self.get_serializer(progress.first())
+        return Response(serializer.data)
 
 
 class TaskSubmissionViewSet(viewsets.ModelViewSet):
@@ -505,13 +508,12 @@ class TaskSubmissionViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def approve(self, request, pk=None):
         """Teacher approves a submission"""
-        from django.utils import timezone
         submission = self.get_object()
         feedback = request.data.get('feedback', '')
 
         submission.status = 'approved'
         submission.feedback = feedback
-        submission.reviewed_at = timezone.now()
+        submission.reviewed_at = datetime.datetime.now()
         submission.save()
 
         # Send notification to student
@@ -538,13 +540,12 @@ class TaskSubmissionViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def reject(self, request, pk=None):
         """Teacher rejects a submission"""
-        from django.utils import timezone
         submission = self.get_object()
         feedback = request.data.get('feedback', '')
 
         submission.status = 'rejected'
         submission.feedback = feedback
-        submission.reviewed_at = timezone.now()
+        submission.reviewed_at = datetime.datetime.now()
         submission.save()
 
         # Send notification to student
