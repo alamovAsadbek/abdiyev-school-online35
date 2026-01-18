@@ -235,8 +235,6 @@ export default function AdminTaskDetail() {
     // Find video for this task
     const taskVideo = videos.find(v => String(v.id) === String(task.video));
 
-    console.log(taskVideo)
-
     return (
         <DashboardLayout>
             {/* Header */}

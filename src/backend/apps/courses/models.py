@@ -51,6 +51,9 @@ class Video(models.Model):
             return self.thumbnail.url
         return self.thumbnail_url
 
+    def get_category_name(self):
+        return self.category.name
+
     class Meta:
         db_table = 'videos'
         ordering = ['category', 'order']
