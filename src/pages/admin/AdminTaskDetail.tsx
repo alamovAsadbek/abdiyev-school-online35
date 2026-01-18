@@ -235,6 +235,8 @@ export default function AdminTaskDetail() {
     // Find video for this task
     const taskVideo = videos.find(v => String(v.id) === String(task.video));
 
+    console.log(taskVideo)
+
     return (
         <DashboardLayout>
             {/* Header */}
@@ -303,9 +305,11 @@ export default function AdminTaskDetail() {
                                 <h1 className="text-2xl font-bold text-foreground mb-2">{task.title}</h1>
                             )}
 
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <div className="flex items-center gap-2 text-sm text-success cursor-pointer hover:text-primary">
                                 <Video className="h-4 w-4"/>
-                                <span>{taskVideo?.title || 'Noma\'lum video'}</span>
+                                <span onClick={() => {
+                                    navigate(`/admin/videos/${taskVideo?.id}`)
+                                }}>{taskVideo?.title || 'Noma\'lum video'} - {taskVideo?.category_name || 'Noma\'lum video'}</span>
                             </div>
                         </div>
                         <Badge variant="outline">

@@ -221,7 +221,7 @@ export default function AdminTaskCreate() {
         </Button>
       </div>
 
-      <div className="max-w-4xl mx-auto">
+      <div className="w-full mx-auto">
         <h1 className="text-2xl font-bold text-foreground mb-6">Yangi vazifa yaratish</h1>
 
         <div className="space-y-6">
