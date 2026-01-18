@@ -140,12 +140,12 @@ export default function AdminCategoryDetail() {
                 </div>
             ),
         },
-        {
-            key: 'order',
-            header: 'Tartib',
-            sortable: true,
-            render: (video) => `${video.order}-dars`,
-        },
+        // {
+        //     key: 'order',
+        //     header: 'Tartib',
+        //     sortable: true,
+        //     render: (video) => `${video.order}-dars`,
+        // },
         {
             key: 'created_at',
             header: 'Yaratilgan',

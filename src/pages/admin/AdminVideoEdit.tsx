@@ -119,7 +119,7 @@ export default function AdminVideoEdit() {
                 Orqaga
             </Button>
 
-            <div className="max-w-3xl">
+            <div className="w-full">
                 <div className="mb-8 animate-fade-in">
                     <h1 className="text-2xl lg:text-3xl font-bold text-foreground mb-2">
                         Videoni tahrirlash

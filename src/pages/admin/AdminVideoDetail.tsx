@@ -1,4 +1,4 @@
-import {useEffect, useState} from 'react';
+import {createContext, useEffect, useState} from 'react';
 import {useParams, useNavigate} from 'react-router-dom';
 import {
     ArrowLeft,
@@ -14,7 +14,7 @@ import {
     Search,
     ChevronRight,
     Users,
-    BarChart3
+    BarChart3, Info
 } from 'lucide-react';
 import {DashboardLayout} from '@/layouts/DashboardLayout';
 import {Button} from '@/components/ui/button';
@@ -34,6 +34,8 @@ import {videosApi, tasksApi, submissionsApi} from '@/services/api';
 import {api} from "@/lib/api.ts";
 import {cn, formatDate} from "@/lib/utils.ts";
 import VideoPlayer from "@/components/VideoPlayes.tsx";
+import SecureVideoPlayer from "@/components/SecureVideoPlayer.tsx";
+import {StudentProgress} from "@/data/demoData.ts";
 
 interface Task {
     id: number;
@@ -87,7 +89,7 @@ export default function AdminVideoDetail() {
                 tasksApi.getByVideo(videoId!),
                 submissionsApi.getByVideo(videoId!)
             ]);
-            
+
             setVideo(videoRes);
             setTasks(Array.isArray(tasksRes) ? tasksRes : []);
             setSubmissions(Array.isArray(subsRes) ? subsRes : []);
@@ -108,12 +110,13 @@ export default function AdminVideoDetail() {
         getUser();
     }, [videoId]);
 
+
     // Filter submissions
     const filteredSubmissions = submissions.filter(sub => {
-        const matchesSearch = 
+        const matchesSearch =
             sub.user_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             sub.user_full_name.toLowerCase().includes(searchQuery.toLowerCase());
-        
+
         if (filterStatus === 'all') return matchesSearch;
         return matchesSearch && sub.status === filterStatus;
     });
@@ -138,7 +141,7 @@ export default function AdminVideoDetail() {
         return (
             <DashboardLayout>
                 <div className="flex items-center justify-center min-h-[400px]">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"/>
                 </div>
             </DashboardLayout>
         );
@@ -154,6 +157,12 @@ export default function AdminVideoDetail() {
             </DashboardLayout>
         );
     }
+
+    const handleMarkCompleted = () => {
+        if (video) {
+            return video;
+        }
+    };
 
     return (
         <DashboardLayout>
@@ -197,10 +206,16 @@ export default function AdminVideoDetail() {
                         <div className="lg:col-span-2 space-y-6 animate-fade-in">
 
                             <div className="relative w-full rounded-xl bg-black overflow-hidden">
-                                <VideoPlayer 
+                                <SecureVideoPlayer
                                     videoUrl={video.video_url}
-                                    userId={`${user?.watermark_id} • ${user?.username}`}
+                                    title={video.title}
+                                    watermarkId={user?.watermark_id || user?.id?.toString().slice(-8).toUpperCase() || 'USER'}
+                                    onComplete={handleMarkCompleted}
                                 />
+                                {/*<VideoPlayer */}
+                                {/*    videoUrl={video.video_url}*/}
+                                {/*    userId={`${user?.watermark_id} • ${user?.username}`}*/}
+                                {/*/>*/}
                             </div>
 
                             {/* VIDEO INFO */}
@@ -273,7 +288,7 @@ export default function AdminVideoDetail() {
                                 {tasks.length > 0 ? (
                                     <div className="space-y-3">
                                         {tasks.map((task) => (
-                                            <div 
+                                            <div
                                                 key={task.id}
                                                 className="p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer"
                                                 onClick={() => navigate(`/admin/tasks/${task.id}`)}
@@ -283,10 +298,10 @@ export default function AdminVideoDetail() {
                                                         <p className="font-medium text-sm">{task.title}</p>
                                                         <p className="text-xs text-muted-foreground">
                                                             {task.task_type === 'test' ? `${task.questions?.length || 0} ta savol` :
-                                                             task.task_type === 'file' ? 'Fayl yuklash' : 'Matn'}
+                                                                task.task_type === 'file' ? 'Fayl yuklash' : 'Matn'}
                                                         </p>
                                                     </div>
-                                                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                                    <ChevronRight className="h-4 w-4 text-muted-foreground"/>
                                                 </div>
                                             </div>
                                         ))}
@@ -295,7 +310,7 @@ export default function AdminVideoDetail() {
                                             className="w-full mt-2"
                                             onClick={() => navigate(`/admin/tasks/${tasks[0].id}/stats`)}
                                         >
-                                            <BarChart3 className="mr-2 h-4 w-4" />
+                                            <BarChart3 className="mr-2 h-4 w-4"/>
                                             Statistikani ko'rish
                                         </Button>
                                     </div>
@@ -314,17 +329,48 @@ export default function AdminVideoDetail() {
                                 )}
                             </div>
 
-                            {/* THUMBNAIL */}
-                            <div className="rounded-xl border border-border bg-card p-5">
-                                <h3 className="font-semibold text-card-foreground mb-4">
-                                    Thumbnail
+                            {/* lesson info */}
+                            <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+
+                                <h3 className="font-semibold text-card-foreground mb-2 flex items-center gap-2">
+                                    <Info className="h-5 w-5 text-primary"/>
+                                    Dars haqida
                                 </h3>
-                                <img
-                                    src={video.thumbnail}
-                                    alt={video.title}
-                                    className="w-full rounded-lg object-contain"
-                                />
+
+                                <div className="space-y-3 text-sm">
+
+                                    <div className="flex justify-between items-center border-b pb-2">
+                                        <span className="text-muted-foreground">Dars nomi</span>
+                                        <span className="font-medium text-foreground">{video.title}</span>
+                                    </div>
+
+                                    <div className="flex justify-between items-center border-b pb-2">
+                                        <span className="text-muted-foreground">Kategoriya</span>
+                                        <span
+                                            className="font-medium text-primary hover:cursor-pointer hover:text-success" onClick={()=>{
+                                                navigate(`/admin/categories/${video.category}`)
+                                        }}>{video.category_name}</span>
+                                    </div>
+
+                                    <div className="flex justify-between items-center border-b pb-2">
+                                        <span className="text-muted-foreground">Davomiyligi</span>
+                                        <span className="font-medium text-foreground">{video.duration}</span>
+                                    </div>
+
+                                    <div className="flex justify-between items-center border-b pb-2">
+                                        <span className="text-muted-foreground">Ko‘rishlar soni</span>
+                                        <span className="font-medium text-foreground">{video.view_count}</span>
+                                    </div>
+
+                                    <div className="flex justify-between items-center border-b pb-2">
+                                        <span className="text-muted-foreground">Yaratilgan vaqti</span>
+                                        <span className="font-medium text-foreground">{formatDate(video.created_at)}</span>
+                                    </div>
+
+                                </div>
+
                             </div>
+
                         </div>
                     </div>
                 </TabsContent>
@@ -337,8 +383,9 @@ export default function AdminVideoDetail() {
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                             <div className="p-4 rounded-xl border border-border bg-card">
                                 <div className="flex items-center gap-3">
-                                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                                        <Users className="h-5 w-5" />
+                                    <div
+                                        className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                                        <Users className="h-5 w-5"/>
                                     </div>
                                     <div>
                                         <p className="text-sm text-muted-foreground">Jami topshirgan</p>
@@ -348,8 +395,9 @@ export default function AdminVideoDetail() {
                             </div>
                             <div className="p-4 rounded-xl border border-border bg-card">
                                 <div className="flex items-center gap-3">
-                                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-500/10 text-green-600">
-                                        <CheckCircle2 className="h-5 w-5" />
+                                    <div
+                                        className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-500/10 text-green-600">
+                                        <CheckCircle2 className="h-5 w-5"/>
                                     </div>
                                     <div>
                                         <p className="text-sm text-muted-foreground">Tasdiqlangan</p>
@@ -359,8 +407,9 @@ export default function AdminVideoDetail() {
                             </div>
                             <div className="p-4 rounded-xl border border-border bg-card">
                                 <div className="flex items-center gap-3">
-                                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-warning/10 text-warning">
-                                        <Clock className="h-5 w-5" />
+                                    <div
+                                        className="flex h-10 w-10 items-center justify-center rounded-lg bg-warning/10 text-warning">
+                                        <Clock className="h-5 w-5"/>
                                     </div>
                                     <div>
                                         <p className="text-sm text-muted-foreground">Kutilmoqda</p>
@@ -370,8 +419,9 @@ export default function AdminVideoDetail() {
                             </div>
                             <div className="p-4 rounded-xl border border-border bg-card">
                                 <div className="flex items-center gap-3">
-                                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-destructive/10 text-destructive">
-                                        <XCircle className="h-5 w-5" />
+                                    <div
+                                        className="flex h-10 w-10 items-center justify-center rounded-lg bg-destructive/10 text-destructive">
+                                        <XCircle className="h-5 w-5"/>
                                     </div>
                                     <div>
                                         <p className="text-sm text-muted-foreground">Qaytarilgan</p>
@@ -384,7 +434,8 @@ export default function AdminVideoDetail() {
                         {/* Filters */}
                         <div className="flex flex-col sm:flex-row gap-3 mb-6">
                             <div className="flex-1 relative">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"/>
+                                <Search
+                                    className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"/>
                                 <Input
                                     placeholder="O'quvchi ismi bo'yicha qidirish..."
                                     value={searchQuery}
@@ -409,14 +460,15 @@ export default function AdminVideoDetail() {
                         <div className="space-y-3">
                             {filteredSubmissions.length > 0 ? (
                                 filteredSubmissions.map((sub) => (
-                                    <div 
+                                    <div
                                         key={sub.id}
                                         className="rounded-xl border border-border bg-card p-4 hover:border-primary/30 transition-colors cursor-pointer"
                                         onClick={() => navigate(`/admin/submissions/${sub.id}`)}
                                     >
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-4">
-                                                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold">
+                                                <div
+                                                    className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold">
                                                     {sub.user_full_name.charAt(0).toUpperCase()}
                                                 </div>
                                                 <div>
@@ -424,20 +476,20 @@ export default function AdminVideoDetail() {
                                                     <p className="text-xs text-muted-foreground">@{sub.user_name} • {sub.task_title}</p>
                                                 </div>
                                             </div>
-                                            
+
                                             <div className="flex items-center gap-4">
                                                 {sub.total > 0 && (
                                                     <div className="text-right">
                                                         <p className={cn(
                                                             "font-bold",
                                                             sub.score / sub.total >= 0.7 ? "text-green-600" :
-                                                            sub.score / sub.total >= 0.5 ? "text-warning" : "text-destructive"
+                                                                sub.score / sub.total >= 0.5 ? "text-warning" : "text-destructive"
                                                         )}>
                                                             {sub.score}/{sub.total}
                                                         </p>
                                                     </div>
                                                 )}
-                                                
+
                                                 <Badge className={cn(
                                                     sub.status === 'approved' && "bg-green-500/10 text-green-600 border-green-500/30",
                                                     sub.status === 'pending' && "bg-warning/10 text-warning border-warning/30",
@@ -447,12 +499,12 @@ export default function AdminVideoDetail() {
                                                     {sub.status === 'pending' && 'Kutilmoqda'}
                                                     {sub.status === 'rejected' && 'Qaytarilgan'}
                                                 </Badge>
-                                                
+
                                                 <span className="text-sm text-muted-foreground hidden sm:block">
                                                     {formatDate(sub.submitted_at)}
                                                 </span>
-                                                
-                                                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+
+                                                <ChevronRight className="h-5 w-5 text-muted-foreground"/>
                                             </div>
                                         </div>
                                     </div>
