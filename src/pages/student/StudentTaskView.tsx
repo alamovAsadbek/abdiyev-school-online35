@@ -196,10 +196,10 @@ export default function StudentTaskView() {
                 });
             } else {
                 // File or text submission
-                if (task.task_type === 'file' && uploadedFile) {
+                if (uploadedFile) {
                     formData.append('file', uploadedFile);
                 }
-                if (textContent) {
+                if (task.task_type === 'text' && textContent) {
                     formData.append('text_content', textContent);
                 }
 
@@ -211,6 +211,16 @@ export default function StudentTaskView() {
                         ? "Vazifa yuborildi. O'qituvchi tasdiqlashini kuting."
                         : 'Vazifa yuborildi'
                 });
+
+                // If no approval required, go to next video/tasks
+                if (!task.requires_approval) {
+                    if (nextVideo) {
+                        navigate(`/student/video/${nextVideo.id}`);
+                    } else {
+                        navigate('/student/tasks');
+                    }
+                    return;
+                }
 
                 // Reload to get updated submission
                 await loadData();
@@ -331,7 +341,7 @@ export default function StudentTaskView() {
 
     const allAnswered = task.task_type === 'test'
         ? task.questions.every(q => answers[String(q.id)] !== undefined)
-        : (task.task_type === 'text' ? textContent.trim().length > 0 : uploadedFile !== null || textContent.trim().length > 0);
+        : (task.task_type === 'text' ? textContent.trim().length > 0 : uploadedFile !== null);
 
     // Check if can submit
     const canSubmit = allAnswered && (!submission || task.allow_resubmission);
@@ -597,40 +607,54 @@ export default function StudentTaskView() {
                     <div className="animate-fade-in rounded-xl border border-border bg-card p-6 space-y-6">
                         <h3 className="text-lg font-semibold text-foreground">Javobingizni yuboring</h3>
 
-                        {/* Rich Text Editor */}
-                        <div>
-                            <p className="text-sm text-muted-foreground mb-2">Matn yozing yoki fayl yuklang</p>
-                            <RichTextEditor
-                                value={textContent}
-                                onChange={setTextContent}
-                                placeholder="Vazifa javobingizni bu yerga yozing... Kimyoviy formulalar uchun subscript/superscript ishlating"
-                            />
-                        </div>
-
-                        {/* File Upload */}
-                        {(task.task_type === 'file' || task.task_type === 'text') && (
+                        {/* Text type - Rich Text Editor */}
+                        {task.task_type === 'text' && (
                             <div>
+                                <p className="text-sm text-muted-foreground mb-2">Javobingizni yozing</p>
+                                <RichTextEditor
+                                    value={textContent}
+                                    onChange={setTextContent}
+                                    placeholder="Vazifa javobingizni bu yerga yozing... Kimyoviy formulalar uchun subscript/superscript ishlating"
+                                />
+                            </div>
+                        )}
+
+                        {/* File type - Only file upload */}
+                        {task.task_type === 'file' && (
+                            <div>
+                                <p className="text-sm text-muted-foreground mb-2">Fayl yuklang</p>
                                 <input
                                     type="file"
                                     ref={fileInputRef}
                                     onChange={handleFileChange}
                                     className="hidden"
                                 />
-                                <Button
-                                    variant="outline"
+                                <div
                                     onClick={() => fileInputRef.current?.click()}
-                                    className="w-full h-24 border-dashed"
+                                    className={cn(
+                                        "w-full h-32 border-2 border-dashed rounded-xl cursor-pointer transition-all",
+                                        "flex flex-col items-center justify-center gap-3",
+                                        uploadedFile 
+                                            ? "border-primary bg-primary/5" 
+                                            : "border-muted-foreground/30 hover:border-primary/50 hover:bg-muted/50"
+                                    )}
                                 >
-                                    <div className="flex flex-col items-center gap-2">
-                                        <Upload className="h-6 w-6 text-muted-foreground"/>
-                                        {uploadedFile ? (
-                                            <span className="text-sm text-foreground">{uploadedFile.name}</span>
-                                        ) : (
-                                            <span
-                                                className="text-sm text-muted-foreground">Fayl yuklash uchun bosing</span>
-                                        )}
-                                    </div>
-                                </Button>
+                                    <Upload className={cn(
+                                        "h-8 w-8",
+                                        uploadedFile ? "text-primary" : "text-muted-foreground"
+                                    )}/>
+                                    {uploadedFile ? (
+                                        <>
+                                            <span className="text-sm font-medium text-foreground">{uploadedFile.name}</span>
+                                            <span className="text-xs text-muted-foreground">Boshqa fayl tanlash uchun bosing</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span className="text-sm text-muted-foreground">Fayl yuklash uchun bosing</span>
+                                            <span className="text-xs text-muted-foreground">yoki fayl bu yerga sudrab olib keling</span>
+                                        </>
+                                    )}
+                                </div>
                             </div>
                         )}
 
