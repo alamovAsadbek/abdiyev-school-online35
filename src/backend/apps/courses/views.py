@@ -294,6 +294,22 @@ class UserCourseViewSet(viewsets.ModelViewSet):
     serializer_class = UserCourseSerializer
     permission_classes = [IsAuthenticated]
 
+    def get_queryset(self):
+        request_user = self.request.user
+        query_user = self.request.query_params.get('user')
+
+        # Agar admin bo'lsa, xohlagan userni ko'radi
+        if request_user.is_staff or request_user.is_superuser:
+            if query_user:
+                return UserCourse.objects.filter(user_id=query_user)
+            return UserCourse.objects.all()
+
+        # Oddiy user faqat o'zini ko'radi
+        if query_user and str(request_user.id) != str(query_user):
+            return UserCourse.objects.none()
+
+        return UserCourse.objects.filter(user=request_user)
+
     @action(detail=False, methods=['get'])
     def my_courses(self, request):
         courses = UserCourse.objects.filter(user=request.user)
@@ -393,6 +409,22 @@ class TaskSubmissionViewSet(viewsets.ModelViewSet):
     serializer_class = TaskSubmissionSerializer
     permission_classes = [IsAuthenticated]
 
+    def get_queryset(self):
+        request_user = self.request.user
+        query_user = self.request.query_params.get('user')
+
+        # Agar admin bo'lsa, xohlagan userni ko'radi
+        if request_user.is_staff or request_user.is_superuser:
+            if query_user:
+                return TaskSubmission.objects.filter(user_id=query_user)
+            return TaskSubmission.objects.all()
+
+        # Oddiy user faqat o'zini ko'radi
+        if query_user and str(request_user.id) != str(query_user):
+            return TaskSubmission.objects.none()
+
+        return TaskSubmission.objects.filter(user=request_user)
+
     @action(detail=False, methods=['get'])
     def my_submissions(self, request):
         submissions = TaskSubmission.objects.filter(user=request.user)
@@ -439,7 +471,6 @@ class TaskSubmissionViewSet(viewsets.ModelViewSet):
             answers = json.loads(answers)
 
         for q in questions:
-
             user_answer = answers.get(str(q.id))
 
             questions_detail.append({

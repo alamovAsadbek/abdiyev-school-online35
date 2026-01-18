@@ -185,7 +185,7 @@ export default function AdminUserDetail() {
                 submissionsApi.getAll({user: userId}),
                 progressApi.getUserProgress ? progressApi.getUserProgress(userId!) : Promise.resolve([]),
             ]);
-            console.log('res', userRes)
+            console.log('res', userRes, submissionsRes)
             setUser(userRes);
             setPayments(paymentsRes?.results || paymentsRes || []);
             setCourses(coursesRes?.results || coursesRes || []);
@@ -771,7 +771,7 @@ export default function AdminUserDetail() {
                                                 <ClipboardList className="h-5 w-5"/>
                                             </div>
                                             <div>
-                                                <p className="font-medium text-foreground">{sub.task?.title || 'Noma\'lum'}</p>
+                                                <p className="font-medium text-foreground">{sub.task_title || 'Noma\'lum'}</p>
                                                 {sub.task?.video && (
                                                     <p className="text-xs text-muted-foreground flex items-center gap-1">
                                                         <PlayCircle className="h-3 w-3"/>
@@ -783,12 +783,12 @@ export default function AdminUserDetail() {
                                     </td>
                                     <td className="p-4">
                                         <span className="status-badge bg-muted text-muted-foreground">
-                                            {sub.task?.task_type === 'test' ? 'Test' :
-                                                sub.task?.task_type === 'file' ? 'Fayl' : 'Matn'}
+                                            {sub.task_type === 'test' ? 'Test' :
+                                                sub.task_type === 'file' ? 'Fayl' : 'Matn'}
                                         </span>
                                     </td>
                                     <td className="p-4">
-                                        {sub.task?.task_type === 'test' && sub.score !== undefined ? (
+                                        {sub.task_type === 'test' && sub.score !== undefined ? (
                                             <span className={cn(
                                                 "font-semibold",
                                                 sub.score === sub.total ? "text-green-600" :
@@ -816,7 +816,9 @@ export default function AdminUserDetail() {
                                                 variant="ghost"
                                                 size="sm"
                                                 onClick={() => navigate(`/admin/submissions/${sub.id}`)}
+                                                className='hover:text-primary hover:bg-shift'
                                             >
+                                                <Eye/>
                                                 Ko'rish
                                             </Button>
                                             {sub.status === 'pending' && sub.task?.task_type !== 'test' && (
