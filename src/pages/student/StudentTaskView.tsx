@@ -84,62 +84,30 @@ export default function StudentTaskView() {
       const taskData = await tasksApi.getById(taskId!);
       setTask(taskData);
       
-      // Load video
+      // Load video info (just for display, no permission check)
       if (taskData.video) {
-        const videoData = await videosApi.getById(String(taskData.video));
-        setVideo(videoData);
-        
-        // Check local progress first
-        const localCompleted = isVideoCompleted(String(taskData.video));
-        
-        // Also check backend progress
-        let backendCompleted = false;
         try {
-          const progressData = await progressApi.getMyProgress();
-          const completedVideos = progressData?.completed_videos || progressData?.completedVideos || [];
+          const videoData = await videosApi.getById(String(taskData.video));
+          setVideo(videoData);
           
-          // Normalize IDs for comparison (handle both string and number IDs)
-          const normalizedVideoId = String(taskData.video);
-          backendCompleted = completedVideos.some((vid: any) => 
-            String(vid) === normalizedVideoId || 
-            String(vid?.id) === normalizedVideoId
-          );
-        } catch (e) {
-          console.log('Backend progress check failed:', e);
-          // If backend fails, use local
-        }
-        
-        // If user has already submitted for this task, assume they watched the video
-        let hasSubmission = false;
-        try {
-          const submissions = await submissionsApi.getMySubmissions();
-          const existingSub = (submissions?.results || submissions || []).find((s: any) => 
-            String(s.task) === String(taskData.id) || String(s.task?.id) === String(taskData.id)
-          );
-          hasSubmission = !!existingSub;
-        } catch {
-          // No submission
-        }
-        
-        // Use either local, backend, or has submission - if any is true
-        const isCompleted = localCompleted || backendCompleted || hasSubmission;
-        setVideoCompleted(isCompleted);
-        
-        // Find next video in same category
-        try {
-          const categoryVideos = await videosApi.getByCategory(String(videoData.category));
-          const videos = (categoryVideos?.results || categoryVideos || []).sort((a: Video, b: Video) => a.order - b.order);
-          const currentIndex = videos.findIndex((v: Video) => String(v.id) === String(videoData.id));
-          if (currentIndex >= 0 && currentIndex < videos.length - 1) {
-            setNextVideo(videos[currentIndex + 1]);
+          // Find next video in same category
+          try {
+            const categoryVideos = await videosApi.getByCategory(String(videoData.category));
+            const videos = (categoryVideos?.results || categoryVideos || []).sort((a: Video, b: Video) => a.order - b.order);
+            const currentIndex = videos.findIndex((v: Video) => String(v.id) === String(videoData.id));
+            if (currentIndex >= 0 && currentIndex < videos.length - 1) {
+              setNextVideo(videos[currentIndex + 1]);
+            }
+          } catch {
+            // No next video
           }
         } catch {
-          // No next video
+          // Video not found
         }
-      } else {
-        // No video attached, allow task completion
-        setVideoCompleted(true);
       }
+      
+      // ALWAYS allow task completion - no video watch check
+      setVideoCompleted(true);
       
       // Load existing submission
       try {
@@ -265,7 +233,7 @@ export default function StudentTaskView() {
     if (nextVideo) {
       navigate(`/student/video/${nextVideo.id}`);
     } else {
-      navigate('/student/videos');
+      navigate('/student/tasks');
     }
   };
 
