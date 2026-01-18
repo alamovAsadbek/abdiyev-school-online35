@@ -415,27 +415,57 @@ export default function AdminTaskCreate() {
             </div>
           )}
 
-          {/* File/Text task info */}
+          {/* File/Text task content - Full editor for admin */}
           {formData.task_type !== 'test' && (
-            <div className="rounded-xl border border-border bg-card p-6">
-              <div className="flex items-center gap-4 text-muted-foreground">
+            <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+              <div className="flex items-center gap-4 mb-4">
                 {formData.task_type === 'file' ? (
                   <>
-                    <Upload className="h-8 w-8" />
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <Upload className="h-6 w-6" />
+                    </div>
                     <div>
-                      <p className="font-medium text-foreground">Fayl yuklash vazifasi</p>
-                      <p className="text-sm">O'quvchilar fayl yuklab yoki matn yozib topshira oladi</p>
+                      <h2 className="text-lg font-semibold text-foreground">Fayl yuklash vazifasi</h2>
+                      <p className="text-sm text-muted-foreground">O'quvchilar fayl yuklab topshiradi</p>
                     </div>
                   </>
                 ) : (
                   <>
-                    <FileText className="h-8 w-8" />
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <FileText className="h-6 w-6" />
+                    </div>
                     <div>
-                      <p className="font-medium text-foreground">Matn yozish vazifasi</p>
-                      <p className="text-sm">O'quvchilar yozma javob topshiradi</p>
+                      <h2 className="text-lg font-semibold text-foreground">Matn yozish vazifasi</h2>
+                      <p className="text-sm text-muted-foreground">O'quvchilar yozma javob topshiradi</p>
                     </div>
                   </>
                 )}
+              </div>
+              
+              {/* Admin can write instructions using rich text editor */}
+              <div className="space-y-2">
+                <Label>Vazifa ko'rsatmalari (ixtiyoriy)</Label>
+                <p className="text-xs text-muted-foreground mb-2">
+                  O'quvchilarga qo'shimcha ko'rsatmalar yoki namuna yozing. Kimyoviy formulalar uchun pastki/yuqori indeksdan foydalaning.
+                </p>
+                <RichTextEditor
+                  value={formData.description}
+                  onChange={(val) => setFormData(prev => ({ ...prev, description: val }))}
+                  placeholder={formData.task_type === 'file' 
+                    ? "Masalan: Quyidagi reaksiya tenglamasini yozing va fayl sifatida yuklang..."
+                    : "Masalan: H₂SO₄ + NaOH → Na₂SO₄ + H₂O reaksiyasini tahlil qiling..."
+                  }
+                  className="min-h-[200px]"
+                />
+              </div>
+              
+              <div className="p-4 rounded-lg bg-muted/50 border border-dashed border-muted-foreground/30">
+                <p className="text-sm text-muted-foreground text-center">
+                  {formData.task_type === 'file' 
+                    ? "📎 O'quvchilar bu vazifa uchun fayl yuklab topshiradi"
+                    : "✏️ O'quvchilar bu vazifa uchun matn yozib topshiradi"
+                  }
+                </p>
               </div>
             </div>
           )}
