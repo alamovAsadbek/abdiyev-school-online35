@@ -61,19 +61,20 @@ export default function StudentVideoView() {
     // Check if a video is locked (previous not completed) - using backend progress
     const isVideoLocked = (targetVideoId: string): boolean => {
         if (progressLoading) return false; // Don't lock while loading
-        
+
         const sortedVideos = [...categoryVideos].sort((a, b) => a.order - b.order);
         const targetIndex = sortedVideos.findIndex(v => String(v.id) === String(targetVideoId));
-        
+
         // First video is never locked
         if (targetIndex === 0) return false;
-        
+
         // Check if previous video is completed
         const previousVideo = sortedVideos[targetIndex - 1];
-        return !isVideoCompleted(previousVideo.id);
+        console.log(previousVideo)
+        return !isVideoCompleted(previousVideo);
     };
-
-    const currentVideoLocked = video ? isVideoLocked(video.id) : false;
+    console.log(video)
+    const currentVideoLocked = video ? isVideoLocked(video?.id) : false;
 
     useEffect(() => {
         const fetchData = async () => {
