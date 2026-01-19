@@ -11,7 +11,7 @@ import { videosApi, categoriesApi } from '@/services/api';
 
 export default function StudentDashboard() {
   const { user } = useAuth();
-  const { progress } = useProgress();
+  const { completedVideos, completedTasks } = useProgress();
   const navigate = useNavigate();
   const [videos, setVideos] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
@@ -37,8 +37,8 @@ export default function StudentDashboard() {
   };
 
   const totalVideos = videos.length || 1;
-  const completedVideos = progress.completedVideos.length;
-  const progressPercent = Math.round((completedVideos / totalVideos) * 100);
+  const completedVideosCount = completedVideos.length;
+  const progressPercent = Math.round((completedVideosCount / totalVideos) * 100);
 
   return (
     <DashboardLayout>
@@ -50,9 +50,9 @@ export default function StudentDashboard() {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatCard icon={Video} label="Ko'rilgan videolar" value={`${completedVideos}/${totalVideos}`} color="primary" />
+        <StatCard icon={Video} label="Ko'rilgan videolar" value={`${completedVideosCount}/${totalVideos}`} color="primary" />
         <StatCard icon={TrendingUp} label="Progress" value={`${progressPercent}%`} color="success" />
-        <StatCard icon={ClipboardList} label="Bajarilgan vazifalar" value={progress.completedTasks.length} color="accent" />
+        <StatCard icon={ClipboardList} label="Bajarilgan vazifalar" value={completedTasks.length} color="accent" />
         <StatCard icon={Trophy} label="O'rtacha ball" value="85%" color="warning" />
       </div>
 

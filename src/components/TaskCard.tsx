@@ -1,4 +1,4 @@
-import { ClipboardList, CheckCircle2, Clock, ChevronRight } from 'lucide-react';
+import { ClipboardList, CheckCircle2, ChevronRight } from 'lucide-react';
 import { Task } from '@/data/demoData';
 import { useProgress } from '@/contexts/ProgressContext';
 import { cn } from '@/lib/utils';
@@ -9,9 +9,8 @@ interface TaskCardProps {
 }
 
 export function TaskCard({ task, onClick }: TaskCardProps) {
-  const { isTaskCompleted, getTaskScore } = useProgress();
+  const { isTaskCompleted } = useProgress();
   const completed = isTaskCompleted(task.id);
-  const score = getTaskScore(task.id);
 
   return (
     <div 
@@ -26,9 +25,9 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
           {completed ? <CheckCircle2 className="h-5 w-5" /> : <ClipboardList className="h-5 w-5" />}
         </div>
         
-        {completed && score ? (
+        {completed ? (
           <div className="status-badge status-completed">
-            {score.score}/{score.total} ball
+            Bajarildi
           </div>
         ) : (
           <div className="status-badge status-new">

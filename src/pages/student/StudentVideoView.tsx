@@ -38,31 +38,39 @@ export default function StudentVideoView() {
     const {videoId} = useParams();
     const navigate = useNavigate();
     const {user} = useAuth();
-    const {markVideoCompleted, isVideoCompleted} = useProgress();
+    const {markVideoCompleted, isVideoCompleted, loading: progressLoading} = useProgress();
     const {toast} = useToast();
 
     const [video, setVideo] = useState<Video | null>(null);
     const [category, setCategory] = useState<Category | null>(null);
     const [task, setTask] = useState<Task | null>(null);
-    const [categoryVideos, setCategoryVideos] = useState([]);
+    const [categoryVideos, setCategoryVideos] = useState<Video[]>([]);
     const [hasWatched, setHasWatched] = useState(false);
     const [loading, setLoading] = useState(true);
     const [hasAccess, setHasAccess] = useState(false);
+    const [markingComplete, setMarkingComplete] = useState(false);
 
     const completed = video ? isVideoCompleted(video.id) : false;
 
-    const currentIndex = categoryVideos.findIndex(v => v.id === videoId);
+    const currentIndex = categoryVideos.findIndex(v => String(v.id) === String(videoId));
     const nextVideo = currentIndex >= 0 && currentIndex < categoryVideos.length - 1
         ? categoryVideos[currentIndex + 1]
         : null;
 
 
-    // Check if a video is locked (previous not completed)
+    // Check if a video is locked (previous not completed) - using backend progress
     const isVideoLocked = (targetVideoId: string): boolean => {
-        const targetIndex = categoryVideos.findIndex(v => v.id === targetVideoId);
+        if (progressLoading) return false; // Don't lock while loading
+        
+        const sortedVideos = [...categoryVideos].sort((a, b) => a.order - b.order);
+        const targetIndex = sortedVideos.findIndex(v => String(v.id) === String(targetVideoId));
+        
+        // First video is never locked
         if (targetIndex === 0) return false;
-        const previousVideo = categoryVideos[targetIndex - 1];
-        return !isVideoCompleted(previousVideo);
+        
+        // Check if previous video is completed
+        const previousVideo = sortedVideos[targetIndex - 1];
+        return !isVideoCompleted(previousVideo.id);
     };
 
     const currentVideoLocked = video ? isVideoLocked(video.id) : false;
@@ -136,29 +144,36 @@ export default function StudentVideoView() {
 
     // Auto mark as watched after 10 seconds
     useEffect(() => {
-        if (video && !completed && !currentVideoLocked && hasAccess) {
+        if (video && !completed && !currentVideoLocked && hasAccess && !progressLoading) {
             const timer = setTimeout(() => {
                 setHasWatched(true);
             }, 10000);
             return () => clearTimeout(timer);
         }
-    }, [video, completed, currentVideoLocked, hasAccess]);
+    }, [video, completed, currentVideoLocked, hasAccess, progressLoading]);
 
-    const handleMarkCompleted = () => {
-        if (video) {
-            markVideoCompleted(video.id);
+    const handleMarkCompleted = async () => {
+        if (video && !markingComplete) {
+            setMarkingComplete(true);
+            try {
+                await markVideoCompleted(video.id);
+                toast({
+                    title: "Muvaffaqiyat",
+                    description: "Video ko'rildi deb belgilandi",
+                });
+            } catch (error) {
+                toast({
+                    title: 'Xatolik',
+                    description: 'Videoni belgilashda xatolik',
+                    variant: 'destructive',
+                });
+            } finally {
+                setMarkingComplete(false);
+            }
         }
     };
 
     const handleTaskClick = () => {
-        if (!completed) {
-            toast({
-                title: "Video ko'rilmagan",
-                description: "Vazifani bajarish uchun avval videoni ko'rishingiz kerak.",
-                variant: "destructive"
-            });
-            return;
-        }
         if (task) {
             navigate(`/student/task/${task.id}`);
         }
@@ -176,7 +191,7 @@ export default function StudentVideoView() {
         navigate(`/student/video/${targetVideoId}`);
     };
 
-    if (loading) {
+    if (loading || progressLoading) {
         return (
             <DashboardLayout>
                 <div className="flex items-center justify-center min-h-[400px]">
@@ -272,10 +287,10 @@ export default function StudentVideoView() {
                                     <Button
                                         onClick={handleMarkCompleted}
                                         className="gradient-primary text-primary-foreground"
-                                        disabled={!hasWatched}
+                                        disabled={!hasWatched || markingComplete}
                                     >
                                         <CheckCircle2 className="mr-2 h-4 w-4"/>
-                                        {hasWatched ? 'Ko\'rildi deb belgilash' : 'Videoni ko\'ring...'}
+                                        {markingComplete ? 'Saqlanmoqda...' : hasWatched ? 'Ko\'rildi deb belgilash' : 'Videoni ko\'ring...'}
                                     </Button>
                                 )}
                             </div>
@@ -304,8 +319,8 @@ export default function StudentVideoView() {
                              style={{animationDelay: '0.1s'}}>
                             <div className="flex items-center gap-3 mb-4">
                                 <div
-                                    className={`flex h-10 w-10 items-center justify-center rounded-lg ${completed ? 'bg-accent/10 text-accent' : 'bg-muted text-muted-foreground'}`}>
-                                    {completed ? <ClipboardList className="h-5 w-5"/> : <Lock className="h-5 w-5"/>}
+                                    className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent/10 text-accent">
+                                    <ClipboardList className="h-5 w-5"/>
                                 </div>
                                 <div>
                                     <h3 className="font-semibold text-card-foreground">Vazifa</h3>
@@ -314,19 +329,12 @@ export default function StudentVideoView() {
                                 </div>
                             </div>
                             <p className="text-sm text-muted-foreground mb-4">{task.description}</p>
-                            {!completed && (
-                                <p className="text-xs text-warning mb-3 flex items-center gap-1">
-                                    <Lock className="h-3 w-3"/>
-                                    Vazifani bajarish uchun avval videoni ko'ring
-                                </p>
-                            )}
                             <Button
                                 onClick={handleTaskClick}
                                 className="w-full"
-                                variant={completed ? "outline" : "secondary"}
-                                disabled={!completed}
+                                variant="outline"
                             >
-                                {completed ? "Vazifani bajarish" : "Qulflangan"}
+                                Vazifani bajarish
                                 <ChevronRight className="ml-2 h-4 w-4"/>
                             </Button>
                         </div>
@@ -379,13 +387,13 @@ export default function StudentVideoView() {
                         <div className="space-y-3 max-h-[300px] overflow-y-auto">
                             {categoryVideos.map((v) => {
                                 const locked = isVideoLocked(v.id);
-                                const isCompleted = isVideoCompleted(v.id);
+                                const videoCompleted = isVideoCompleted(v.id);
 
                                 return (
                                     <div
                                         key={v.id}
-                                        onClick={() => v.id !== videoId && handleVideoClick(v.id)}
-                                        className={`flex items-center gap-3 p-2 rounded-lg transition-colors ${v.id === videoId
+                                        onClick={() => String(v.id) !== String(videoId) && handleVideoClick(v.id)}
+                                        className={`flex items-center gap-3 p-2 rounded-lg transition-colors ${String(v.id) === String(videoId)
                                             ? 'bg-primary/10 text-primary'
                                             : locked
                                                 ? 'cursor-not-allowed opacity-60'
@@ -393,13 +401,23 @@ export default function StudentVideoView() {
                                         }`}
                                     >
                     <span
-                        className={`flex h-6 w-6 items-center justify-center rounded text-xs font-medium ${locked ? 'bg-muted/50' : 'bg-muted'}`}>
-                      {locked ? <Lock className="h-3 w-3"/> : v.order}
+                        className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-medium ${
+                            videoCompleted
+                                ? 'bg-green-500/20 text-green-600'
+                                : locked
+                                    ? 'bg-muted text-muted-foreground'
+                                    : 'bg-primary/10 text-primary'
+                        }`}
+                    >
+                      {videoCompleted ? <CheckCircle2 className="h-4 w-4"/> :
+                          locked ? <Lock className="h-3 w-3"/> : v.order}
                     </span>
-                                        <span className="flex-1 text-sm truncate">{v.title}</span>
-                                        {isCompleted && (
-                                            <CheckCircle2 className="h-4 w-4 text-success flex-shrink-0"/>
-                                        )}
+                                        <div className="flex-1 min-w-0">
+                                            <p className={`font-medium truncate ${String(v.id) === String(videoId) ? 'text-primary' : locked ? 'text-muted-foreground' : 'text-foreground'}`}>
+                                                {v.title}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">{v.duration}</p>
+                                        </div>
                                     </div>
                                 );
                             })}

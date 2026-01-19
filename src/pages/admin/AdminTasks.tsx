@@ -231,13 +231,12 @@ export default function AdminTasks() {
     };
 
     const getCategoryName = (videoId: string) => {
-        videos.map((v) => {
-            if (v.id == videoId) {
-                console.log('v', `${v.title} - ${v.category_name}`)
-                return `${v.title} - ${v.category_name}`
-            }
-        })
-    }
+        const video = videos.find((v: any) => String(v.id) === String(videoId));
+        if (video) {
+            return `${video.title} - ${(video as any).category_name || ''}`;
+        }
+        return '';
+    };
 
     const columns: Column<Task>[] = [
         {

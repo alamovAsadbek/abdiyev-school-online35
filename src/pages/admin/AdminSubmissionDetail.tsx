@@ -30,6 +30,7 @@ interface SubmissionDetail {
   task_title: string;
   task_type: string;
   video_title: string;
+  video?: number;
   file?: string;
   text_content?: string;
   answers: Record<string, number>;

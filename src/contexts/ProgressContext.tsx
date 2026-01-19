@@ -1,66 +1,113 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { initialStudentProgress, StudentProgress } from '@/data/demoData';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { progressApi } from '@/services/api';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface ProgressContextType {
-  progress: StudentProgress;
-  markVideoCompleted: (videoId: string) => void;
-  markTaskCompleted: (taskId: string, score: number, total: number) => void;
-  isVideoCompleted: (videoId: string) => boolean;
-  isTaskCompleted: (taskId: string) => boolean;
-  getTaskScore: (taskId: string) => { score: number; total: number } | null;
+  completedVideos: number[];
+  completedTasks: number[];
+  loading: boolean;
+  markVideoCompleted: (videoId: string | number) => Promise<void>;
+  markTaskCompleted: (taskId: string | number) => Promise<void>;
+  isVideoCompleted: (videoId: string | number) => boolean;
+  isTaskCompleted: (taskId: string | number) => boolean;
+  refreshProgress: () => Promise<void>;
 }
 
 const ProgressContext = createContext<ProgressContextType | undefined>(undefined);
 
 export function ProgressProvider({ children }: { children: ReactNode }) {
-  const [progress, setProgress] = useState<StudentProgress>(() => {
-    const saved = localStorage.getItem('abdiyev_progress');
-    return saved ? JSON.parse(saved) : initialStudentProgress;
-  });
+  const { user } = useAuth();
+  const [completedVideos, setCompletedVideos] = useState<number[]>([]);
+  const [completedTasks, setCompletedTasks] = useState<number[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const isAuthenticated = !!user;
+
+  const fetchProgress = useCallback(async () => {
+    if (!isAuthenticated || !user) {
+      setCompletedVideos([]);
+      setCompletedTasks([]);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const response = await progressApi.getMyProgress();
+      const videos = response?.completed_videos || [];
+      const tasks = response?.completed_tasks || [];
+      
+      // Ensure all IDs are numbers
+      setCompletedVideos(videos.map((id: any) => Number(id)));
+      setCompletedTasks(tasks.map((id: any) => Number(id)));
+    } catch (error) {
+      console.error('Failed to fetch progress:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [isAuthenticated, user]);
 
   useEffect(() => {
-    localStorage.setItem('abdiyev_progress', JSON.stringify(progress));
-  }, [progress]);
+    fetchProgress();
+  }, [fetchProgress]);
 
-  const markVideoCompleted = (videoId: string) => {
-    setProgress(prev => {
-      if (prev.completedVideos.includes(videoId)) return prev;
-      return {
-        ...prev,
-        completedVideos: [...prev.completedVideos, videoId],
-      };
-    });
+  const markVideoCompleted = async (videoId: string | number) => {
+    const numericId = Number(videoId);
+    
+    // Optimistically update
+    if (!completedVideos.includes(numericId)) {
+      setCompletedVideos(prev => [...prev, numericId]);
+    }
+
+    try {
+      await progressApi.completeVideo(String(videoId));
+    } catch (error) {
+      console.error('Failed to mark video as completed:', error);
+      // Revert on error
+      setCompletedVideos(prev => prev.filter(id => id !== numericId));
+    }
   };
 
-  const markTaskCompleted = (taskId: string, score: number, total: number) => {
-    setProgress(prev => {
-      const existingIndex = prev.taskScores.findIndex(t => t.taskId === taskId);
-      const newTaskScores = existingIndex >= 0
-        ? prev.taskScores.map((t, i) => i === existingIndex ? { taskId, score, total } : t)
-        : [...prev.taskScores, { taskId, score, total }];
-      
-      return {
-        ...prev,
-        completedTasks: prev.completedTasks.includes(taskId) 
-          ? prev.completedTasks 
-          : [...prev.completedTasks, taskId],
-        taskScores: newTaskScores,
-      };
-    });
+  const markTaskCompleted = async (taskId: string | number) => {
+    const numericId = Number(taskId);
+    
+    // Optimistically update
+    if (!completedTasks.includes(numericId)) {
+      setCompletedTasks(prev => [...prev, numericId]);
+    }
+
+    try {
+      await progressApi.completeTask(String(taskId));
+    } catch (error) {
+      console.error('Failed to mark task as completed:', error);
+      // Revert on error
+      setCompletedTasks(prev => prev.filter(id => id !== numericId));
+    }
   };
 
-  const isVideoCompleted = (videoId: string) => progress.completedVideos.includes(videoId);
-  const isTaskCompleted = (taskId: string) => progress.completedTasks.includes(taskId);
-  const getTaskScore = (taskId: string) => progress.taskScores.find(t => t.taskId === taskId) || null;
+  const isVideoCompleted = (videoId: string | number): boolean => {
+    const numericId = Number(videoId);
+    return completedVideos.includes(numericId);
+  };
+
+  const isTaskCompleted = (taskId: string | number): boolean => {
+    const numericId = Number(taskId);
+    return completedTasks.includes(numericId);
+  };
+
+  const refreshProgress = async () => {
+    await fetchProgress();
+  };
 
   return (
     <ProgressContext.Provider value={{ 
-      progress, 
+      completedVideos,
+      completedTasks,
+      loading,
       markVideoCompleted, 
       markTaskCompleted, 
       isVideoCompleted, 
       isTaskCompleted,
-      getTaskScore 
+      refreshProgress
     }}>
       {children}
     </ProgressContext.Provider>
