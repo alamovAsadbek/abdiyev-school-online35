@@ -173,8 +173,8 @@ export default function StudentTaskView() {
                 setScore({correct, total: task.questions.length});
                 setSubmitted(true);
 
-                // Mark task and video as completed in local context
-                markTaskCompleted(String(task.id), correct, task.questions.length);
+                // Mark task as completed
+                markTaskCompleted(String(task.id));
                 if (video) {
                     markVideoCompleted(String(video.id));
                 }

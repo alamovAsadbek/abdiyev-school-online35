@@ -366,8 +366,14 @@ class StudentProgressViewSet(viewsets.ModelViewSet):
         video_id = request.data.get('video_id')
         progress, created = StudentProgress.objects.get_or_create(user=request.user)
 
-        if video_id not in progress.completed_videos:
-            progress.completed_videos.append(video_id)
+        # Convert to int for consistent storage
+        try:
+            video_id_int = int(video_id)
+        except (ValueError, TypeError):
+            video_id_int = video_id
+
+        if video_id_int not in progress.completed_videos:
+            progress.completed_videos.append(video_id_int)
             progress.save()
 
         serializer = self.get_serializer(progress)
@@ -378,8 +384,14 @@ class StudentProgressViewSet(viewsets.ModelViewSet):
         task_id = request.data.get('task_id')
         progress, created = StudentProgress.objects.get_or_create(user=request.user)
 
-        if task_id not in progress.completed_tasks:
-            progress.completed_tasks.append(task_id)
+        # Convert to int for consistent storage
+        try:
+            task_id_int = int(task_id)
+        except (ValueError, TypeError):
+            task_id_int = task_id
+
+        if task_id_int not in progress.completed_tasks:
+            progress.completed_tasks.append(task_id_int)
             progress.save()
 
         serializer = self.get_serializer(progress)
@@ -387,15 +399,48 @@ class StudentProgressViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def user_progress(self, request):
+        """Get user progress with detailed video information for admin"""
         user_id = request.query_params.get('user_id')
 
-        progress = StudentProgress.objects.filter(user_id=user_id)
+        progress = StudentProgress.objects.filter(user_id=user_id).first()
 
-        if not progress.exists():
-            return Response([], status=status.HTTP_200_OK)
+        if not progress:
+            return Response({'completed_videos': [], 'completed_tasks': [], 'video_details': []}, status=status.HTTP_200_OK)
 
-        serializer = self.get_serializer(progress.first())
-        return Response(serializer.data)
+        # Get detailed video information
+        video_details = []
+        for vid_id in progress.completed_videos:
+            try:
+                video = Video.objects.get(id=vid_id)
+                # Get latest submission for this video's tasks
+                task_info = {}
+                task = video.tasks.first()
+                if task:
+                    submission = TaskSubmission.objects.filter(
+                        user_id=user_id, 
+                        task=task
+                    ).order_by('-submitted_at').first()
+                    if submission:
+                        task_info = {
+                            'task_score': submission.score,
+                            'task_total': submission.total,
+                            'task_status': submission.status
+                        }
+                
+                video_details.append({
+                    'video_id': video.id,
+                    'video_title': video.title,
+                    'category_name': video.category.name,
+                    'category_id': video.category.id,
+                    **task_info
+                })
+            except Video.DoesNotExist:
+                continue
+
+        serializer = self.get_serializer(progress)
+        data = serializer.data
+        data['video_details'] = video_details
+        return Response(data)
 
 
 class TaskSubmissionViewSet(viewsets.ModelViewSet):

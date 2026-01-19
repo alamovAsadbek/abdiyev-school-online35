@@ -114,7 +114,7 @@ interface UserNotification {
 
 interface Submission {
     id: string;
-    task: {
+    task?: {
         id: string;
         title: string;
         task_type: string;
@@ -123,6 +123,8 @@ interface Submission {
             title: string;
         };
     };
+    task_title?: string;
+    task_type?: string;
     status: 'pending' | 'approved' | 'rejected';
     score?: number;
     total?: number;
@@ -133,7 +135,7 @@ interface VideoProgress {
     video_id: string;
     video_title: string;
     category_name: string;
-    completed_at: string;
+    category_id?: string;
     task_score?: number;
     task_total?: number;
     task_status?: string;
@@ -183,16 +185,17 @@ export default function AdminUserDetail() {
                 categoriesApi.getAll(),
                 notificationsApi.getUserNotifications(userId!),
                 submissionsApi.getAll({user: userId}),
-                progressApi.getUserProgress ? progressApi.getUserProgress(userId!) : Promise.resolve([]),
+                progressApi.getUserProgress ? progressApi.getUserProgress(userId!) : Promise.resolve({video_details: []}),
             ]);
-            console.log('res', userRes, submissionsRes)
+            console.log('res', userRes, submissionsRes, progressRes);
             setUser(userRes);
             setPayments(paymentsRes?.results || paymentsRes || []);
             setCourses(coursesRes?.results || coursesRes || []);
             setCategories(categoriesRes?.results || categoriesRes || []);
             setUserNotifications(userNotifsRes?.results || userNotifsRes || []);
             setSubmissions(submissionsRes?.results || submissionsRes || []);
-            setVideoProgress(progressRes?.results || progressRes || []);
+            // Use video_details from backend progress response
+            setVideoProgress(progressRes?.video_details || []);
         } catch (error) {
             console.log(error);
             toast({
@@ -910,7 +913,7 @@ export default function AdminUserDetail() {
                                             <span className="text-muted-foreground">-</span>
                                         )}
                                     </td>
-                                    <td className="p-4 text-muted-foreground">{formatDate(prog.completed_at)}</td>
+                                    <td className="p-4 text-muted-foreground">-</td>
                                 </tr>
                             )) : (
                                 <tr>
