@@ -180,7 +180,7 @@ export default function AdminSubmissionDetail() {
 
           {/* Task Info */}
           <div className="rounded-xl border border-border bg-card p-6">
-            <h3 className="font-semibold text-foreground mb-2">Nomi: {submission.task_title}</h3>
+            <h3 className="font-semibold text-foreground mb-2">Vazifa nomi: {submission.task_title}</h3>
             <p className="text-sm text-primary mb-4 cursor-pointer hover:text-success" onClick={()=>{
               navigate(`/admin/videos/${submission.video}`);
             }}>Dars nomi: {submission.video_title}</p>

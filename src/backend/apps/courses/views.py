@@ -32,36 +32,30 @@ class VideoViewSet(viewsets.ModelViewSet):
         return context
 
     def create(self, request, *args, **kwargs):
-        """Handle video creation with file upload"""
-        data = request.data.copy()
+        data = request.data.dict()  # ❗ file bo‘lmagan fieldlar
 
-        # Handle video file or URL
         video_file = request.FILES.get('video_file')
-        video_url = data.get('video_url', '')
-
-        # Handle thumbnail file or URL
         thumbnail_file = request.FILES.get('thumbnail')
-        thumbnail_url = data.get('thumbnail_url', '')
 
-        # Remove file fields from data to avoid serializer conflicts
-        fields_to_remove = ['video_file', 'thumbnail', 'thumbnail_url']
-        for field in fields_to_remove:
-            data.pop(field, None)
+        video_url = data.get('video_url')
+        thumbnail_url = data.get('thumbnail_url')
 
-        # Create video instance with basic fields
+        data.pop('video_url', None)
+        data.pop('thumbnail_url', None)
+
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
         video = serializer.save()
 
-        # Save video file if provided
         if video_file:
             video.video_file = video_file
+            video.video_url = None
         elif video_url:
             video.video_url = video_url
 
-        # Save thumbnail file if provided
         if thumbnail_file:
             video.thumbnail = thumbnail_file
+            video.thumbnail_url = None
         elif thumbnail_url:
             video.thumbnail_url = thumbnail_url
 

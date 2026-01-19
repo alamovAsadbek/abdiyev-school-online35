@@ -91,10 +91,10 @@ export default function Landing() {
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
-              <Button size="lg" variant="outline" className="w-full sm:w-auto">
-                <Play className="mr-2 h-5 w-5" />
-                Demo ko'rish
-              </Button>
+              {/*<Button size="lg" variant="outline" className="w-full sm:w-auto">*/}
+              {/*  <Play className="mr-2 h-5 w-5" />*/}
+              {/*  Demo ko'rish*/}
+              {/*</Button>*/}
             </div>
           </div>
 
