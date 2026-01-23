@@ -1,6 +1,17 @@
 import {useState, useEffect} from 'react';
 import {useParams, useNavigate} from 'react-router-dom';
-import {ArrowLeft, CheckCircle2, Clock, ChevronRight, ClipboardList, Lock} from 'lucide-react';
+import {
+    ArrowLeft,
+    CheckCircle2,
+    Clock,
+    ChevronRight,
+    ClipboardList,
+    Lock,
+    CircleUser,
+    ChevronDown,
+    Clapperboard,
+    MonitorPause
+} from 'lucide-react';
 import {DashboardLayout} from '@/layouts/DashboardLayout';
 import {Button} from '@/components/ui/button';
 import {useProgress} from '@/contexts/ProgressContext';
@@ -8,6 +19,7 @@ import {useAuth} from '@/contexts/AuthContext';
 import {useToast} from '@/hooks/use-toast';
 import {videosApi, tasksApi, userCoursesApi, categoriesApi} from '@/services/api';
 import {SecureVideoPlayer} from '@/components/SecureVideoPlayer';
+import {cn, formatDate} from "@/lib/utils.ts";
 
 interface Video {
     id: string;
@@ -50,6 +62,8 @@ export default function StudentVideoView() {
     const [hasAccess, setHasAccess] = useState(false);
     const [markingComplete, setMarkingComplete] = useState(false);
 
+    const [open, setOpen] = useState(true);
+
     const completed = video ? isVideoCompleted(video.id) : false;
 
     const currentIndex = categoryVideos.findIndex(v => String(v.id) === String(videoId));
@@ -64,16 +78,13 @@ export default function StudentVideoView() {
 
         const sortedVideos = [...categoryVideos].sort((a, b) => a.order - b.order);
         const targetIndex = sortedVideos.findIndex(v => String(v.id) === String(targetVideoId));
-
         // First video is never locked
         if (targetIndex === 0) return false;
 
         // Check if previous video is completed
         const previousVideo = sortedVideos[targetIndex - 1];
-        console.log(previousVideo)
-        return !isVideoCompleted(previousVideo);
+        return !isVideoCompleted(previousVideo?.id);
     };
-    console.log(video)
     const currentVideoLocked = video ? isVideoLocked(video?.id) : false;
 
     useEffect(() => {
@@ -84,6 +95,7 @@ export default function StudentVideoView() {
             try {
                 // Fetch video
                 const videoData = await videosApi.getById(videoId);
+                console.log('video data', videoData)
                 setVideo(videoData);
 
                 // Check if user has access to this course
@@ -260,31 +272,26 @@ export default function StudentVideoView() {
 
                         {/* Video Info */}
                         <div className="mt-5">
-                            <div className="flex items-start justify-between gap-4 mb-4">
-                                <div>
-                                    <h1 className="text-xl lg:text-2xl font-bold text-foreground mb-2">
-                                        {video.title}
-                                    </h1>
-                                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-4 w-4"/>
-                        {video.duration}
-                    </span>
-                                        {category && (
-                                            <span
-                                                className="px-2 py-1 rounded-md bg-primary/10 text-primary text-xs font-medium">
-                        {category.name}
-                      </span>
-                                        )}
-                                    </div>
-                                </div>
+                    {/*        <div className="flex items-start justify-between gap-4 mb-4">*/}
+                    {/*            <div>*/}
+                    {/*                <h1 className="text-xl lg:text-2xl font-bold text-foreground mb-2">*/}
+                    {/*                    {video.title}*/}
+                    {/*                </h1>*/}
+                    {/*                <div className="flex items-center gap-4 text-sm text-muted-foreground">*/}
+                    {/*<span className="flex items-center gap-1">*/}
+                    {/*  <Clock className="h-4 w-4"/>*/}
+                    {/*    {video.duration}*/}
+                    {/*</span>*/}
+                    {/*                    {category && (*/}
+                    {/*                        <span*/}
+                    {/*                            className="px-2 py-1 rounded-md bg-primary/10 text-primary text-xs font-medium">*/}
+                    {/*    {category.name}*/}
+                    {/*  </span>*/}
+                    {/*                    )}*/}
+                    {/*                </div>*/}
+                    {/*            </div>*/}
 
-                                {completed ? (
-                                    <div className="status-badge status-completed">
-                                        <CheckCircle2 className="h-4 w-4"/>
-                                        Ko'rildi
-                                    </div>
-                                ) : (
+                                {!completed ? (
                                     <Button
                                         onClick={handleMarkCompleted}
                                         className="gradient-primary text-primary-foreground"
@@ -293,14 +300,16 @@ export default function StudentVideoView() {
                                         <CheckCircle2 className="mr-2 h-4 w-4"/>
                                         {markingComplete ? 'Saqlanmoqda...' : hasWatched ? 'Ko\'rildi deb belgilash' : 'Videoni ko\'ring...'}
                                     </Button>
+                                ) : (
+                                    <></>
                                 )}
-                            </div>
+                    {/*        </div>*/}
 
-                            <p className="text-muted-foreground">
-                                {video.description}
-                            </p>
+                    {/*        <p className="text-muted-foreground">*/}
+                    {/*            {video.description}*/}
+                    {/*        </p>*/}
 
-                            {/* Protection Notice */}
+                    {/*        /!* Protection Notice *!/*/}
                             <div className="mt-4 p-3 rounded-lg bg-warning/10 border border-warning/20">
                                 <p className="text-xs text-warning flex items-center gap-2">
                                     <Lock className="h-3 w-3"/>
@@ -308,6 +317,92 @@ export default function StudentVideoView() {
                                     ID: {user?.watermark_id || user?.id?.toString().slice(-8).toUpperCase()}
                                 </p>
                             </div>
+
+                            <div className="rounded-xl border border-border bg-card overflow-hidden mt-4">
+
+                                <button
+                                    onClick={() => setOpen(!open)}
+                                    className="w-full flex items-center justify-between p-6 hover:bg-muted/50 transition"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div
+                                            className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                                            <Clapperboard className="h-5 w-5"/>
+                                        </div>
+                                        <div className="text-left">
+                                            <h3 className="font-semibold">{video.title} - {video.category_name}</h3>
+                                            <p className="text-sm text-muted-foreground">Video dars haqida ma'lumot | {user?.watermark_id}</p>
+                                        </div>
+                                    </div>
+
+                                    <ChevronDown
+                                        className={`h-5 w-5 transition-transform ${open ? 'rotate-180' : ''}`}/>
+                                </button>
+
+                                {open && (
+                                    <div className="p-6 pt-0 animate-fade-in space-y-3 text-sm">
+
+                                        <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Nomi:</span>
+                                            <span className="font-medium">{video.title || '-'}</span>
+                                        </div>
+
+                                        {/*<div className="flex justify-between">*/}
+                                        {/*    <span className="text-muted-foreground">Email:</span>*/}
+                                        {/*    <span className="font-medium">{user.email}</span>*/}
+                                        {/*</div>*/}
+
+                                        <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Qo'shimcha ma'lumot:</span>
+                                            <span className="font-medium">{video.description || '-'}</span>
+                                        </div>
+
+                                        <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Kurs:</span>
+                                            <span
+                                                className="font-medium text-primary cursor-pointer hover:text-success"
+                                                onClick={() => {
+                                                    navigate(`/student/category/${video.category}`)
+                                                }}>{video.category_name || '-'}</span>
+                                        </div>
+
+                                        <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Holati:</span>
+                                            <span>
+                                {!completed ? (
+                                    <div className="status-badge bg-destructive/15 text-destructive">
+                                        <MonitorPause className="h-4 w-4"/>
+                                        Ko'rilmagan
+                                    </div>
+                                    ) : (
+                                    <div className="status-badge status-completed">
+                                        <CheckCircle2 className="h-4 w-4"/>
+                                        Ko'rildi
+                                    </div>
+                                )}
+                            </span>
+                                        </div>
+
+                                        <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Davomiyligi:</span>
+                                            <span className="font-medium">{video?.duration || '-'} minut</span>
+                                        </div>
+
+                                        <div className="flex justify-between">
+                                            <span className="text-muted-foreground">UNIQUE ID:</span>
+                                            <span className="font-medium">{user?.watermark_id || '-'}</span>
+                                        </div>
+
+                                        {/*<div className="flex justify-between">*/}
+                                        {/*    <span className="text-muted-foreground">Yaratilgan vaqti:</span>*/}
+                                        {/*    <span className="font-medium">{formatDate(video.created_at) || '-'}</span>*/}
+                                        {/*</div>*/}
+
+                                    </div>
+                                )}
+
+                            </div>
+
                         </div>
                     </div>
                 </div>

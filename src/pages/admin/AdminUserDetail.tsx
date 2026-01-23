@@ -603,7 +603,7 @@ export default function AdminUserDetail() {
                     {open && (
                         <div className="p-6 pt-0 animate-fade-in space-y-3 text-sm">
 
-                            <div className="flex justify-between">
+                            <div className="flex justify-between mt-2">
                                 <span className="text-muted-foreground">Ism:</span>
                                 <span className="font-medium">{user.first_name} {user.last_name}</span>
                             </div>

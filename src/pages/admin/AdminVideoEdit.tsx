@@ -27,7 +27,7 @@ export default function AdminVideoEdit() {
     const [formData, setFormData] = useState({
         title: '',
         description: '',
-        categoryId: '',
+        category: '',
         duration: '',
         videoUrl: '',
         thumbnail: '',
@@ -36,7 +36,7 @@ export default function AdminVideoEdit() {
     const getVideoById = async (videoID = videoId) => {
         try {
             api.get(`/videos/${videoId}`).then((response) => {
-                console.log(response);
+                console.log('response', response);
                 setVideo(response)
             }).catch((error) => {
                 console.log(error);
@@ -84,21 +84,41 @@ export default function AdminVideoEdit() {
             setFormData({
                 title: video.title,
                 description: video.description,
-                categoryId: video.category,
+                category: video.category,
                 duration: video.duration,
                 videoUrl: video.video_url,
                 thumbnail: video.thumbnail,
             });
         }
-    }, [video]);
+    }, [video, videoId]);
 
     const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        toast({
-            title: 'Saqlandi',
-            description: 'Video muvaffaqiyatli tahrirlandi',
-        });
-        navigate(`/admin/videos/${videoId}`);
+        try {
+            e.preventDefault();
+            formData['thumbnail_url']=formData['thumbnail'];
+            api.put(`/videos/${videoId}/`, formData).then((response) => {
+                console.log(response)
+                navigate(`/admin/videos/${videoId}`);
+                toast({
+                    title: 'Muvaffaqiyatli',
+                    description: "Dars muvaffaqiyatli tahrirlandi!",
+                })
+            }).catch((error) => {
+                console.log(error);
+                toast({
+                    title: 'Xatolik',
+                    description: e.message,
+                    variant: 'destructive'
+                })
+            })
+        }catch (e) {
+            console.log(e)
+            toast({
+                title: 'Xatolik',
+                description: e.message,
+                variant: "destructive"
+            })
+        }
     };
 
     if (!video) {
@@ -144,7 +164,7 @@ export default function AdminVideoEdit() {
                         <Label htmlFor="description">Tavsif</Label>
                         <Textarea
                             id="description"
-                            value={formData.description}
+                            value={formData.description || ""}
                             onChange={(e) => setFormData({...formData, description: e.target.value})}
                             rows={4}
                         />
@@ -153,15 +173,15 @@ export default function AdminVideoEdit() {
                     <div className="space-y-2">
                         <Label htmlFor="category">Kurs</Label>
                         <Select
-                            value={formData.categoryId}
-                            onValueChange={(value) => setFormData({...formData, categoryId: value})}
+                            value={formData.category || ''}
+                            onValueChange={(value) => setFormData({...formData, category: value})}
                         >
                             <SelectTrigger>
                                 <SelectValue placeholder="Kategoriyani tanlang"/>
                             </SelectTrigger>
                             <SelectContent>
                                 {category.map(cat => (
-                                    <SelectItem key={cat.id} value={cat.id}>
+                                    <SelectItem key={cat.id} value={String(cat.id)}>
                                         {cat.icon} {cat.name}
                                     </SelectItem>
                                 ))}
