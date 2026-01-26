@@ -131,6 +131,8 @@ function AppRoutes() {
                    element={<ProtectedRoute allowedRole="admin"><AdminUserEdit/></ProtectedRoute>}/>
             <Route path="/admin/payments"
                    element={<ProtectedRoute allowedRole="admin"><AdminPayments/></ProtectedRoute>}/>
+            <Route path="/admin/payments/:paymentId"
+                   element={<ProtectedRoute allowedRole="admin"><AdminPaymentDetail/></ProtectedRoute>}/>
 
             <Route path="/admin/categories"
                    element={<ProtectedRoute allowedRole="admin"><AdminCategories/></ProtectedRoute>}/>
