@@ -381,7 +381,7 @@ export default function AdminUsers() {
                     columns={columns}
                     filters={filters}
                     searchPlaceholder="Ism yoki username bo'yicha qidirish..."
-                    searchKeys={['first_name', 'last_name', 'username', 'phone']}
+                    searchKeys={['first_name', 'last_name', 'username', 'phone', 'watermark_id']}
                     onRowClick={(user) => navigate(`/admin/users/${user.id}`)}
                     emptyMessage={loading ? "Yuklanmoqda..." : "Foydalanuvchilar topilmadi"}
                 />
