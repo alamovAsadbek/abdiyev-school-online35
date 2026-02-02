@@ -5,9 +5,9 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from .models import Category, Video, Task, TaskQuestion, UserCourse, StudentProgress, TaskSubmission
+from .models import Category, Module, Video, Task, TaskQuestion, UserCourse, StudentProgress, TaskSubmission
 from .serializers import (
-    CategorySerializer, VideoSerializer, TaskSerializer,
+    CategorySerializer, ModuleSerializer, VideoSerializer, TaskSerializer,
     TaskQuestionSerializer, UserCourseSerializer,
     StudentProgressSerializer, TaskSubmissionSerializer
 )
@@ -19,6 +19,39 @@ class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
     permission_classes = [IsAuthenticated]
+
+    @action(detail=True, methods=['post'])
+    def add_module(self, request, pk=None):
+        """Add a module to a category"""
+        category = self.get_object()
+        if not category.is_modular:
+            return Response({'error': 'Category is not modular'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        serializer = ModuleSerializer(data={
+            'category': category.id,
+            'name': request.data.get('name'),
+            'description': request.data.get('description', ''),
+            'order': request.data.get('order', category.modules.count()),
+            'price': request.data.get('price')
+        })
+        serializer.is_valid(raise_exception=True)
+        module = serializer.save()
+        return Response(ModuleSerializer(module).data, status=status.HTTP_201_CREATED)
+
+
+class ModuleViewSet(viewsets.ModelViewSet):
+    queryset = Module.objects.all()
+    serializer_class = ModuleSerializer
+    permission_classes = [IsAuthenticated]
+
+    @action(detail=False, methods=['get'])
+    def by_category(self, request):
+        category_id = request.query_params.get('category_id')
+        if category_id:
+            modules = Module.objects.filter(category_id=category_id)
+            serializer = self.get_serializer(modules, many=True)
+            return Response(serializer.data)
+        return Response({'error': 'category_id is required'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class VideoViewSet(viewsets.ModelViewSet):
@@ -314,24 +347,40 @@ class UserCourseViewSet(viewsets.ModelViewSet):
     def grant_course(self, request):
         user_id = request.data.get('user_id')
         category_id = request.data.get('category_id')
+        module_ids = request.data.get('module_ids', [])  # For modular courses
         granted_by = request.data.get('granted_by', 'gift')
 
+        category = Category.objects.get(id=category_id)
+        
         course, created = UserCourse.objects.get_or_create(
             user_id=user_id,
             category_id=category_id,
             defaults={'granted_by': granted_by}
         )
 
+        # For modular courses, add selected modules
+        if category.is_modular and module_ids:
+            modules = Module.objects.filter(id__in=module_ids, category=category)
+            course.modules.add(*modules)
+        elif not category.is_modular:
+            # For non-modular courses, add all modules if any exist
+            course.modules.clear()
+
         # Agar yangi kurs berilgan bo'lsa, xabarnoma yuborish
         if created:
             try:
                 user = User.objects.get(id=user_id)
-                category = Category.objects.get(id=category_id)
 
                 # Xabarnoma yaratish
+                if category.is_modular and module_ids:
+                    module_names = ", ".join([m.name for m in modules])
+                    message = f"Tabriklaymiz! Sizga '{category.name}' kursidan quyidagi modullar sovg'a qilindi: {module_names}"
+                else:
+                    message = f"Tabriklaymiz! Sizga '{category.name}' kursi sovg'a qilindi. Endi barcha video darslarni bepul ko'rishingiz mumkin."
+                
                 notification = Notification.objects.create(
                     title="Sizga yangi kurs sovg'a qilindi! 🎁",
-                    message=f"Tabriklaymiz! Sizga '{category.name}' kursi sovg'a qilindi. Endi barcha video darslarni bepul ko'rishingiz mumkin.",
+                    message=message,
                     type='course'
                 )
                 notification.recipients.add(user)
@@ -348,6 +397,21 @@ class UserCourseViewSet(viewsets.ModelViewSet):
 
         serializer = self.get_serializer(course)
         return Response(serializer.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+    
+    @action(detail=True, methods=['post'])
+    def add_modules(self, request, pk=None):
+        """Add modules to an existing user course"""
+        course = self.get_object()
+        module_ids = request.data.get('module_ids', [])
+        
+        if not course.category.is_modular:
+            return Response({'error': 'Category is not modular'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        modules = Module.objects.filter(id__in=module_ids, category=course.category)
+        course.modules.add(*modules)
+        
+        serializer = self.get_serializer(course)
+        return Response(serializer.data)
 
 
 class StudentProgressViewSet(viewsets.ModelViewSet):

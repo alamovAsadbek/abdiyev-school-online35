@@ -87,14 +87,26 @@ interface UserCourse {
     user: string;
     category: string;
     category_name: string;
+    category_is_modular?: boolean;
+    modules_detail?: Module[];
     granted_at: string;
     granted_by: string;
+}
+
+interface Module {
+    id: string;
+    name: string;
+    description?: string;
+    order: number;
+    price?: number;
 }
 
 interface Category {
     id: string;
     name: string;
     icon: string;
+    is_modular?: boolean;
+    modules?: Module[];
 }
 
 interface Notification {
@@ -155,8 +167,9 @@ export default function AdminUserDetail() {
 
     const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
     const [isCourseDialogOpen, setIsCourseDialogOpen] = useState(false);
-    const [paymentForm, setPaymentForm] = useState({amount: '', expiresAt: '', description: ''});
+    const [paymentForm, setPaymentForm] = useState({amount: '', expiresAt: '', description: '', categoryId: ''});
     const [selectedCategoryId, setSelectedCategoryId] = useState('');
+    const [selectedModuleIds, setSelectedModuleIds] = useState<string[]>([]);
 
     const [userNotifications, setUserNotifications] = useState<UserNotification[]>([]);
 
@@ -297,6 +310,7 @@ export default function AdminUserDetail() {
         try {
             const newPayment = await paymentsApi.create({
                 user: userId,
+                category: paymentForm.categoryId || null,
                 amount: parseInt(paymentForm.amount),
                 expires_at: paymentForm.expiresAt,
                 description: paymentForm.description,
@@ -304,8 +318,12 @@ export default function AdminUserDetail() {
             });
             setPayments(prev => [newPayment, ...prev]);
             setIsPaymentDialogOpen(false);
-            setPaymentForm({amount: '', expiresAt: '', description: ''});
+            setPaymentForm({amount: '', expiresAt: '', description: '', categoryId: ''});
             toast({title: 'Muvaffaqiyat', description: 'To\'lov qo\'shildi'});
+            // Refresh courses list if category was selected
+            if (paymentForm.categoryId) {
+                fetchData();
+            }
         } catch (error) {
             toast({title: 'Xatolik', description: 'To\'lov qo\'shishda xatolik', variant: 'destructive'});
         }
@@ -317,21 +335,47 @@ export default function AdminUserDetail() {
             return;
         }
 
-        const exists = courses.find(c => c.category === selectedCategoryId);
+        const selectedCategory = categories.find(c => String(c.id) === selectedCategoryId);
+        
+        // Check if modular course needs module selection
+        if (selectedCategory?.is_modular && selectedModuleIds.length === 0) {
+            toast({title: 'Xatolik', description: 'Modullarni tanlang', variant: 'destructive'});
+            return;
+        }
+
+        const exists = courses.find(c => String(c.category) === selectedCategoryId);
         if (exists) {
             toast({title: 'Xatolik', description: 'Bu kurs allaqachon mavjud', variant: 'destructive'});
             return;
         }
 
         try {
-            const newCourse = await userCoursesApi.grantCourse(userId!, selectedCategoryId, 'gift');
+            const newCourse = await userCoursesApi.grantCourse(
+                userId!, 
+                selectedCategoryId, 
+                'gift',
+                selectedCategory?.is_modular ? selectedModuleIds : undefined
+            );
             setCourses(prev => [newCourse, ...prev]);
             setIsCourseDialogOpen(false);
             setSelectedCategoryId('');
+            setSelectedModuleIds([]);
             toast({title: 'Muvaffaqiyat', description: 'Kurs sovg\'a qilindi'});
         } catch (error) {
             toast({title: 'Xatolik', description: 'Kurs qo\'shishda xatolik', variant: 'destructive'});
         }
+    };
+
+    const getSelectedCategory = () => {
+        return categories.find(c => String(c.id) === selectedCategoryId);
+    };
+
+    const handleModuleToggle = (moduleId: string) => {
+        setSelectedModuleIds(prev => 
+            prev.includes(moduleId) 
+                ? prev.filter(id => id !== moduleId)
+                : [...prev, moduleId]
+        );
     };
 
     const handleRemoveCourse = async () => {
@@ -1101,27 +1145,65 @@ export default function AdminUserDetail() {
 
 
             {/* Gift Course Dialog */}
-            <Dialog open={isCourseDialogOpen} onOpenChange={setIsCourseDialogOpen}>
-                <DialogContent>
+            <Dialog open={isCourseDialogOpen} onOpenChange={(open) => {
+                setIsCourseDialogOpen(open);
+                if (!open) {
+                    setSelectedCategoryId('');
+                    setSelectedModuleIds([]);
+                }
+            }}>
+                <DialogContent className="max-w-md">
                     <DialogHeader>
                         <DialogTitle>Kurs sovg'a qilish</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4 mt-4">
                         <div className="space-y-2">
                             <Label>Kursni tanlang</Label>
-                            <Select value={selectedCategoryId} onValueChange={setSelectedCategoryId}>
+                            <Select value={selectedCategoryId} onValueChange={(value) => {
+                                setSelectedCategoryId(value);
+                                setSelectedModuleIds([]);
+                            }}>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Kurs tanlang"/>
                                 </SelectTrigger>
                                 <SelectContent>
                                     {categories.map(cat => (
-                                        <SelectItem key={cat.id} value={cat.id}>
-                                            {cat.icon} {cat.name}
+                                        <SelectItem key={cat.id} value={String(cat.id)}>
+                                            {cat.icon} {cat.name} {cat.is_modular && '(Modulli)'}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
                         </div>
+                        
+                        {/* Module selection for modular courses */}
+                        {getSelectedCategory()?.is_modular && getSelectedCategory()?.modules && (
+                            <div className="space-y-2">
+                                <Label>Modullarni tanlang</Label>
+                                <div className="space-y-2 max-h-48 overflow-y-auto border rounded-lg p-3">
+                                    {getSelectedCategory()?.modules?.map(module => (
+                                        <label key={module.id} className="flex items-center gap-3 p-2 rounded hover:bg-muted/50 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedModuleIds.includes(String(module.id))}
+                                                onChange={() => handleModuleToggle(String(module.id))}
+                                                className="rounded"
+                                            />
+                                            <div className="flex-1">
+                                                <p className="font-medium text-sm">{module.name}</p>
+                                                {module.description && (
+                                                    <p className="text-xs text-muted-foreground">{module.description}</p>
+                                                )}
+                                            </div>
+                                        </label>
+                                    ))}
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                    {selectedModuleIds.length} ta modul tanlandi
+                                </p>
+                            </div>
+                        )}
+                        
                         <div className="flex justify-end gap-3 pt-4">
                             <Button variant="outline" onClick={() => setIsCourseDialogOpen(false)}>Bekor qilish</Button>
                             <Button onClick={handleGiftCourse} className="gradient-primary text-primary-foreground">
@@ -1140,6 +1222,28 @@ export default function AdminUserDetail() {
                         <DialogTitle>To'lov qo'shish</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4 mt-4">
+                        <div className="space-y-2">
+                            <Label>Kursni tanlang (ixtiyoriy)</Label>
+                            <Select 
+                                value={paymentForm.categoryId} 
+                                onValueChange={(value) => setPaymentForm(prev => ({...prev, categoryId: value}))}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Kurs tanlang"/>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="">Tanlanmagan</SelectItem>
+                                    {categories.map(cat => (
+                                        <SelectItem key={cat.id} value={String(cat.id)}>
+                                            {cat.icon} {cat.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <p className="text-xs text-muted-foreground">
+                                Kurs tanlansa, to'lov saqlanganda foydalanuvchiga avtomatik kirish huquqi beriladi
+                            </p>
+                        </div>
                         <div className="space-y-2">
                             <Label htmlFor="amount">Summa (so'm)</Label>
                             <Input

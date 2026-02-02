@@ -8,6 +8,8 @@ class Category(models.Model):
     icon = models.CharField(max_length=10)
     color = models.CharField(max_length=50, null=True, blank=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
+    is_modular = models.BooleanField(default=False)  # Whether course has modules
+    requires_sequential = models.BooleanField(default=True)  # Whether sequential access is required
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -16,6 +18,10 @@ class Category(models.Model):
     @property
     def video_count(self):
         return self.videos.count()
+    
+    @property
+    def module_count(self):
+        return self.modules.count() if self.is_modular else 0
 
     class Meta:
         db_table = 'categories'
@@ -23,8 +29,30 @@ class Category(models.Model):
         verbose_name_plural = 'Categories'
 
 
+class Module(models.Model):
+    """Module within a course (only for modular courses)"""
+    category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='modules')
+    name = models.CharField(max_length=255)
+    description = models.TextField(null=True, blank=True)
+    order = models.IntegerField(default=0)
+    price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)  # Optional separate price
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.category.name} - {self.name}"
+
+    @property
+    def video_count(self):
+        return self.videos.count()
+
+    class Meta:
+        db_table = 'modules'
+        ordering = ['category', 'order']
+
+
 class Video(models.Model):
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='videos')
+    module = models.ForeignKey(Module, on_delete=models.SET_NULL, null=True, blank=True, related_name='videos')
     title = models.CharField(max_length=255)
     description = models.TextField(null=True, blank=True)
     duration = models.CharField(max_length=10)
@@ -53,10 +81,13 @@ class Video(models.Model):
 
     def get_category_name(self):
         return self.category.name
+    
+    def get_module_name(self):
+        return self.module.name if self.module else None
 
     class Meta:
         db_table = 'videos'
-        ordering = ['category', 'order']
+        ordering = ['category', 'module', 'order']
 
 
 class Task(models.Model):
@@ -106,12 +137,25 @@ class UserCourse(models.Model):
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='user_courses')
     category = models.ForeignKey(Category, on_delete=models.CASCADE)
+    modules = models.ManyToManyField(Module, blank=True, related_name='user_courses')  # For modular courses
     granted_by = models.CharField(max_length=10, choices=GRANTED_BY_CHOICES)
     granted_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField(blank=True, null=True)
 
     def __str__(self):
         return f"{self.user.username} - {self.category.name}"
+    
+    def has_access_to_module(self, module):
+        """Check if user has access to a specific module"""
+        if not self.category.is_modular:
+            return True  # Non-modular courses give full access
+        return self.modules.filter(id=module.id).exists()
+    
+    def has_access_to_video(self, video):
+        """Check if user has access to a specific video"""
+        if not self.category.is_modular or not video.module:
+            return True  # Non-modular or video without module
+        return self.modules.filter(id=video.module.id).exists()
 
     class Meta:
         db_table = 'user_courses'
