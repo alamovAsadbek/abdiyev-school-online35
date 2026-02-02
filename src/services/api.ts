@@ -72,6 +72,31 @@ export const categoriesApi = {
   delete: async (id: string) => {
     return api.delete(`/categories/${id}/`);
   },
+  addModule: async (categoryId: string, data: any) => {
+    return api.post(`/categories/${categoryId}/add_module/`, data);
+  },
+};
+
+// Modules API
+export const modulesApi = {
+  getAll: async (params?: Record<string, any>) => {
+    return api.get('/modules/', params);
+  },
+  getById: async (id: string) => {
+    return api.get(`/modules/${id}/`);
+  },
+  getByCategory: async (categoryId: string) => {
+    return api.get(`/modules/by_category/?category_id=${categoryId}`);
+  },
+  create: async (data: any) => {
+    return api.post('/modules/', data);
+  },
+  update: async (id: string, data: any) => {
+    return api.put(`/modules/${id}/`, data);
+  },
+  delete: async (id: string) => {
+    return api.delete(`/modules/${id}/`);
+  },
 };
 
 // Videos API
@@ -148,8 +173,16 @@ export const userCoursesApi = {
   getMyCourses: async () => {
     return api.get('/user-courses/my_courses/');
   },
-  grantCourse: async (userId: string, categoryId: string, grantedBy: string) => {
-    return api.post('/user-courses/grant_course/', { user_id: userId, category_id: categoryId, granted_by: grantedBy });
+  grantCourse: async (userId: string, categoryId: string, grantedBy: string, moduleIds?: string[]) => {
+    return api.post('/user-courses/grant_course/', { 
+      user_id: userId, 
+      category_id: categoryId, 
+      granted_by: grantedBy,
+      module_ids: moduleIds || []
+    });
+  },
+  addModules: async (courseId: string, moduleIds: string[]) => {
+    return api.post(`/user-courses/${courseId}/add_modules/`, { module_ids: moduleIds });
   },
 };
 

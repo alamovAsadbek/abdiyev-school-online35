@@ -5,6 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from .models import Payment
 from .serializers import PaymentSerializer, PaymentCreateSerializer
 from apps.notifacations.models import Notification, UserNotification
+from apps.courses.models import UserCourse
 
 
 class PaymentViewSet(viewsets.ModelViewSet):
@@ -51,6 +52,14 @@ class PaymentViewSet(viewsets.ModelViewSet):
         payment.status = new_status
         payment.save()
         
+        # Grant course access when payment is active
+        if new_status == 'active' and payment.category:
+            UserCourse.objects.get_or_create(
+                user=payment.user,
+                category=payment.category,
+                defaults={'granted_by': 'payment'}
+            )
+        
         # Send notification to user when payment is saved/updated
         if payment.user:
             notification = Notification.objects.create(
@@ -67,13 +76,21 @@ class PaymentViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
     
     def perform_create(self, serializer):
-        """Send notification when new payment is created"""
+        """Send notification when new payment is created and grant course access"""
         payment = serializer.save()
+        
+        # Grant course access when payment is active
+        if payment.status == 'active' and payment.category:
+            UserCourse.objects.get_or_create(
+                user=payment.user,
+                category=payment.category,
+                defaults={'granted_by': 'payment'}
+            )
         
         if payment.user:
             notification = Notification.objects.create(
                 title="Yangi to'lov",
-                message=f"Sizning to'lovingiz ({payment.amount} so'm) qabul qilindi va ko'rib chiqilmoqda.",
+                message=f"Sizning to'lovingiz ({payment.amount} so'm) qabul qilindi.",
                 type='payment'
             )
             UserNotification.objects.create(

@@ -1,12 +1,13 @@
 import {useState, useEffect} from 'react';
 import {useNavigate} from 'react-router-dom';
-import {Plus, Pencil, Trash2, Video} from 'lucide-react';
+import {Plus, Pencil, Trash2, Video, Layers, Lock, Unlock} from 'lucide-react';
 import {DashboardLayout} from '@/layouts/DashboardLayout';
 import {DataTable, Column} from '@/components/DataTable';
 import {Button} from '@/components/ui/button';
 import {Input} from '@/components/ui/input';
 import {Label} from '@/components/ui/label';
 import {Textarea} from '@/components/ui/textarea';
+import {Switch} from '@/components/ui/switch';
 import {
     Dialog,
     DialogContent,
@@ -19,6 +20,14 @@ import {ConfirmDialog} from '@/components/ConfirmDialog';
 import {categoriesApi} from '@/services/api';
 import { formatDate } from "@/lib/utils";
 
+interface Module {
+    id: string;
+    name: string;
+    description: string;
+    order: number;
+    price?: number;
+}
+
 interface Category {
     id: string;
     name: string;
@@ -26,6 +35,9 @@ interface Category {
     icon: string;
     video_count: number;
     price: number;
+    is_modular: boolean;
+    requires_sequential: boolean;
+    modules?: Module[];
     created_at: string;
 }
 
@@ -37,7 +49,14 @@ export default function AdminCategories() {
     const [loading, setLoading] = useState(true);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingCategory, setEditingCategory] = useState<Category | null>(null);
-    const [formData, setFormData] = useState({name: '', description: '', icon: '⚗️', price: ''});
+    const [formData, setFormData] = useState({
+        name: '', 
+        description: '', 
+        icon: '⚗️', 
+        price: '',
+        is_modular: false,
+        requires_sequential: true
+    });
     const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
     const {toast} = useToast();
 
@@ -70,10 +89,19 @@ export default function AdminCategories() {
                 description: category.description,
                 icon: category.icon,
                 price: category.price.toString(),
+                is_modular: category.is_modular || false,
+                requires_sequential: category.requires_sequential !== false,
             });
         } else {
             setEditingCategory(null);
-            setFormData({name: '', description: '', icon: '⚗️', price: ''});
+            setFormData({
+                name: '', 
+                description: '', 
+                icon: '⚗️', 
+                price: '',
+                is_modular: false,
+                requires_sequential: true
+            });
         }
         setIsDialogOpen(true);
     };
@@ -90,6 +118,8 @@ export default function AdminCategories() {
                 description: formData.description,
                 icon: formData.icon,
                 price: parseInt(formData.price) || 0,
+                is_modular: formData.is_modular,
+                requires_sequential: formData.requires_sequential,
             };
 
             if (editingCategory) {
@@ -276,6 +306,43 @@ export default function AdminCategories() {
                                     onChange={(e) => setFormData(prev => ({...prev, price: e.target.value}))}
                                 />
                             </div>
+                            
+                            {/* Modular toggle */}
+                            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                                <div className="space-y-0.5">
+                                    <Label className="flex items-center gap-2">
+                                        <Layers className="h-4 w-4"/>
+                                        Modulli kurs
+                                    </Label>
+                                    <p className="text-xs text-muted-foreground">
+                                        Kursni modullarga ajratish (alohida sotish mumkin)
+                                    </p>
+                                </div>
+                                <Switch
+                                    checked={formData.is_modular}
+                                    onCheckedChange={(checked) => setFormData(prev => ({...prev, is_modular: checked}))}
+                                />
+                            </div>
+                            
+                            {/* Sequential access toggle */}
+                            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                                <div className="space-y-0.5">
+                                    <Label className="flex items-center gap-2">
+                                        {formData.requires_sequential ? <Lock className="h-4 w-4"/> : <Unlock className="h-4 w-4"/>}
+                                        Ketma-ket ko'rish
+                                    </Label>
+                                    <p className="text-xs text-muted-foreground">
+                                        {formData.requires_sequential 
+                                            ? "Video va vazifalarni ketma-ket bajarish shart" 
+                                            : "O'quvchi istalgan darsni ko'ra oladi"}
+                                    </p>
+                                </div>
+                                <Switch
+                                    checked={formData.requires_sequential}
+                                    onCheckedChange={(checked) => setFormData(prev => ({...prev, requires_sequential: checked}))}
+                                />
+                            </div>
+                            
                             <div className="flex justify-end gap-3 pt-4">
                                 <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Bekor qilish</Button>
                                 <Button onClick={handleSave}

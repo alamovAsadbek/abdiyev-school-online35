@@ -29,6 +29,7 @@ interface Video {
     video_url: string;
     thumbnail: string;
     category: string;
+    category_name?: string;
     order: number;
 }
 
@@ -44,18 +45,20 @@ interface Category {
     id: string;
     name: string;
     icon: string;
+    requires_sequential?: boolean;
 }
 
 export default function StudentVideoView() {
     const {videoId} = useParams();
     const navigate = useNavigate();
     const {user} = useAuth();
-    const {markVideoCompleted, isVideoCompleted, loading: progressLoading} = useProgress();
+    const {markVideoCompleted, isVideoCompleted, isTaskCompleted, loading: progressLoading} = useProgress();
     const {toast} = useToast();
 
     const [video, setVideo] = useState<Video | null>(null);
     const [category, setCategory] = useState<Category | null>(null);
     const [task, setTask] = useState<Task | null>(null);
+    const [videoTasks, setVideoTasks] = useState<{[videoId: string]: Task | null}>({});
     const [categoryVideos, setCategoryVideos] = useState<Video[]>([]);
     const [hasWatched, setHasWatched] = useState(false);
     const [loading, setLoading] = useState(true);
@@ -72,9 +75,14 @@ export default function StudentVideoView() {
         : null;
 
 
-    // Check if a video is locked (previous not completed) - using backend progress
+    // Check if a video is locked (previous not completed or task not done) - using backend progress
     const isVideoLocked = (targetVideoId: string): boolean => {
         if (progressLoading) return false; // Don't lock while loading
+        
+        // If category doesn't require sequential access, nothing is locked
+        if (category && category.requires_sequential === false) {
+            return false;
+        }
 
         const sortedVideos = [...categoryVideos].sort((a, b) => a.order - b.order);
         const targetIndex = sortedVideos.findIndex(v => String(v.id) === String(targetVideoId));
@@ -83,7 +91,17 @@ export default function StudentVideoView() {
 
         // Check if previous video is completed
         const previousVideo = sortedVideos[targetIndex - 1];
-        return !isVideoCompleted(previousVideo?.id);
+        if (!isVideoCompleted(previousVideo?.id)) {
+            return true;
+        }
+        
+        // Check if previous video's task is completed (if exists)
+        const prevVideoTask = videoTasks[previousVideo?.id];
+        if (prevVideoTask && !isTaskCompleted(prevVideoTask.id)) {
+            return true;
+        }
+        
+        return false;
     };
     const currentVideoLocked = video ? isVideoLocked(video?.id) : false;
 
@@ -122,7 +140,21 @@ export default function StudentVideoView() {
                     // Fetch all videos in category
                     const videosInCategory = await videosApi.getByCategory(String(videoData.category));
                     const videos = videosInCategory?.results || videosInCategory || [];
-                    setCategoryVideos(videos.sort((a: Video, b: Video) => a.order - b.order));
+                    const sortedVideos = videos.sort((a: Video, b: Video) => a.order - b.order);
+                    setCategoryVideos(sortedVideos);
+                    
+                    // Fetch tasks for all videos to check completion requirements
+                    const tasksMap: {[videoId: string]: Task | null} = {};
+                    await Promise.all(sortedVideos.map(async (v: Video) => {
+                        try {
+                            const tasksData = await tasksApi.getByVideo(String(v.id));
+                            const tasks = tasksData?.results || tasksData || [];
+                            tasksMap[v.id] = tasks.length > 0 ? tasks[0] : null;
+                        } catch {
+                            tasksMap[v.id] = null;
+                        }
+                    }));
+                    setVideoTasks(tasksMap);
                 }
 
                 // Fetch task for this video

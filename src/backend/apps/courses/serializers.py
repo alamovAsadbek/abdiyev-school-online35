@@ -1,14 +1,25 @@
 from rest_framework import serializers
-from .models import Category, Video, Task, TaskQuestion, UserCourse, StudentProgress, TaskSubmission
+from .models import Category, Module, Video, Task, TaskQuestion, UserCourse, StudentProgress, TaskSubmission
+
+
+class ModuleSerializer(serializers.ModelSerializer):
+    video_count = serializers.ReadOnlyField()
+
+    class Meta:
+        model = Module
+        fields = ['id', 'category', 'name', 'description', 'order', 'price', 'video_count', 'created_at']
 
 
 class CategorySerializer(serializers.ModelSerializer):
     video_count = serializers.ReadOnlyField()
+    module_count = serializers.ReadOnlyField()
+    modules = ModuleSerializer(many=True, read_only=True)
 
     class Meta:
         model = Category
         fields = ['id', 'name', 'description', 'icon', 'color', 'price',
-                  'video_count', 'created_at']
+                  'is_modular', 'requires_sequential', 'video_count', 'module_count', 
+                  'modules', 'created_at']
 
 
 # class OnlyVideoSerializer(serializers.ModelSerializer):
@@ -38,6 +49,7 @@ class TaskSerializer(serializers.ModelSerializer):
 class VideoSerializer(serializers.ModelSerializer):
     tasks = TaskSerializer(many=True, read_only=True)
     category_name = serializers.CharField(source='category.name', read_only=True)
+    module_name = serializers.CharField(source='module.name', read_only=True, allow_null=True)
     video_url = serializers.SerializerMethodField()
     thumbnail = serializers.SerializerMethodField()
 
@@ -48,7 +60,7 @@ class VideoSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Video
-        fields = ['id', 'category', 'category_name', 'title', 'description',
+        fields = ['id', 'category', 'category_name', 'module', 'module_name', 'title', 'description',
                   'duration', 'thumbnail', 'video_url', 'video_file',
                   'thumbnail_file', 'thumbnail_url',
                   'order', 'view_count', 'tasks', 'created_at']
@@ -57,6 +69,7 @@ class VideoSerializer(serializers.ModelSerializer):
             'title': {'required': True},
             'duration': {'required': False, 'allow_blank': True},
             'description': {'required': False, 'allow_blank': True},
+            'module': {'required': False, 'allow_null': True},
         }
 
     def create(self, validated_data):
@@ -120,12 +133,17 @@ class VideoSerializer(serializers.ModelSerializer):
 
 class UserCourseSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source='category.name', read_only=True)
+    category_is_modular = serializers.BooleanField(source='category.is_modular', read_only=True)
     user_name = serializers.CharField(source='user.username', read_only=True)
+    module_ids = serializers.PrimaryKeyRelatedField(
+        many=True, queryset=Module.objects.all(), source='modules', required=False
+    )
+    modules_detail = ModuleSerializer(source='modules', many=True, read_only=True)
 
     class Meta:
         model = UserCourse
-        fields = ['id', 'user', 'user_name', 'category', 'category_name',
-                  'granted_by', 'granted_at', 'expires_at']
+        fields = ['id', 'user', 'user_name', 'category', 'category_name', 'category_is_modular',
+                  'module_ids', 'modules_detail', 'granted_by', 'granted_at', 'expires_at']
 
 
 class StudentProgressSerializer(serializers.ModelSerializer):

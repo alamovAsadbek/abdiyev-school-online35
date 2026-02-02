@@ -1,12 +1,20 @@
 from django.contrib import admin
-from .models import Category, Video, Task, TaskQuestion, UserCourse, StudentProgress, TaskSubmission
+from .models import Category, Module, Video, Task, TaskQuestion, UserCourse, StudentProgress, TaskSubmission
 
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
-    list_display = ['id', 'name', 'price', 'video_count', 'created_at']
+    list_display = ['id', 'name', 'price', 'is_modular', 'requires_sequential', 'video_count', 'created_at']
     search_fields = ['name', 'description']
-    list_filter = ['created_at']
+    list_filter = ['is_modular', 'requires_sequential', 'created_at']
+
+
+@admin.register(Module)
+class ModuleAdmin(admin.ModelAdmin):
+    list_display = ['id', 'name', 'category', 'order', 'price', 'video_count', 'created_at']
+    list_filter = ['category', 'created_at']
+    search_fields = ['name', 'description']
+    ordering = ['category', 'order']
 
 
 @admin.register(Video)

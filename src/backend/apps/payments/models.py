@@ -15,6 +15,13 @@ class Payment(models.Model):
         on_delete=models.CASCADE,
         related_name='payments'
     )
+    category = models.ForeignKey(
+        'courses.Category',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='payments'
+    )
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     description = models.TextField(blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')

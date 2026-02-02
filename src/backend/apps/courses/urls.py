@@ -1,13 +1,14 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
-    CategoryViewSet, VideoViewSet, TaskViewSet, 
+    CategoryViewSet, ModuleViewSet, VideoViewSet, TaskViewSet, 
     TaskQuestionViewSet, UserCourseViewSet, 
     StudentProgressViewSet, TaskSubmissionViewSet
 )
 
 router = DefaultRouter()
 router.register(r'categories', CategoryViewSet, basename='category')
+router.register(r'modules', ModuleViewSet, basename='module')
 router.register(r'videos', VideoViewSet, basename='video')
 router.register(r'tasks', TaskViewSet, basename='task')
 router.register(r'task-questions', TaskQuestionViewSet, basename='task-question')

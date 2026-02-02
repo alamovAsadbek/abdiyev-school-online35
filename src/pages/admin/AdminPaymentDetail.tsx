@@ -8,11 +8,31 @@ import {useEffect, useState} from "react";
 import {toast} from "@/hooks/use-toast.ts";
 import api from "@/services/api.ts";
 
+interface Payment {
+    id: string;
+    amount: number;
+    description: string;
+    status: string;
+    expires_at: string;
+    created_at: string;
+    user?: User;
+}
+
+interface User {
+    id: string;
+    first_name: string;
+    last_name: string;
+    email: string;
+    phone: string;
+    created_at: string;
+    is_blocked: boolean;
+}
+
 export default function AdminPaymentDetail() {
     const {paymentId} = useParams();
     const navigate = useNavigate();
-    const [payment, setPayment] = useState();
-    const [user, setUser] = useState();
+    const [payment, setPayment] = useState<Payment | null>(null);
+    const [user, setUser] = useState<User | null>(null);
 
     // get payment data
     const getPayment = async () => {

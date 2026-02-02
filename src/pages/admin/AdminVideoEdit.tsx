@@ -93,10 +93,10 @@ export default function AdminVideoEdit() {
     }, [video, videoId]);
 
     const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
         try {
-            e.preventDefault();
-            formData['thumbnail_url']=formData['thumbnail'];
-            api.put(`/videos/${videoId}/`, formData).then((response) => {
+            const dataToSend = {...formData, thumbnail_url: formData.thumbnail};
+            api.put(`/videos/${videoId}/`, dataToSend).then((response) => {
                 console.log(response)
                 navigate(`/admin/videos/${videoId}`);
                 toast({
@@ -107,15 +107,15 @@ export default function AdminVideoEdit() {
                 console.log(error);
                 toast({
                     title: 'Xatolik',
-                    description: e.message,
+                    description: error.message || 'Xatolik yuz berdi',
                     variant: 'destructive'
                 })
             })
-        }catch (e) {
-            console.log(e)
+        } catch (err) {
+            console.log(err)
             toast({
                 title: 'Xatolik',
-                description: e.message,
+                description: 'Xatolik yuz berdi',
                 variant: "destructive"
             })
         }
