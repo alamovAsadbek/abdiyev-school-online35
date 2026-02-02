@@ -29,7 +29,7 @@ export function CategoryCard({ category, onClick }: CategoryCardProps) {
       
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <Video className="h-4 w-4" />
-        <span>{category.videoCount} ta video</span>
+        <span>{category.video_count} ta video</span>
       </div>
     </div>
   );
