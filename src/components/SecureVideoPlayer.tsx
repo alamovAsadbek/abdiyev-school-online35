@@ -117,13 +117,17 @@ export function SecureVideoPlayer({
 
     const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
+    const isIOS =
+        typeof navigator !== 'undefined' &&
+        /iPad|iPhone|iPod/.test(navigator.userAgent);
+
 
     return (
         <div
             ref={containerRef}
             className={cn(
                 "relative aspect-video rounded-xl overflow-hidden bg-black select-none",
-                isBlurred && "blur-xl",
+                isBlurred && !isIOS && "blur-xl",
                 className
             )}
             onContextMenu={handleContextMenu}
@@ -149,6 +153,7 @@ export function SecureVideoPlayer({
                     src={videoUrl}
                     className="w-full h-full"
                     controls
+                    playsInline
                     {...(!isMobile && {
                         controlsList: "nodownload noplaybackrate",
                         disablePictureInPicture: true
@@ -194,7 +199,7 @@ export function SecureVideoPlayer({
             />
 
             {/* Blur overlay when screenshot detected */}
-            {isBlurred && (
+            {isBlurred && !isIOS &&  (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/90 z-20">
                     <div className="text-center text-white">
                         <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-warning"/>
