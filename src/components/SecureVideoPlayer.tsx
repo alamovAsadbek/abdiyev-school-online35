@@ -115,7 +115,9 @@ export function SecureVideoPlayer({
         videoUrl?.includes('youtu.be') ||
         videoUrl?.includes('vimeo.com');
 
-    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const isMobile =
+        typeof navigator !== "undefined" &&
+        /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
     const isIOS =
         typeof navigator !== 'undefined' &&
@@ -148,17 +150,21 @@ export function SecureVideoPlayer({
                     style={{pointerEvents: 'auto'}}
                 />
             ) : (
+
                 <video
                     ref={videoRef}
                     src={videoUrl}
-                    className="w-full h-full"
+                    className="w-full h-full rounded-xl bg-black"
                     controls
                     playsInline
+                    webkit-playsinline="true"
+                    preload="metadata"
+                    onEnded={onComplete}
+                    // 🔴 MUHIM: mobile’da HECH QANDAY cheklov YO‘Q
                     {...(!isMobile && {
                         controlsList: "nodownload noplaybackrate",
-                        disablePictureInPicture: true
+                        disablePictureInPicture: true,
                     })}
-                    onEnded={onComplete}
                 >
                     Sizning brauzeringiz video formatni qo'llab-quvvatlamaydi.
                 </video>
@@ -199,7 +205,7 @@ export function SecureVideoPlayer({
             />
 
             {/* Blur overlay when screenshot detected */}
-            {isBlurred && !isIOS &&  (
+            {isBlurred && !isIOS && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/90 z-20">
                     <div className="text-center text-white">
                         <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-warning"/>
