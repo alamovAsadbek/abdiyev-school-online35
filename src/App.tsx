@@ -28,6 +28,7 @@ import StudentCheckout from "./pages/student/StudentCheckout";
 // Admin Pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminCategories from "./pages/admin/AdminCategories";
+import AdminCategoryCreate from "./pages/admin/AdminCategoryCreate";
 import AdminVideos from "./pages/admin/AdminVideos";
 import AdminVideoAdd from "./pages/admin/AdminVideoAdd";
 import AdminVideoAddWithTask from "./pages/admin/AdminVideoAddWithTask";
@@ -136,8 +137,12 @@ function AppRoutes() {
 
             <Route path="/admin/categories"
                    element={<ProtectedRoute allowedRole="admin"><AdminCategories/></ProtectedRoute>}/>
+            <Route path="/admin/categories/create"
+                   element={<ProtectedRoute allowedRole="admin"><AdminCategoryCreate/></ProtectedRoute>}/>
             <Route path="/admin/categories/:categoryId"
                    element={<ProtectedRoute allowedRole="admin"><AdminCategoryDetail/></ProtectedRoute>}/>
+            <Route path="/admin/categories/:categoryId/edit"
+                   element={<ProtectedRoute allowedRole="admin"><AdminCategoryCreate/></ProtectedRoute>}/>
             <Route path="/admin/videos" element={<ProtectedRoute allowedRole="admin"><AdminVideos/></ProtectedRoute>}/>
             <Route path="/admin/videos/add"
                    element={<ProtectedRoute allowedRole="admin"><AdminVideoAddWithTask/></ProtectedRoute>}/>

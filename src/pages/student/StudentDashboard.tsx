@@ -92,11 +92,25 @@ export default function StudentDashboard() {
                             className="text-sm text-primary hover:underline">Hammasini ko'rish
                     </button>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {videos.map((video) => (
-                        <VideoCard key={video.id} video={video} onClick={() => navigate(`/student/video/${video.id}`)}/>
-                    ))}
-                </div>
+                {videos.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {videos.map((video) => (
+                            <VideoCard key={video.id} video={video} onClick={() => navigate(`/student/video/${video.id}`)}/>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="rounded-xl border border-border bg-card p-8 text-center">
+                        <p className="text-muted-foreground">
+                            Siz hali hech qanday darsni ko'rmagansiz. Kurslarni ko'rib o'rganishni boshlang!
+                        </p>
+                        <button 
+                            onClick={() => navigate('/student/categories')}
+                            className="mt-4 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                        >
+                            Kurslarni ko'rish
+                        </button>
+                    </div>
+                )}
             </div>
         </DashboardLayout>
     );

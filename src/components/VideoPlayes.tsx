@@ -7,6 +7,17 @@ export default function VideoPlayer({ videoUrl, userId }: { videoUrl: string, us
     const watermarkRef = useRef<HTMLSpanElement>(null);
 
     const [dateTime, setDateTime] = useState<string>("");
+    const [isEmbedUrl, setIsEmbedUrl] = useState(false);
+
+    // Check if URL is embed type (YouTube, Vimeo, etc.)
+    useEffect(() => {
+        if (videoUrl) {
+            const isEmbed = videoUrl.includes('youtube.com') || 
+                           videoUrl.includes('youtu.be') || 
+                           videoUrl.includes('vimeo.com');
+            setIsEmbedUrl(isEmbed);
+        }
+    }, [videoUrl]);
 
     // Real-time sana + vaqt
     useEffect(() => {
@@ -35,7 +46,7 @@ export default function VideoPlayer({ videoUrl, userId }: { videoUrl: string, us
             if (!wrapperRef.current || !watermarkRef.current) return;
             const fsElement = document.fullscreenElement;
             if (fsElement) {
-                // Fullscreen bo‘lsa watermarkni container ichiga qo‘yish
+                // Fullscreen bo'lsa watermarkni container ichiga qo'yish
                 fsElement.appendChild(watermarkRef.current);
             } else {
                 // Normal holatga qaytganida wrapper ichiga qaytarish
@@ -48,25 +59,45 @@ export default function VideoPlayer({ videoUrl, userId }: { videoUrl: string, us
     }, []);
 
     return (
-        <div ref={wrapperRef} className="relative w-full rounded-xl bg-black overflow-hidden">
+        <div ref={wrapperRef} className="relative w-full rounded-xl bg-black overflow-hidden aspect-video">
 
             {/* VIDEO */}
-            <ShakaPlayer
-                src={videoUrl}
-                controls
-                className="w-full h-auto relative z-10"
-            />
+            {isEmbedUrl ? (
+                <iframe
+                    src={videoUrl}
+                    title="Video Player"
+                    className="w-full h-full absolute inset-0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+                    allowFullScreen
+                    style={{ border: 'none' }}
+                />
+            ) : (
+                <div className="w-full h-full">
+                    <ShakaPlayer
+                        src={videoUrl}
+                        controls
+                        className="w-full h-full"
+                        style={{ 
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            width: '100%',
+                            height: '100%',
+                        }}
+                    />
+                </div>
+            )}
 
             {/* WATERMARK */}
             <span
                 ref={watermarkRef}
-                className="absolute text-white/70 font-semibold select-none z-20 pointer-events-none animate-watermark"
+                className="absolute text-white/70 font-semibold select-none z-20 pointer-events-none animate-watermark top-4 left-4"
                 style={{
-                    fontSize: "1rem",
+                    fontSize: "0.75rem",
                 }}
             >
-        {userId} • {dateTime}
-      </span>
+                {userId} • {dateTime}
+            </span>
         </div>
     );
 }
