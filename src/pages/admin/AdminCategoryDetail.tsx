@@ -1,18 +1,31 @@
-import {useParams, useNavigate} from 'react-router-dom';
-import {ArrowLeft, Plus, Pencil, Trash2, Eye, Clock} from 'lucide-react';
-import {DashboardLayout} from '@/layouts/DashboardLayout';
-import {DataTable, Column} from '@/components/DataTable';
-import {Button} from '@/components/ui/button';
-import {formatDate} from "@/lib/utils.ts";
-import {useToast} from '@/hooks/use-toast';
-import {useEffect, useState} from "react";
-import {categoriesApi, videosApi} from "@/services/api";
+import { useParams, useNavigate } from 'react-router-dom';
+import { ArrowLeft, Plus, Pencil, Trash2, Eye, Clock, Layers, Video, ChevronRight } from 'lucide-react';
+import { DashboardLayout } from '@/layouts/DashboardLayout';
+import { DataTable, Column } from '@/components/DataTable';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { formatDate } from "@/lib/utils.ts";
+import { useToast } from '@/hooks/use-toast';
+import { useEffect, useState } from "react";
+import { categoriesApi, videosApi, modulesApi } from "@/services/api";
 
 interface Category {
     id: string;
     name: string;
     icon: string;
     description: string;
+    video_count: number;
+    is_modular: boolean;
+    requires_sequential: boolean;
+    price: number;
+}
+
+interface Module {
+    id: string;
+    name: string;
+    description: string;
+    order: number;
+    price: number;
     video_count: number;
 }
 
@@ -25,20 +38,23 @@ interface Video {
     view_count: number;
     order: number;
     created_at: string;
+    module?: number;
+    module_name?: string;
 }
 
 export default function AdminCategoryDetail() {
-    const {categoryId} = useParams();
+    const { categoryId } = useParams();
     const navigate = useNavigate();
-    const {toast} = useToast();
+    const { toast } = useToast();
     const [category, setCategory] = useState<Category | null>(null);
     const [videos, setVideos] = useState<Video[]>([]);
+    const [modules, setModules] = useState<Module[]>([]);
     const [loading, setLoading] = useState(true);
+    const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
 
     const getCategory = async () => {
         try {
             const response = await categoriesApi.getById(categoryId!);
-            console.log(response)
             setCategory(response);
         } catch (error) {
             console.log(error);
@@ -50,10 +66,26 @@ export default function AdminCategoryDetail() {
         }
     };
 
-    const getVideos = async () => {
+    const getModules = async () => {
+        try {
+            const response = await modulesApi.getByCategory(categoryId!);
+            setModules(response?.results || response || []);
+        } catch (error) {
+            console.log(error);
+        }
+    };
+
+    const getVideos = async (moduleId?: string) => {
         try {
             const response = await videosApi.getByCategory(categoryId!);
-            setVideos(response?.results || response || []);
+            let videosList = response?.results || response || [];
+            
+            // Filter by module if specified
+            if (moduleId) {
+                videosList = videosList.filter((v: Video) => String(v.module) === moduleId);
+            }
+            
+            setVideos(videosList);
         } catch (error) {
             console.log(error);
             toast({
@@ -69,9 +101,18 @@ export default function AdminCategoryDetail() {
     useEffect(() => {
         if (categoryId) {
             getCategory();
+            getModules();
             getVideos();
         }
     }, [categoryId]);
+
+    useEffect(() => {
+        if (selectedModuleId) {
+            getVideos(selectedModuleId);
+        } else if (category && !category.is_modular) {
+            getVideos();
+        }
+    }, [selectedModuleId]);
 
     if (!category) {
         return (
@@ -95,13 +136,24 @@ export default function AdminCategoryDetail() {
         try {
             await videosApi.delete(videoId);
             setVideos(prev => prev.filter(v => v.id !== videoId));
-            toast({title: 'O\'chirildi', description: 'Video o\'chirildi'});
+            toast({ title: 'O\'chirildi', description: 'Video o\'chirildi' });
         } catch (error) {
-            toast({title: 'Xatolik', description: 'O\'chirishda xatolik', variant: 'destructive'});
+            toast({ title: 'Xatolik', description: 'O\'chirishda xatolik', variant: 'destructive' });
         }
     };
 
-    const columns: Column<Video>[] = [
+    const handleDeleteModule = async (moduleId: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        try {
+            await modulesApi.delete(moduleId);
+            setModules(prev => prev.filter(m => m.id !== moduleId));
+            toast({ title: 'O\'chirildi', description: 'Modul o\'chirildi' });
+        } catch (error) {
+            toast({ title: 'Xatolik', description: 'O\'chirishda xatolik', variant: 'destructive' });
+        }
+    };
+
+    const videoColumns: Column<Video>[] = [
         {
             key: 'title',
             header: 'Video',
@@ -124,7 +176,7 @@ export default function AdminCategoryDetail() {
             header: 'Davomiyligi',
             render: (video) => (
                 <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-muted-foreground"/>
+                    <Clock className="h-4 w-4 text-muted-foreground" />
                     {video.duration}
                 </div>
             ),
@@ -135,17 +187,11 @@ export default function AdminCategoryDetail() {
             sortable: true,
             render: (video) => (
                 <div className="flex items-center gap-2">
-                    <Eye className="h-4 w-4 text-muted-foreground"/>
+                    <Eye className="h-4 w-4 text-muted-foreground" />
                     {video.view_count || 0}
                 </div>
             ),
         },
-        // {
-        //     key: 'order',
-        //     header: 'Tartib',
-        //     sortable: true,
-        //     render: (video) => `${video.order}-dars`,
-        // },
         {
             key: 'created_at',
             header: 'Yaratilgan',
@@ -166,7 +212,7 @@ export default function AdminCategoryDetail() {
                         }}
                         className="h-8 w-8 text-muted-foreground hover:text-foreground"
                     >
-                        <Pencil className="h-4 w-4"/>
+                        <Pencil className="h-4 w-4" />
                     </Button>
                     <Button
                         variant="ghost"
@@ -174,7 +220,69 @@ export default function AdminCategoryDetail() {
                         onClick={(e) => handleDelete(video.id, e)}
                         className="h-8 w-8 text-muted-foreground text-destructive"
                     >
-                        <Trash2 className="h-4 w-4"/>
+                        <Trash2 className="h-4 w-4" />
+                    </Button>
+                </div>
+            ),
+        },
+    ];
+
+    const moduleColumns: Column<Module>[] = [
+        {
+            key: 'name',
+            header: 'Modul nomi',
+            render: (module) => (
+                <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent/10 text-accent">
+                        <Layers className="h-5 w-5" />
+                    </div>
+                    <div>
+                        <p className="font-medium text-card-foreground">{module.name}</p>
+                        <p className="text-xs text-muted-foreground line-clamp-1">{module.description}</p>
+                    </div>
+                </div>
+            ),
+        },
+        {
+            key: 'video_count',
+            header: 'Videolar',
+            render: (module) => (
+                <div className="flex items-center gap-2">
+                    <Video className="h-4 w-4 text-muted-foreground" />
+                    {module.video_count || 0} ta
+                </div>
+            ),
+        },
+        {
+            key: 'price',
+            header: 'Narxi',
+            render: (module) => module.price 
+                ? new Intl.NumberFormat('uz-UZ').format(module.price) + ' so\'m' 
+                : 'Kurs narxida',
+        },
+        {
+            key: 'actions',
+            header: 'Amallar',
+            render: (module) => (
+                <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedModuleId(module.id);
+                        }}
+                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                    >
+                        <ChevronRight className="h-4 w-4" />
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => handleDeleteModule(module.id, e)}
+                        className="h-8 w-8 text-muted-foreground text-destructive"
+                    >
+                        <Trash2 className="h-4 w-4" />
                     </Button>
                 </div>
             ),
@@ -186,10 +294,17 @@ export default function AdminCategoryDetail() {
             {/* Back Button */}
             <Button
                 variant="ghost"
-                onClick={() => navigate('/admin/categories')}
+                onClick={() => {
+                    if (selectedModuleId) {
+                        setSelectedModuleId(null);
+                        getVideos();
+                    } else {
+                        navigate('/admin/categories');
+                    }
+                }}
                 className="mb-6 -ml-2"
             >
-                <ArrowLeft className="mr-2 h-4 w-4"/>
+                <ArrowLeft className="mr-2 h-4 w-4" />
                 Orqaga
             </Button>
 
@@ -203,34 +318,82 @@ export default function AdminCategoryDetail() {
                         <div>
                             <h1 className="text-2xl lg:text-3xl font-bold text-foreground">
                                 {category.name}
+                                {selectedModuleId && modules.find(m => m.id === selectedModuleId) && (
+                                    <span className="text-muted-foreground font-normal text-lg ml-2">
+                                        / {modules.find(m => m.id === selectedModuleId)?.name}
+                                    </span>
+                                )}
                             </h1>
-                            <p className="text-muted-foreground">{category.video_count || videos.length} ta video dars</p>
+                            <div className="flex items-center gap-3 text-muted-foreground">
+                                <span>{category.video_count || videos.length} ta video dars</span>
+                                {category.is_modular && (
+                                    <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent/10 text-accent text-xs">
+                                        <Layers className="h-3 w-3" />
+                                        {modules.length} modul
+                                    </span>
+                                )}
+                            </div>
                         </div>
                     </div>
                     <p className="text-muted-foreground max-w-2xl">
                         {category.description}
                     </p>
                 </div>
-                <Button
-                    onClick={() => navigate(`/admin/videos/add?category=${categoryId}`)}
-                    className="gradient-primary text-primary-foreground"
-                >
-                    <Plus className="mr-2 h-4 w-4"/>
-                    Video qo'shish
-                </Button>
+                <div className="flex gap-2">
+                    <Button
+                        variant="outline"
+                        onClick={() => navigate(`/admin/categories/${categoryId}/edit`)}
+                    >
+                        <Pencil className="mr-2 h-4 w-4" />
+                        Tahrirlash
+                    </Button>
+                    <Button
+                        onClick={() => {
+                            const url = selectedModuleId 
+                                ? `/admin/videos/add?category=${categoryId}&module=${selectedModuleId}`
+                                : `/admin/videos/add?category=${categoryId}`;
+                            navigate(url);
+                        }}
+                        className="gradient-primary text-primary-foreground"
+                    >
+                        <Plus className="mr-2 h-4 w-4" />
+                        Video qo'shish
+                    </Button>
+                </div>
             </div>
 
-            {/* Videos Table */}
-            <div className="animate-fade-in" style={{animationDelay: '0.1s'}}>
-                <DataTable
-                    data={videos}
-                    columns={columns}
-                    searchPlaceholder="Video nomi bo'yicha qidirish..."
-                    searchKeys={['title', 'description']}
-                    onRowClick={(video) => navigate(`/admin/videos/${video.id}`)}
-                    emptyMessage={loading ? "Yuklanmoqda..." : "Bu kategoriyada videolar topilmadi"}
-                />
-            </div>
+            {/* Content */}
+            {category.is_modular && !selectedModuleId ? (
+                // Show modules list
+                <div className="animate-fade-in" style={{ animationDelay: '0.1s' }}>
+                    <div className="mb-4">
+                        <h2 className="text-lg font-semibold text-foreground">Modullar</h2>
+                        <p className="text-sm text-muted-foreground">
+                            Modulni tanlang yoki yangi modul qo'shing
+                        </p>
+                    </div>
+                    <DataTable
+                        data={modules}
+                        columns={moduleColumns}
+                        searchPlaceholder="Modul nomi bo'yicha qidirish..."
+                        searchKeys={['name', 'description']}
+                        onRowClick={(module) => setSelectedModuleId(module.id)}
+                        emptyMessage={loading ? "Yuklanmoqda..." : "Modullar topilmadi. Kursni tahrirlash orqali modul qo'shing."}
+                    />
+                </div>
+            ) : (
+                // Show videos list
+                <div className="animate-fade-in" style={{ animationDelay: '0.1s' }}>
+                    <DataTable
+                        data={videos}
+                        columns={videoColumns}
+                        searchPlaceholder="Video nomi bo'yicha qidirish..."
+                        searchKeys={['title', 'description']}
+                        onRowClick={(video) => navigate(`/admin/videos/${video.id}`)}
+                        emptyMessage={loading ? "Yuklanmoqda..." : "Bu kategoriyada videolar topilmadi"}
+                    />
+                </div>
+            )}
         </DashboardLayout>
     );
 }

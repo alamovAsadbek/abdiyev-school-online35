@@ -377,6 +377,18 @@ export default function AdminUserDetail() {
                 : [...prev, moduleId]
         );
     };
+    
+    const handleSelectAllModules = () => {
+        const category = getSelectedCategory();
+        if (category?.modules) {
+            const allModuleIds = category.modules.map(m => String(m.id));
+            if (selectedModuleIds.length === allModuleIds.length) {
+                setSelectedModuleIds([]);
+            } else {
+                setSelectedModuleIds(allModuleIds);
+            }
+        }
+    };
 
     const handleRemoveCourse = async () => {
         if (courseToDelete) {
@@ -1179,7 +1191,19 @@ export default function AdminUserDetail() {
                         {/* Module selection for modular courses */}
                         {getSelectedCategory()?.is_modular && getSelectedCategory()?.modules && (
                             <div className="space-y-2">
-                                <Label>Modullarni tanlang</Label>
+                                <div className="flex items-center justify-between">
+                                    <Label>Modullarni tanlang</Label>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={handleSelectAllModules}
+                                        className="text-xs h-7"
+                                    >
+                                        {selectedModuleIds.length === getSelectedCategory()?.modules?.length 
+                                            ? 'Barchasini olib tashlash' 
+                                            : 'Barchasini tanlash'}
+                                    </Button>
+                                </div>
                                 <div className="space-y-2 max-h-48 overflow-y-auto border rounded-lg p-3">
                                     {getSelectedCategory()?.modules?.map(module => (
                                         <label key={module.id} className="flex items-center gap-3 p-2 rounded hover:bg-muted/50 cursor-pointer">
@@ -1195,6 +1219,11 @@ export default function AdminUserDetail() {
                                                     <p className="text-xs text-muted-foreground">{module.description}</p>
                                                 )}
                                             </div>
+                                            {module.price && (
+                                                <span className="text-xs text-primary">
+                                                    {new Intl.NumberFormat('uz-UZ').format(module.price)} so'm
+                                                </span>
+                                            )}
                                         </label>
                                     ))}
                                 </div>

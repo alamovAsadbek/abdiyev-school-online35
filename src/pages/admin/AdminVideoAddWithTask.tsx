@@ -22,7 +22,7 @@ import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs';
 import {Switch} from '@/components/ui/switch';
 import {RadioGroup, RadioGroupItem} from '@/components/ui/radio-group';
 import {useToast} from '@/hooks/use-toast';
-import {videosApi, categoriesApi, tasksApi} from '@/services/api';
+import {videosApi, categoriesApi, tasksApi, modulesApi} from '@/services/api';
 import {RichTextEditor} from '@/components/RichTextEditor';
 
 const MAX_VIDEO_SIZE = 150 * 1024 * 1024;
@@ -41,6 +41,7 @@ export default function AdminVideoAddWithTask() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const preSelectedCategory = searchParams.get('category');
+    const preSelectedModule = searchParams.get('module');
     const {toast} = useToast();
     const videoInputRef = useRef<HTMLInputElement>(null);
     const thumbnailInputRef = useRef<HTMLInputElement>(null);
@@ -54,10 +55,15 @@ export default function AdminVideoAddWithTask() {
         title: '',
         description: '',
         categoryId: preSelectedCategory || '',
+        moduleId: preSelectedModule || '',
         duration: '',
         videoUrl: '',
         thumbnail: '',
     });
+    
+    // Modules state
+    const [modules, setModules] = useState<any[]>([]);
+    const [selectedCategory, setSelectedCategory] = useState<any>(null);
 
     // Task/Test settings
     const [taskType, setTaskType] = useState<'none' | 'file' | 'text' | 'test'>('none');
@@ -80,10 +86,37 @@ export default function AdminVideoAddWithTask() {
     useEffect(() => {
         categoriesApi.getAll()
             .then(data => {
-                setCategories(data?.results || []);
+                const cats = data?.results || [];
+                setCategories(cats);
+                // Set selected category if pre-selected
+                if (preSelectedCategory) {
+                    const cat = cats.find((c: any) => String(c.id) === preSelectedCategory);
+                    setSelectedCategory(cat);
+                }
             })
             .catch(console.error);
     }, []);
+    
+    // Load modules when category changes
+    useEffect(() => {
+        if (formData.categoryId && selectedCategory?.is_modular) {
+            modulesApi.getByCategory(formData.categoryId)
+                .then(data => {
+                    setModules(data?.results || data || []);
+                })
+                .catch(console.error);
+        } else {
+            setModules([]);
+            setFormData(prev => ({...prev, moduleId: ''}));
+        }
+    }, [formData.categoryId, selectedCategory]);
+    
+    // Update selected category when categoryId changes
+    const handleCategoryChange = (categoryId: string) => {
+        const cat = categories.find(c => String(c.id) === categoryId);
+        setSelectedCategory(cat);
+        setFormData(prev => ({...prev, categoryId, moduleId: ''}));
+    };
 
     const validateVideoFile = (file: File): boolean => {
         setVideoError('');
@@ -174,6 +207,11 @@ export default function AdminVideoAddWithTask() {
             toast({title: 'Xatolik', description: 'Sarlavha va kategoriyani to\'ldiring', variant: 'destructive'});
             return;
         }
+        // Check if module is required for modular courses
+        if (selectedCategory?.is_modular && !formData.moduleId) {
+            toast({title: 'Xatolik', description: 'Modulli kurs uchun modulni tanlang', variant: 'destructive'});
+            return;
+        }
         if (!videoFile) {
             toast({title: 'Xatolik', description: 'Video faylni yuklang', variant: 'destructive'});
             return;
@@ -191,6 +229,11 @@ export default function AdminVideoAddWithTask() {
             formDataToSend.append('category', formData.categoryId);
             formDataToSend.append('duration', formData.duration || '0:00');
             formDataToSend.append('video_file', videoFile);
+            
+            // Add module if selected
+            if (formData.moduleId) {
+                formDataToSend.append('module', formData.moduleId);
+            }
 
             if (thumbnailFile) {
                 formDataToSend.append('thumbnail_file', thumbnailFile);
@@ -331,16 +374,45 @@ export default function AdminVideoAddWithTask() {
                             <div className="space-y-2">
                                 <Label htmlFor="category">Kategoriya <span className='text-destructive'>*</span></Label>
                                 <Select value={formData.categoryId}
-                                        onValueChange={(value) => setFormData(prev => ({...prev, categoryId: value}))}>
+                                        onValueChange={handleCategoryChange}>
                                     <SelectTrigger><SelectValue placeholder="Kategoriyani tanlang"/></SelectTrigger>
                                     <SelectContent>
                                         {categories.map((cat) => (
                                             <SelectItem key={cat.id}
-                                                        value={String(cat.id)}>{cat.icon} {cat.name}</SelectItem>
+                                                        value={String(cat.id)}>{cat.icon} {cat.name} {cat.is_modular && '(Modulli)'}</SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
                             </div>
+                            
+                            {/* Module selector for modular courses */}
+                            {selectedCategory?.is_modular && modules.length > 0 && (
+                                <div className="space-y-2">
+                                    <Label htmlFor="module">Modul <span className='text-destructive'>*</span></Label>
+                                    <Select value={formData.moduleId}
+                                            onValueChange={(value) => setFormData(prev => ({...prev, moduleId: value}))}>
+                                        <SelectTrigger><SelectValue placeholder="Modulni tanlang"/></SelectTrigger>
+                                        <SelectContent>
+                                            {modules.map((mod) => (
+                                                <SelectItem key={mod.id} value={String(mod.id)}>
+                                                    {mod.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <p className="text-xs text-muted-foreground">
+                                        Modulli kurs uchun video qaysi modulga tegishli ekanini tanlang
+                                    </p>
+                                </div>
+                            )}
+                            
+                            {selectedCategory?.is_modular && modules.length === 0 && (
+                                <div className="p-3 rounded-lg bg-warning/10 border border-warning/20">
+                                    <p className="text-sm text-warning">
+                                        Bu kurs modulli, lekin modullar topilmadi. Avval kursga modul qo'shing.
+                                    </p>
+                                </div>
+                            )}
                             <div className="space-y-2">
                                 <Label htmlFor="description">Tavsif</Label>
                                 <Textarea
