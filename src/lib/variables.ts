@@ -1,1 +1,1 @@
-export const API_BASE_URL = `${import.meta.env.VITE_API_KEY || 'https://abdiyev-school-online35.onrender.com/api'}`;
+export const API_BASE_URL = `${import.meta.env.VITE_API_KEY || 'http://127.0.0.1:8000/api'}`;
