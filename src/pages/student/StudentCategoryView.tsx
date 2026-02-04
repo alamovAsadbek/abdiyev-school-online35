@@ -64,10 +64,17 @@ export default function StudentCategoryView() {
             const response = await userCoursesApi.getMyCourses();
             const myCourses = response?.results || response || [];
             const currentCourse = myCourses.find((c: any) => String(c.category?.id || c.category) === categoryId);
-            if (currentCourse && currentCourse.modules) {
-                setAccessibleModuleIds(currentCourse.modules.map((m: any) => String(m.id || m)));
+            if (currentCourse) {
+                // Check modules_detail first (contains full module info), then modules
+                const modulesList = currentCourse.modules_detail || currentCourse.modules || [];
+                if (modulesList.length > 0) {
+                    setAccessibleModuleIds(modulesList.map((m: any) => String(m.id || m)));
+                } else {
+                    // If no specific modules, user has full course access (for non-modular or full access)
+                    setAccessibleModuleIds(['all']);
+                }
             } else {
-                // Full access if not modular or has full course access
+                // No access to this course
                 setAccessibleModuleIds([]);
             }
         } catch (e) {
@@ -115,7 +122,8 @@ export default function StudentCategoryView() {
     // Check if module is accessible
     const isModuleAccessible = (moduleId: string): boolean => {
         if (!category?.is_modular) return true;
-        if (accessibleModuleIds.length === 0) return true; // Full access
+        if (accessibleModuleIds.includes('all')) return true; // Full course access
+        if (accessibleModuleIds.length === 0) return false; // No access at all
         return accessibleModuleIds.includes(moduleId);
     };
 

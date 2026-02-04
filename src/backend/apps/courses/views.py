@@ -324,18 +324,25 @@ class UserCourseViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         request_user = self.request.user
         query_user = self.request.query_params.get('user')
+        category_id = self.request.query_params.get('category_id')
+
+        queryset = UserCourse.objects.all()
+
+        # Filter by category if provided
+        if category_id:
+            queryset = queryset.filter(category_id=category_id)
 
         # Agar admin bo'lsa, xohlagan userni ko'radi
         if request_user.is_staff or request_user.is_superuser:
             if query_user:
-                return UserCourse.objects.filter(user_id=query_user)
-            return UserCourse.objects.all()
+                return queryset.filter(user_id=query_user)
+            return queryset
 
         # Oddiy user faqat o'zini ko'radi
         if query_user and str(request_user.id) != str(query_user):
             return UserCourse.objects.none()
 
-        return UserCourse.objects.filter(user=request_user)
+        return queryset.filter(user=request_user)
 
     @action(detail=False, methods=['get'])
     def my_courses(self, request):
