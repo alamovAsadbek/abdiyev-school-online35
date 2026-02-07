@@ -689,7 +689,7 @@ export default function AdminCategoryDetail() {
 
                 {/* Settings Tab */}
                 <TabsContent value="settings" className="animate-fade-in">
-                    <div className="max-w-2xl space-y-6">
+                    <div className="w-full space-y-6">
                         <div className="rounded-xl border border-border bg-card p-6">
                             <h3 className="text-lg font-semibold text-foreground mb-4">Kurs haqida</h3>
                             <div className="space-y-4">

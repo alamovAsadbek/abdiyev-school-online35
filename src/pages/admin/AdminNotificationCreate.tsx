@@ -149,7 +149,7 @@ export default function AdminNotificationCreate() {
                 Orqaga
             </Button>
 
-            <div className="max-w-2xl mx-auto">
+            <div className="w-full mx-auto">
                 <div className="mb-8 animate-fade-in">
                     <h1 className="text-2xl lg:text-3xl font-bold text-foreground mb-2">
                         {preselectedUser 
