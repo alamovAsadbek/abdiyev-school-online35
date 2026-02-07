@@ -1108,6 +1108,15 @@ export default function AdminUserDetail() {
 
                 {/* Notifications Tab */}
                 <TabsContent value="notifications">
+                    <div className="flex justify-end mb-4">
+                        <Button
+                            onClick={() => navigate(`/admin/notifications/create?user_id=${userId}`)}
+                            className="gradient-primary text-primary-foreground"
+                        >
+                            <Mail className="mr-2 h-4 w-4"/>
+                            Xabar yuborish
+                        </Button>
+                    </div>
                     <div className="rounded-xl border border-border bg-card overflow-hidden">
                         <table className="w-full">
                             <thead>

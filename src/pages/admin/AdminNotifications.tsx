@@ -1,14 +1,12 @@
 import {useState, useEffect} from 'react';
-import {Plus, Trash2, Eye, Calendar, Send, Clock} from 'lucide-react';
+import {useNavigate} from 'react-router-dom';
+import {Plus, Trash2, Eye, Calendar, Clock, Users} from 'lucide-react';
 import {DashboardLayout} from '@/layouts/DashboardLayout';
 import {DataTable, Column, Filter} from '@/components/DataTable';
 import {Button} from '@/components/ui/button';
-import {Input} from '@/components/ui/input';
-import {Label} from '@/components/ui/label';
-import {Textarea} from '@/components/ui/textarea';
 import {useToast} from '@/hooks/use-toast';
 import {ConfirmDialog} from '@/components/ConfirmDialog';
-import {notificationsApi, usersApi} from '@/services/api';
+import {notificationsApi} from '@/services/api';
 import {
     Dialog,
     DialogContent,
@@ -16,16 +14,15 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 import {Badge} from '@/components/ui/badge';
-import {Switch} from '@/components/ui/switch';
 import {formatDate} from "@/lib/utils";
+
+interface NotificationRecipient {
+    id: string;
+    username: string;
+    first_name: string;
+    last_name: string;
+}
 
 interface Notification {
     id: string;
@@ -33,41 +30,25 @@ interface Notification {
     message: string;
     type: string;
     sent_count: number;
+    recipients_count: number;
+    recipients_detail?: NotificationRecipient[];
     status: string;
     scheduled_at: string | null;
     created_at: string;
 }
 
-interface User {
-    id: string;
-    first_name: string;
-    last_name: string;
-    username: string;
-}
+
 
 export default function AdminNotifications() {
+    const navigate = useNavigate();
     const [notifications, setNotifications] = useState<Notification[]>([]);
-    const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
     const [notifToDelete, setNotifToDelete] = useState<string | null>(null);
     const [viewNotif, setViewNotif] = useState<Notification | null>(null);
-    const [isCreateOpen, setIsCreateOpen] = useState(false);
-    const [sending, setSending] = useState(false);
-    const [formData, setFormData] = useState({
-        title: '',
-        message: '',
-        type: 'system',
-        recipient: 'all',
-        selectedUsers: [] as string[],
-        sendNow: true,
-        scheduledDate: '',
-        scheduledTime: '',
-    });
     const {toast} = useToast();
 
     useEffect(() => {
         fetchNotifications();
-        fetchUsers();
     }, []);
 
     const fetchNotifications = async () => {
@@ -87,89 +68,7 @@ export default function AdminNotifications() {
         }
     };
 
-    const fetchUsers = async () => {
-        try {
-            const response = await usersApi.getAll({role: 'student'});
-            const data = response?.results || response || [];
-            setUsers(Array.isArray(data) ? data : []);
-        } catch (error) {
-            console.error('Failed to fetch users:', error);
-        }
-    };
 
-    const handleSendNotification = async () => {
-        if (!formData.title.trim() || !formData.message.trim()) {
-            toast({
-                title: 'Xatolik',
-                description: 'Sarlavha va xabar kiritilishi shart',
-                variant: 'destructive',
-            });
-            return;
-        }
-
-        if (!formData.sendNow && (!formData.scheduledDate || !formData.scheduledTime)) {
-            toast({
-                title: 'Xatolik',
-                description: 'Rejalashtirilgan vaqtni tanlang',
-                variant: 'destructive',
-            });
-            return;
-        }
-
-        setSending(true);
-        try {
-            const payload: any = {
-                title: formData.title,
-                message: formData.message,
-                type: formData.type,
-                send_now: formData.sendNow,
-            };
-
-            if (formData.recipient === 'all') {
-                payload.send_to_all = true;
-            } else {
-                payload.user_ids = [formData.recipient];
-            }
-
-            if (!formData.sendNow) {
-                const scheduledDateTime = new Date(`${formData.scheduledDate}T${formData.scheduledTime}`);
-                payload.scheduled_at = scheduledDateTime.toISOString();
-            }
-
-            await notificationsApi.send(payload);
-
-            toast({
-                title: 'Muvaffaqiyat',
-                description: formData.sendNow
-                    ? (formData.recipient === 'all'
-                        ? `Xabarnoma barcha o'quvchilarga yuborildi`
-                        : 'Xabarnoma yuborildi')
-                    : 'Xabarnoma rejalashtirildi',
-            });
-
-            setIsCreateOpen(false);
-            setFormData({
-                title: '',
-                message: '',
-                type: 'system',
-                recipient: 'all',
-                selectedUsers: [],
-                sendNow: true,
-                scheduledDate: '',
-                scheduledTime: '',
-            });
-            fetchNotifications();
-        } catch (error) {
-            console.error('Failed to send notification:', error);
-            toast({
-                title: 'Xatolik',
-                description: 'Xabarnomani yuborishda xatolik',
-                variant: 'destructive',
-            });
-        } finally {
-            setSending(false);
-        }
-    };
 
     const handleDelete = async () => {
         if (notifToDelete) {
@@ -334,7 +233,7 @@ export default function AdminNotifications() {
                     </p>
                 </div>
                 <Button
-                    onClick={() => setIsCreateOpen(true)}
+                    onClick={() => navigate('/admin/notifications/create')}
                     className="gradient-primary text-primary-foreground"
                 >
                     <Plus className="mr-2 h-4 w-4"/>
@@ -354,147 +253,6 @@ export default function AdminNotifications() {
                     emptyMessage={loading ? "Yuklanmoqda..." : "Xabarnomalar topilmadi"}
                 />
             </div>
-
-            {/* Create Notification Dialog */}
-            <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-                <DialogContent className="sm:max-w-[500px]">
-                    <DialogHeader>
-                        <DialogTitle>Yangi xabarnoma yuborish</DialogTitle>
-                        <DialogDescription>
-                            O'quvchilarga xabarnoma yuboring
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4 mt-4">
-                        <div className="space-y-2">
-                            <Label>Qabul qiluvchi</Label>
-                            <Select
-                                value={formData.recipient}
-                                onValueChange={(value) => setFormData(prev => ({...prev, recipient: value}))}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue/>
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">Barcha o'quvchilar ({users.length} ta)</SelectItem>
-                                    {users.map(user => (
-                                        <SelectItem key={user.id} value={user.id}>
-                                            {user.first_name} {user.last_name} (@{user.username})
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label>Turi</Label>
-                            <Select
-                                value={formData.type}
-                                onValueChange={(value) => setFormData(prev => ({...prev, type: value}))}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue/>
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="system">Tizim xabari</SelectItem>
-                                    <SelectItem value="course">Kurs haqida</SelectItem>
-                                    <SelectItem value="payment">To'lov haqida</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="notif-title">Sarlavha</Label>
-                            <Input
-                                id="notif-title"
-                                placeholder="Xabar sarlavhasi"
-                                value={formData.title}
-                                onChange={(e) => setFormData(prev => ({...prev, title: e.target.value}))}
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="notif-message">Xabar matni</Label>
-                            <Textarea
-                                id="notif-message"
-                                placeholder="Xabar matnini kiriting..."
-                                rows={4}
-                                value={formData.message}
-                                onChange={(e) => setFormData(prev => ({...prev, message: e.target.value}))}
-                            />
-                        </div>
-
-                        {/* Send Now Toggle */}
-                        <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/30">
-                            <div className="space-y-0.5">
-                                <Label htmlFor="send-now" className="font-medium">Hozir yuborish</Label>
-                                <p className="text-xs text-muted-foreground">
-                                    {formData.sendNow ? 'Xabarnoma darhol yuboriladi' : 'Belgilangan vaqtda yuboriladi'}
-                                </p>
-                            </div>
-                            <Switch
-                                id="send-now"
-                                checked={formData.sendNow}
-                                onCheckedChange={(checked) => setFormData(prev => ({...prev, sendNow: checked}))}
-                            />
-                        </div>
-
-                        {/* Scheduled Date/Time */}
-                        {!formData.sendNow && (
-                            <div className="grid grid-cols-2 gap-4 p-4 border rounded-lg bg-muted/30">
-                                <div className="space-y-2">
-                                    <Label htmlFor="scheduled-date">Sana</Label>
-                                    <Input
-                                        id="scheduled-date"
-                                        type="date"
-                                        min={minDate}
-                                        value={formData.scheduledDate}
-                                        onChange={(e) => setFormData(prev => ({
-                                            ...prev,
-                                            scheduledDate: e.target.value
-                                        }))}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="scheduled-time">Vaqt</Label>
-                                    <Input
-                                        id="scheduled-time"
-                                        type="time"
-                                        min={formData.scheduledDate === minDate ? minTime : undefined}
-                                        value={formData.scheduledTime}
-                                        onChange={(e) => setFormData(prev => ({
-                                            ...prev,
-                                            scheduledTime: e.target.value
-                                        }))}
-                                    />
-                                </div>
-                            </div>
-                        )}
-
-                        <div className="flex justify-end gap-3 pt-4">
-                            <Button variant="outline" onClick={() => setIsCreateOpen(false)}>
-                                Bekor qilish
-                            </Button>
-                            <Button
-                                onClick={handleSendNotification}
-                                className="gradient-primary text-primary-foreground"
-                                disabled={sending}
-                            >
-                                {formData.sendNow ? (
-                                    <>
-                                        <Send className="h-4 w-4 mr-2"/>
-                                        {sending ? 'Yuborilmoqda...' : 'Yuborish'}
-                                    </>
-                                ) : (
-                                    <>
-                                        <Clock className="h-4 w-4 mr-2"/>
-                                        {sending ? 'Saqlanmoqda...' : 'Rejalashtirish'}
-                                    </>
-                                )}
-                            </Button>
-                        </div>
-                    </div>
-                </DialogContent>
-            </Dialog>
 
             {/* View Dialog */}
             <Dialog open={!!viewNotif} onOpenChange={(open) => !open && setViewNotif(null)}>
@@ -534,12 +292,39 @@ export default function AdminNotifications() {
                         </div>
                         {viewNotif?.scheduled_at && viewNotif?.status === 'scheduled' && (
                             <div>
-                                <label className="text-sm font-medium text-muted-foreground">Rejalashtirilgan
-                                    vaqt</label>
+                                <label className="text-sm font-medium text-muted-foreground">Rejalashtirilgan vaqt</label>
                                 <p className="mt-1 flex items-center gap-2">
                                     <Clock className="h-4 w-4 text-muted-foreground"/>
                                     {formatDate(viewNotif.scheduled_at)}
                                 </p>
+                            </div>
+                        )}
+                        {/* Recipients list */}
+                        {viewNotif?.recipients_detail && viewNotif.recipients_detail.length > 0 && (
+                            <div>
+                                <label className="text-sm font-medium text-muted-foreground flex items-center gap-2 mb-2">
+                                    <Users className="h-4 w-4" />
+                                    Qabul qiluvchilar ({viewNotif.recipients_detail.length} ta)
+                                </label>
+                                <div className="max-h-40 overflow-y-auto border rounded-lg divide-y divide-border">
+                                    {viewNotif.recipients_detail.map((r) => (
+                                        <div
+                                            key={r.id}
+                                            className="flex items-center gap-3 p-2.5 hover:bg-muted/50 cursor-pointer"
+                                            onClick={() => {
+                                                setViewNotif(null);
+                                                navigate(`/admin/users/${r.id}`);
+                                            }}
+                                        >
+                                            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-semibold">
+                                                {r.first_name?.charAt(0) || r.username?.charAt(0) || '?'}
+                                            </div>
+                                            <span className="text-sm">
+                                                {r.first_name} {r.last_name} <span className="text-muted-foreground">@{r.username}</span>
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         )}
                     </div>
