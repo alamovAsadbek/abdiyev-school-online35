@@ -1,16 +1,29 @@
 from rest_framework import serializers
 from .models import Notification, UserNotification
+from apps.users.serializers import UserSerializer
+
+
+class NotificationRecipientSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    username = serializers.CharField()
+    first_name = serializers.CharField()
+    last_name = serializers.CharField()
+
 
 class NotificationSerializer(serializers.ModelSerializer):
     recipients_count = serializers.SerializerMethodField()
+    recipients_detail = serializers.SerializerMethodField()
     
     class Meta:
         model = Notification
         fields = ['id', 'title', 'message', 'type', 'recipients', 
-                  'recipients_count', 'sent_count', 'status', 'scheduled_at', 'created_at']
+                  'recipients_count', 'recipients_detail', 'sent_count', 'status', 'scheduled_at', 'created_at']
     
     def get_recipients_count(self, obj):
         return obj.recipients.count()
+    
+    def get_recipients_detail(self, obj):
+        return list(obj.recipients.values('id', 'username', 'first_name', 'last_name'))
 
 
 class UserNotificationSerializer(serializers.ModelSerializer):

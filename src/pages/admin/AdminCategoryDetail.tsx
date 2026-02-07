@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Pencil, Trash2, Eye, Clock, Layers, Video, ChevronRight, Users, Settings, Check, X } from 'lucide-react';
+import { ArrowLeft, Plus, Pencil, Trash2, Eye, Clock, Layers, Video, ChevronRight, Users, Settings, Check, X, Gift } from 'lucide-react';
 import { DashboardLayout } from '@/layouts/DashboardLayout';
 import { DataTable, Column } from '@/components/DataTable';
 import { Button } from '@/components/ui/button';
@@ -77,6 +77,13 @@ export default function AdminCategoryDetail() {
     const [showSettingsConfirm, setShowSettingsConfirm] = useState(false);
     const [pendingSequentialChange, setPendingSequentialChange] = useState<boolean | null>(null);
 
+    // Gift course state
+    const [showGiftDialog, setShowGiftDialog] = useState(false);
+    const [giftUserId, setGiftUserId] = useState('');
+    const [giftModuleIds, setGiftModuleIds] = useState<string[]>([]);
+    const [allUsers, setAllUsers] = useState<{id: string; first_name: string; last_name: string; username: string}[]>([]);
+    const [giftingCourse, setGiftingCourse] = useState(false);
+
     const getCategory = async () => {
         try {
             const response = await categoriesApi.getById(categoryId!);
@@ -107,8 +114,10 @@ export default function AdminCategoryDetail() {
             
             // Filter by module if specified
             if (moduleId) {
-                videosList = videosList.filter((v: Video) => String(v.module) === moduleId);
+                videosList = videosList.filter((v: Video) => String(v.module) === String(moduleId));
             }
+            
+            console.log('Videos for module', moduleId, ':', videosList.length, 'of', (response?.results || response || []).length);
             
             setVideos(videosList);
         } catch (error) {
@@ -148,6 +157,17 @@ export default function AdminCategoryDetail() {
             getVideos();
         }
     }, [selectedModuleId]);
+
+    useEffect(() => {
+        const loadUsers = async () => {
+            try {
+                const { usersApi } = await import('@/services/api');
+                const res = await usersApi.getAll({ role: 'student' });
+                setAllUsers(res?.results || res || []);
+            } catch (e) { console.log(e); }
+        };
+        loadUsers();
+    }, []);
 
     const handleCreateModule = async () => {
         if (!newModule.name.trim()) {
@@ -384,6 +404,35 @@ export default function AdminCategoryDetail() {
             ),
         },
     ];
+
+
+
+    const handleGiftCourse = async () => {
+        if (!giftUserId) {
+            toast({ title: 'Xatolik', description: "Foydalanuvchini tanlang", variant: 'destructive' });
+            return;
+        }
+        if (category.is_modular && giftModuleIds.length === 0) {
+            toast({ title: 'Xatolik', description: "Modullarni tanlang", variant: 'destructive' });
+            return;
+        }
+        setGiftingCourse(true);
+        try {
+            await userCoursesApi.grantCourse(
+                giftUserId, categoryId!, 'gift',
+                category.is_modular ? giftModuleIds : undefined
+            );
+            toast({ title: 'Muvaffaqiyat', description: "Kurs sovg'a qilindi" });
+            setShowGiftDialog(false);
+            setGiftUserId('');
+            setGiftModuleIds([]);
+            getSubscribers();
+        } catch (error) {
+            toast({ title: 'Xatolik', description: "Sovg'a qilishda xatolik", variant: 'destructive' });
+        } finally {
+            setGiftingCourse(false);
+        }
+    };
 
     const subscriberColumns: Column<Subscriber>[] = [
         {
@@ -622,6 +671,12 @@ export default function AdminCategoryDetail() {
 
                 {/* Subscribers Tab */}
                 <TabsContent value="subscribers" className="animate-fade-in">
+                    <div className="flex justify-end mb-4">
+                        <Button onClick={() => setShowGiftDialog(true)} className="gradient-primary text-primary-foreground">
+                            <Gift className="mr-2 h-4 w-4" />
+                            Kurs sovg'a qilish
+                        </Button>
+                    </div>
                     <DataTable
                         data={subscribers}
                         columns={subscriberColumns}
@@ -776,6 +831,90 @@ export default function AdminCategoryDetail() {
                         <Button onClick={confirmSequentialChange}>
                             <Check className="mr-2 h-4 w-4" />
                             Tasdiqlash
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Gift Course Dialog */}
+            <Dialog open={showGiftDialog} onOpenChange={(open) => {
+                setShowGiftDialog(open);
+                if (!open) { setGiftUserId(''); setGiftModuleIds([]); }
+            }}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Kurs sovg'a qilish</DialogTitle>
+                        <DialogDescription>
+                            {category.name} kursini o'quvchiga sovg'a qiling
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label>O'quvchini tanlang</Label>
+                            <select
+                                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                value={giftUserId}
+                                onChange={(e) => setGiftUserId(e.target.value)}
+                            >
+                                <option value="">Tanlang...</option>
+                                {allUsers.map(u => (
+                                    <option key={u.id} value={u.id}>
+                                        {u.first_name} {u.last_name} (@{u.username})
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {category.is_modular && modules.length > 0 && (
+                            <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <Label>Modullarni tanlang</Label>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => {
+                                            if (giftModuleIds.length === modules.length) {
+                                                setGiftModuleIds([]);
+                                            } else {
+                                                setGiftModuleIds(modules.map(m => String(m.id)));
+                                            }
+                                        }}
+                                        className="text-xs h-7"
+                                    >
+                                        {giftModuleIds.length === modules.length ? 'Barchasini olib tashlash' : 'Barchasini tanlash'}
+                                    </Button>
+                                </div>
+                                <div className="space-y-2 max-h-48 overflow-y-auto border rounded-lg p-3">
+                                    {modules.map(module => (
+                                        <label key={module.id} className="flex items-center gap-3 p-2 rounded hover:bg-muted/50 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={giftModuleIds.includes(String(module.id))}
+                                                onChange={() => {
+                                                    setGiftModuleIds(prev =>
+                                                        prev.includes(String(module.id))
+                                                            ? prev.filter(id => id !== String(module.id))
+                                                            : [...prev, String(module.id)]
+                                                    );
+                                                }}
+                                                className="rounded"
+                                            />
+                                            <div className="flex-1">
+                                                <p className="font-medium text-sm">{module.name}</p>
+                                            </div>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowGiftDialog(false)}>
+                            Bekor qilish
+                        </Button>
+                        <Button onClick={handleGiftCourse} disabled={giftingCourse}>
+                            <Gift className="mr-2 h-4 w-4" />
+                            {giftingCourse ? "Yuklanmoqda..." : "Sovg'a qilish"}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

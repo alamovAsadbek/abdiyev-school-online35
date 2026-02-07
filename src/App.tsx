@@ -42,6 +42,7 @@ import AdminPayments from "./pages/admin/AdminPayments";
 import AdminPaymentDetail from "./pages/admin/AdminPaymentDetail";
 import AdminCategoryDetail from "./pages/admin/AdminCategoryDetail";
 import AdminNotifications from "./pages/admin/AdminNotifications";
+import AdminNotificationCreate from "./pages/admin/AdminNotificationCreate";
 import AdminTaskStatistics from "@/pages/admin/AdminTaskStatistics.tsx";
 import AdminSubmissionDetail from "@/pages/admin/AdminSubmissionDetail.tsx";
 import AdminTaskDetail from "@/pages/admin/AdminTaskDetail.tsx";
@@ -158,6 +159,8 @@ function AppRoutes() {
             <Route path="/admin/tasks/:taskId/stats" element={<ProtectedRoute allowedRole="admin"><AdminTaskStatistics/></ProtectedRoute>}/>
             <Route path="/admin/notifications"
                    element={<ProtectedRoute allowedRole="admin"><AdminNotifications/></ProtectedRoute>}/>
+            <Route path="/admin/notifications/create"
+                   element={<ProtectedRoute allowedRole="admin"><AdminNotificationCreate/></ProtectedRoute>}/>
             <Route path="/admin/submissions/:submissionId"
                    element={<ProtectedRoute allowedRole="admin"><AdminSubmissionDetail/></ProtectedRoute>}/>
             
