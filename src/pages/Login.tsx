@@ -7,7 +7,7 @@ import {Input} from '@/components/ui/input';
 import {Label} from '@/components/ui/label';
 import {useToast} from '@/hooks/use-toast';
 import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs';
-import bgImg from '@/data/images/loginBackground.png';
+// import {bgImg} from '@/data/images/loginBackground.png';
 
 export default function Login() {
     const [username, setUsername] = useState('');
@@ -125,7 +125,7 @@ export default function Login() {
             {/* Left Side - Branding */}
             <div className="hidden lg:flex lg:w-1/2 gradient-hero relative overflow-hidden">
                 <div className="absolute inset-0 " style={{
-                    backgroundImage: `url(${bgImg})`,
+                    // backgroundImage: `url(${bgImg})`,
                     backgroundSize: "cover",
                     backgroundPosition: "center"
                 }}
