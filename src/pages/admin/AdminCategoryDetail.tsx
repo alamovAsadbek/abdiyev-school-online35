@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Pencil, Trash2, Eye, Clock, Layers, Video, ChevronRight, Users, Settings, Check, X, Gift } from 'lucide-react';
+import { ArrowLeft, Plus, Pencil, Trash2, Eye, Clock, Layers, Video, ChevronRight, Users, Settings, Check, X, Gift, Undo2 } from 'lucide-react';
 import { DashboardLayout } from '@/layouts/DashboardLayout';
 import { DataTable, Column } from '@/components/DataTable';
 import { Button } from '@/components/ui/button';
@@ -22,6 +22,7 @@ interface Category {
     video_count: number;
     is_modular: boolean;
     requires_sequential: boolean;
+    is_active: boolean;
     price: number;
 }
 
@@ -477,17 +478,38 @@ export default function AdminCategoryDetail() {
             key: 'actions',
             header: '',
             render: (sub) => (
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/admin/users/${sub.user}`);
-                    }}
-                    className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                >
-                    <ChevronRight className="h-4 w-4" />
-                </Button>
+                <div className="flex gap-1">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/admin/users/${sub.user}`);
+                        }}
+                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                    >
+                        <ChevronRight className="h-4 w-4" />
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={async (e) => {
+                            e.stopPropagation();
+                            if (!confirm(`${sub.user_name} uchun kursni qaytarib olmoqchimisiz?`)) return;
+                            try {
+                                await userCoursesApi.revoke(sub.id);
+                                toast({ title: "Qaytarib olindi", description: "Kurs muvaffaqiyatli qaytarib olindi" });
+                                getSubscribers();
+                            } catch (error) {
+                                toast({ title: 'Xatolik', description: "Qaytarib olishda xatolik", variant: 'destructive' });
+                            }
+                        }}
+                        className="h-8 w-8 text-destructive hover:bg-destructive hover:text-white"
+                        title="Kursni qaytarib olish"
+                    >
+                        <Undo2 className="h-4 w-4" />
+                    </Button>
+                </div>
             ),
         },
     ];
@@ -753,6 +775,34 @@ export default function AdminCategoryDetail() {
                                     <Switch 
                                         checked={category.requires_sequential} 
                                         onCheckedChange={handleSequentialToggle}
+                                    />
+                                </div>
+
+                                {/* Active/Disable setting */}
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <Label className="text-foreground font-medium">Kurs faol</Label>
+                                        <p className="text-sm text-muted-foreground">
+                                            O'chirilsa kurs o'quvchilarga ko'rinmaydi
+                                        </p>
+                                    </div>
+                                    <Switch 
+                                        checked={category.is_active ?? true} 
+                                        onCheckedChange={async (checked) => {
+                                            try {
+                                                await categoriesApi.update(categoryId!, { 
+                                                    ...category,
+                                                    is_active: checked 
+                                                });
+                                                setCategory({ ...category, is_active: checked });
+                                                toast({ 
+                                                    title: 'Muvaffaqiyat', 
+                                                    description: checked ? "Kurs faollashtirildi" : "Kurs to'xtatildi" 
+                                                });
+                                            } catch (error) {
+                                                toast({ title: 'Xatolik', description: 'Saqlashda xatolik', variant: 'destructive' });
+                                            }
+                                        }}
                                     />
                                 </div>
                             </div>

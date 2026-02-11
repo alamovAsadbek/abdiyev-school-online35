@@ -184,6 +184,9 @@ export const userCoursesApi = {
   addModules: async (courseId: string, moduleIds: string[]) => {
     return api.post(`/user-courses/${courseId}/add_modules/`, { module_ids: moduleIds });
   },
+  revoke: async (courseId: string) => {
+    return api.post(`/user-courses/${courseId}/revoke/`, {});
+  },
 };
 
 // Progress API

@@ -79,6 +79,9 @@ export default function StudentCourses() {
 
     // Filter categories
     const filteredCategories = categories?.filter(category => {
+        // Hide inactive courses
+        if ((category as any).is_active === false) return false;
+        
         const matchesSearch =
             (category.name ?? '').toLowerCase().includes(search.toLowerCase()) ||
             (category.description ?? '').toLowerCase().includes(search.toLowerCase());
