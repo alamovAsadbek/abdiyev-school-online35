@@ -37,9 +37,9 @@ export default function StudentDashboard() {
             
             setAllCategories(categories);
             
-            // Filter categories that user has access to
+            // Filter categories that user has access to (and are active)
             const accessibleCategoryIds = myCourses.map((c: any) => String(c.category?.id || c.category));
-            const userCategories = categories.filter((cat: any) => accessibleCategoryIds.includes(String(cat.id)));
+            const userCategories = categories.filter((cat: any) => accessibleCategoryIds.includes(String(cat.id)) && cat.is_active !== false);
             setAccessibleCategories(userCategories);
             
             // Filter videos from accessible categories only

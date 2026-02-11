@@ -10,6 +10,7 @@ class Category(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=2)
     is_modular = models.BooleanField(default=False)  # Whether course has modules
     requires_sequential = models.BooleanField(default=True)  # Whether sequential access is required
+    is_active = models.BooleanField(default=True)  # Whether course is active/visible
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

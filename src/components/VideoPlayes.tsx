@@ -34,28 +34,30 @@ export default function VideoPlayer({ videoUrl, userId }: { videoUrl: string, us
             setDateTime(`${day}.${month}.${year} ${hours}:${minutes}:${seconds}`);
         };
 
-        updateTime(); // Dastlab
+        updateTime();
         const interval = setInterval(updateTime, 1000);
 
         return () => clearInterval(interval);
     }, []);
 
-    // Fullscreen event
+    // Fullscreen event - handle both standard and webkit (iOS)
     useEffect(() => {
         const handleFullScreenChange = () => {
             if (!wrapperRef.current || !watermarkRef.current) return;
-            const fsElement = document.fullscreenElement;
+            const fsElement = document.fullscreenElement || (document as any).webkitFullscreenElement;
             if (fsElement) {
-                // Fullscreen bo'lsa watermarkni container ichiga qo'yish
                 fsElement.appendChild(watermarkRef.current);
             } else {
-                // Normal holatga qaytganida wrapper ichiga qaytarish
                 wrapperRef.current.appendChild(watermarkRef.current);
             }
         };
 
         document.addEventListener("fullscreenchange", handleFullScreenChange);
-        return () => document.removeEventListener("fullscreenchange", handleFullScreenChange);
+        document.addEventListener("webkitfullscreenchange", handleFullScreenChange);
+        return () => {
+            document.removeEventListener("fullscreenchange", handleFullScreenChange);
+            document.removeEventListener("webkitfullscreenchange", handleFullScreenChange);
+        };
     }, []);
 
     return (
@@ -73,27 +75,34 @@ export default function VideoPlayer({ videoUrl, userId }: { videoUrl: string, us
                 />
             ) : (
                 <div className="w-full h-full">
-                    <ShakaPlayer
-                        src={videoUrl}
-                        controls
-                        className="w-full h-full"
-                        style={{ 
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            width: '100%',
-                            height: '100%',
-                        }}
-                    />
+                    {videoUrl ? (
+                        <video
+                            src={videoUrl}
+                            controls
+                            playsInline
+                            webkit-playsinline="true"
+                            controlsList="nodownload"
+                            className="absolute inset-0 w-full h-full object-contain"
+                            style={{
+                                backgroundColor: 'black',
+                            }}
+                        />
+                    ) : (
+                        <div className="absolute inset-0 flex items-center justify-center text-white/50">
+                            Video yuklanmadi
+                        </div>
+                    )}
                 </div>
             )}
 
-            {/* WATERMARK */}
+            {/* WATERMARK - fixed position so it stays visible in fullscreen */}
             <span
                 ref={watermarkRef}
-                className="absolute text-white/70 font-semibold select-none z-20 pointer-events-none animate-watermark top-4 left-4"
+                className="absolute text-white/70 font-semibold select-none pointer-events-none animate-watermark top-4 left-4"
                 style={{
                     fontSize: "0.75rem",
+                    zIndex: 2147483647,
+                    textShadow: '0 1px 3px rgba(0,0,0,0.8)',
                 }}
             >
                 {userId} • {dateTime}

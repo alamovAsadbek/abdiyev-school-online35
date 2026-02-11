@@ -1,9 +1,10 @@
 import {useState, useEffect} from 'react';
 import {useNavigate} from 'react-router-dom';
-import {Plus, Pencil, Trash2, Video, Layers} from 'lucide-react';
+import {Plus, Pencil, Trash2, Video, Layers, Filter} from 'lucide-react';
 import {DashboardLayout} from '@/layouts/DashboardLayout';
 import {DataTable, Column} from '@/components/DataTable';
 import {Button} from '@/components/ui/button';
+import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select';
 import {useToast} from '@/hooks/use-toast';
 import {ConfirmDialog} from '@/components/ConfirmDialog';
 import {categoriesApi} from '@/services/api';
@@ -25,6 +26,7 @@ interface Category {
     video_count: number;
     price: number;
     is_modular: boolean;
+    is_active: boolean;
     requires_sequential: boolean;
     modules?: Module[];
     created_at: string;
@@ -37,6 +39,7 @@ export default function AdminCategories() {
     const [categories, setCategories] = useState<Category[]>([]);
     const [loading, setLoading] = useState(true);
     const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
+    const [filterType, setFilterType] = useState<string>('all');
     const {toast} = useToast();
 
     useEffect(() => {
@@ -135,6 +138,19 @@ export default function AdminCategories() {
             ),
         },
         {
+            key: 'is_active',
+            header: 'Holat',
+            render: (category) => (
+                <span className={`px-2 py-1 rounded-full text-xs ${
+                    category.is_active !== false
+                        ? 'bg-green-500/10 text-green-600'
+                        : 'bg-destructive/10 text-destructive'
+                }`}>
+                    {category.is_active !== false ? 'Faol' : "To'xtatilgan"}
+                </span>
+            ),
+        },
+        {
             key: 'created_at',
             header: 'Yaratilgan',
             sortable: true,
@@ -190,10 +206,33 @@ export default function AdminCategories() {
                 </Button>
             </div>
 
+            {/* Filter */}
+            <div className="flex gap-3 mb-6">
+                <Select value={filterType} onValueChange={setFilterType}>
+                    <SelectTrigger className="w-[200px]">
+                        <Filter className="h-4 w-4 mr-2" />
+                        <SelectValue placeholder="Turi bo'yicha" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">Barchasi</SelectItem>
+                        <SelectItem value="modular">Modulli</SelectItem>
+                        <SelectItem value="simple">Oddiy</SelectItem>
+                        <SelectItem value="active">Faol</SelectItem>
+                        <SelectItem value="inactive">To'xtatilgan</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+
             {/* Data Table */}
             <div className="animate-fade-in" style={{animationDelay: '0.1s'}}>
                 <DataTable
-                    data={categories}
+                    data={categories.filter(c => {
+                        if (filterType === 'modular') return c.is_modular;
+                        if (filterType === 'simple') return !c.is_modular;
+                        if (filterType === 'active') return c.is_active !== false;
+                        if (filterType === 'inactive') return c.is_active === false;
+                        return true;
+                    })}
                     columns={columns}
                     searchPlaceholder="Kategoriya nomi bo'yicha qidirish..."
                     searchKeys={['name', 'description']}

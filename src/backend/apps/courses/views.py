@@ -20,6 +20,22 @@ class CategoryViewSet(viewsets.ModelViewSet):
     serializer_class = CategorySerializer
     permission_classes = [IsAuthenticated]
 
+    def get_queryset(self):
+        queryset = Category.objects.all()
+        is_modular = self.request.query_params.get('is_modular')
+        is_active = self.request.query_params.get('is_active')
+        
+        if is_modular is not None:
+            queryset = queryset.filter(is_modular=is_modular.lower() == 'true')
+        
+        # For non-admin users, only show active categories
+        if not (self.request.user.is_staff or self.request.user.is_superuser):
+            queryset = queryset.filter(is_active=True)
+        elif is_active is not None:
+            queryset = queryset.filter(is_active=is_active.lower() == 'true')
+        
+        return queryset
+
     @action(detail=True, methods=['post'])
     def add_module(self, request, pk=None):
         """Add a module to a category"""
@@ -419,6 +435,13 @@ class UserCourseViewSet(viewsets.ModelViewSet):
         
         serializer = self.get_serializer(course)
         return Response(serializer.data)
+
+    @action(detail=True, methods=['post'])
+    def revoke(self, request, pk=None):
+        """Revoke a user's course access"""
+        course = self.get_object()
+        course.delete()
+        return Response({'status': 'revoked'}, status=status.HTTP_200_OK)
 
 
 class StudentProgressViewSet(viewsets.ModelViewSet):
