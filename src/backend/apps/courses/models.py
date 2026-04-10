@@ -103,8 +103,9 @@ class Task(models.Model):
     description = models.TextField(blank=True, null=True)
     task_type = models.CharField(max_length=10, choices=TASK_TYPE_CHOICES, default='test')
     file = models.FileField(upload_to='tasks/', blank=True, null=True)
+    answer_file = models.FileField(upload_to='task_answers/', blank=True, null=True)  # Answer file shown after completion
     allow_resubmission = models.BooleanField(default=True)
-    requires_approval = models.BooleanField(default=False)  # For file/text tasks
+    requires_approval = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -118,7 +119,8 @@ class Task(models.Model):
 class TaskQuestion(models.Model):
     task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='questions')
     question = models.TextField()
-    options = models.JSONField()  # List of options
+    image = models.ImageField(upload_to='question_images/', blank=True, null=True)  # Per-question image
+    options = models.JSONField()
     correct_answer = models.IntegerField()
     order = models.IntegerField(default=0)
 
