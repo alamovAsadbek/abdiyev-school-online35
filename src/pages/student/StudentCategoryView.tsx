@@ -128,6 +128,8 @@ export default function StudentCategoryView() {
     // Check if module is accessible
     const isModuleAccessible = (moduleId: string): boolean => {
         if (!category?.is_modular) return true;
+        // Free course: all modules accessible
+        if (Number(category?.price ?? 0) === 0) return true;
         if (accessibleModuleIds.includes('all')) return true;
         if (accessibleModuleIds.length === 0) return false;
         return accessibleModuleIds.includes(String(moduleId));

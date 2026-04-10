@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { categoriesApi, modulesApi } from '@/services/api';
 
@@ -16,6 +17,7 @@ interface Module {
   description: string;
   order: number;
   price?: number;
+  is_free?: boolean;
   isNew?: boolean;
 }
 
@@ -33,6 +35,7 @@ export default function AdminCategoryCreate() {
     description: '',
     icon: '⚗️',
     price: '',
+    is_free: false,
     is_modular: false,
     requires_sequential: true,
   });
@@ -42,7 +45,6 @@ export default function AdminCategoryCreate() {
   const [newModuleDescription, setNewModuleDescription] = useState('');
   const [newModulePrice, setNewModulePrice] = useState('');
 
-  // Load category data if editing
   useEffect(() => {
     if (categoryId) {
       loadCategory();
@@ -52,16 +54,18 @@ export default function AdminCategoryCreate() {
   const loadCategory = async () => {
     try {
       const category = await categoriesApi.getById(categoryId!);
+      const price = category.price?.toString() || '';
+      const isFree = !price || parseFloat(price) === 0;
       setFormData({
         name: category.name,
         description: category.description || '',
         icon: category.icon,
-        price: category.price?.toString() || '',
+        price: isFree ? '' : price,
+        is_free: isFree,
         is_modular: category.is_modular || false,
         requires_sequential: category.requires_sequential !== false,
       });
       
-      // Load modules if modular
       if (category.is_modular) {
         const modulesData = await modulesApi.getByCategory(categoryId!);
         const modulesList = modulesData?.results || modulesData || [];
@@ -71,6 +75,7 @@ export default function AdminCategoryCreate() {
           description: m.description || '',
           order: m.order,
           price: m.price,
+          is_free: !m.price || parseFloat(m.price) === 0,
         })));
       }
     } catch (error) {
@@ -82,21 +87,28 @@ export default function AdminCategoryCreate() {
     }
   };
 
+  // When course is set to free, auto-set all modules to free
+  const handleFreeToggle = (isFree: boolean) => {
+    setFormData(prev => ({ ...prev, is_free: isFree, price: isFree ? '0' : prev.price === '0' ? '' : prev.price }));
+    if (isFree && formData.is_modular) {
+      setModules(prev => prev.map(m => ({ ...m, price: 0, is_free: true })));
+    }
+  };
+
   const handleAddModule = () => {
     if (!newModuleName.trim()) {
-      toast({
-        title: 'Xatolik',
-        description: 'Modul nomini kiriting',
-        variant: 'destructive',
-      });
+      toast({ title: 'Xatolik', description: 'Modul nomini kiriting', variant: 'destructive' });
       return;
     }
+
+    const modulePrice = formData.is_free ? 0 : (newModulePrice ? parseFloat(newModulePrice) : undefined);
 
     const newModule: Module = {
       name: newModuleName,
       description: newModuleDescription,
       order: modules.length + 1,
-      price: newModulePrice ? parseFloat(newModulePrice) : undefined,
+      price: modulePrice,
+      is_free: formData.is_free || !modulePrice,
       isNew: true,
     };
 
@@ -108,29 +120,24 @@ export default function AdminCategoryCreate() {
 
   const handleRemoveModule = (index: number) => {
     const updatedModules = modules.filter((_, i) => i !== index);
-    // Reorder remaining modules
-    updatedModules.forEach((m, i) => {
-      m.order = i + 1;
-    });
+    updatedModules.forEach((m, i) => { m.order = i + 1; });
     setModules(updatedModules);
+  };
+
+  const handleModuleFreeToggle = (index: number, isFree: boolean) => {
+    setModules(prev => prev.map((m, i) => 
+      i === index ? { ...m, is_free: isFree, price: isFree ? 0 : m.price } : m
+    ));
   };
 
   const handleSave = async () => {
     if (!formData.name.trim()) {
-      toast({
-        title: 'Xatolik',
-        description: 'Kurs nomini kiriting',
-        variant: 'destructive',
-      });
+      toast({ title: 'Xatolik', description: 'Kurs nomini kiriting', variant: 'destructive' });
       return;
     }
 
     if (formData.is_modular && modules.length === 0) {
-      toast({
-        title: 'Xatolik',
-        description: 'Modulli kurs uchun kamida bitta modul qo\'shing',
-        variant: 'destructive',
-      });
+      toast({ title: 'Xatolik', description: 'Modulli kurs uchun kamida bitta modul qo\'shing', variant: 'destructive' });
       return;
     }
 
@@ -141,7 +148,7 @@ export default function AdminCategoryCreate() {
         name: formData.name,
         description: formData.description,
         icon: formData.icon,
-        price: parseInt(formData.price) || 0,
+        price: formData.is_free ? 0 : (parseInt(formData.price) || 0),
         is_modular: formData.is_modular,
         requires_sequential: formData.requires_sequential,
       };
@@ -157,35 +164,26 @@ export default function AdminCategoryCreate() {
         toast({ title: 'Muvaffaqiyat', description: 'Yangi kurs qo\'shildi' });
       }
 
-      // Save modules for modular courses
       if (formData.is_modular && savedCategoryId) {
         for (const module of modules) {
+          const modulePayload = {
+            category: savedCategoryId,
+            name: module.name,
+            description: module.description,
+            order: module.order,
+            price: module.is_free ? 0 : (module.price || null),
+          };
           if (module.isNew) {
-            await modulesApi.create({
-              category: savedCategoryId,
-              name: module.name,
-              description: module.description,
-              order: module.order,
-              price: module.price || null,
-            });
+            await modulesApi.create(modulePayload);
           } else if (module.id) {
-            await modulesApi.update(module.id, {
-              name: module.name,
-              description: module.description,
-              order: module.order,
-              price: module.price || null,
-            });
+            await modulesApi.update(module.id, modulePayload);
           }
         }
       }
 
       navigate('/admin/categories');
     } catch (error) {
-      toast({
-        title: 'Xatolik',
-        description: 'Saqlashda xatolik yuz berdi',
-        variant: 'destructive',
-      });
+      toast({ title: 'Xatolik', description: 'Saqlashda xatolik yuz berdi', variant: 'destructive' });
     } finally {
       setIsLoading(false);
     }
@@ -196,20 +194,14 @@ export default function AdminCategoryCreate() {
       <div className="w-full mx-auto">
         {/* Header */}
         <div className="flex items-center gap-4 mb-8">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => navigate('/admin/categories')}
-          >
+          <Button variant="outline" size="icon" onClick={() => navigate('/admin/categories')}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="animate-fade-in">
             <h1 className="text-2xl lg:text-3xl font-bold text-foreground mb-2">
               {isEditing ? 'Kursni tahrirlash' : 'Yangi kurs yaratish'}
             </h1>
-            <p className="text-muted-foreground">
-              Kurs ma'lumotlarini kiriting
-            </p>
+            <p className="text-muted-foreground">Kurs ma'lumotlarini kiriting</p>
           </div>
         </div>
 
@@ -227,9 +219,7 @@ export default function AdminCategoryCreate() {
                     type="button"
                     onClick={() => setFormData(prev => ({ ...prev, icon }))}
                     className={`h-10 w-10 rounded-lg text-xl flex items-center justify-center transition-all ${
-                      formData.icon === icon
-                        ? 'bg-primary/20 ring-2 ring-primary'
-                        : 'bg-muted hover:bg-muted/80'
+                      formData.icon === icon ? 'bg-primary/20 ring-2 ring-primary' : 'bg-muted hover:bg-muted/80'
                     }`}
                   >
                     {icon}
@@ -259,15 +249,33 @@ export default function AdminCategoryCreate() {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="price">Narxi (so'm)</Label>
-              <Input
-                id="price"
-                type="number"
-                placeholder="150000"
-                value={formData.price}
-                onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
-              />
+            {/* Price section with free toggle */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
+                <div className="space-y-0.5">
+                  <Label>Bepul kurs</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Bepul kursga hamma kirishi mumkin
+                  </p>
+                </div>
+                <Switch
+                  checked={formData.is_free}
+                  onCheckedChange={handleFreeToggle}
+                />
+              </div>
+              
+              {!formData.is_free && (
+                <div className="space-y-2">
+                  <Label htmlFor="price">Narxi (so'm)</Label>
+                  <Input
+                    id="price"
+                    type="number"
+                    placeholder="150000"
+                    value={formData.price}
+                    onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
+                  />
+                </div>
+              )}
             </div>
           </div>
 
@@ -275,7 +283,6 @@ export default function AdminCategoryCreate() {
           <div className="rounded-xl border border-border bg-card p-6 space-y-4">
             <h2 className="text-lg font-semibold text-foreground">Sozlamalar</h2>
 
-            {/* Modular toggle */}
             <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
               <div className="space-y-0.5">
                 <Label className="flex items-center gap-2">
@@ -292,7 +299,6 @@ export default function AdminCategoryCreate() {
               />
             </div>
 
-            {/* Sequential access toggle */}
             <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
               <div className="space-y-0.5">
                 <Label className="flex items-center gap-2">
@@ -312,7 +318,7 @@ export default function AdminCategoryCreate() {
             </div>
           </div>
 
-          {/* Modules Section (only if modular) */}
+          {/* Modules Section */}
           {formData.is_modular && (
             <div className="rounded-xl border border-border bg-card p-6 space-y-4">
               <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
@@ -320,10 +326,11 @@ export default function AdminCategoryCreate() {
                 Modullar
               </h2>
               <p className="text-sm text-muted-foreground">
-                Kurs modullarini qo'shing. Har bir modul alohida sotilishi mumkin.
+                {formData.is_free 
+                  ? "Kurs bepul bo'lgani uchun barcha modullar ham bepul."
+                  : "Kurs modullarini qo'shing. Har bir modul alohida sotilishi mumkin."}
               </p>
 
-              {/* Existing Modules */}
               {modules.length > 0 && (
                 <div className="space-y-2">
                   {modules.map((module, index) => (
@@ -337,12 +344,25 @@ export default function AdminCategoryCreate() {
                         {module.description && (
                           <p className="text-xs text-muted-foreground">{module.description}</p>
                         )}
-                        {module.price && (
-                          <p className="text-xs text-primary mt-1">
-                            {new Intl.NumberFormat('uz-UZ').format(module.price)} so'm
-                          </p>
-                        )}
+                        <p className="text-xs mt-1">
+                          {module.is_free || formData.is_free ? (
+                            <span className="text-green-600 font-medium">Bepul</span>
+                          ) : module.price ? (
+                            <span className="text-primary">{new Intl.NumberFormat('uz-UZ').format(module.price)} so'm</span>
+                          ) : (
+                            <span className="text-muted-foreground">Kurs narxida</span>
+                          )}
+                        </p>
                       </div>
+                      {!formData.is_free && (
+                        <div className="flex items-center gap-2">
+                          <Label className="text-xs text-muted-foreground">Bepul</Label>
+                          <Switch
+                            checked={module.is_free || false}
+                            onCheckedChange={(checked) => handleModuleFreeToggle(index, checked)}
+                          />
+                        </div>
+                      )}
                       <Button
                         variant="ghost"
                         size="icon"
@@ -365,12 +385,14 @@ export default function AdminCategoryCreate() {
                     value={newModuleName}
                     onChange={(e) => setNewModuleName(e.target.value)}
                   />
-                  <Input
-                    type="number"
-                    placeholder="Narxi (ixtiyoriy)"
-                    value={newModulePrice}
-                    onChange={(e) => setNewModulePrice(e.target.value)}
-                  />
+                  {!formData.is_free && (
+                    <Input
+                      type="number"
+                      placeholder="Narxi (ixtiyoriy)"
+                      value={newModulePrice}
+                      onChange={(e) => setNewModulePrice(e.target.value)}
+                    />
+                  )}
                 </div>
                 <Textarea
                   placeholder="Modul tavsifi (ixtiyoriy)"
@@ -378,12 +400,7 @@ export default function AdminCategoryCreate() {
                   onChange={(e) => setNewModuleDescription(e.target.value)}
                   rows={2}
                 />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleAddModule}
-                  className="w-full"
-                >
+                <Button type="button" variant="outline" onClick={handleAddModule} className="w-full">
                   <Plus className="mr-2 h-4 w-4" />
                   Modul qo'shish
                 </Button>

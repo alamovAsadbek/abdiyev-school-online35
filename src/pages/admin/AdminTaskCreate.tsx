@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Plus, Trash2, Save, GripVertical, Upload, FileText } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Save, GripVertical, Upload, FileText, Image as ImageIcon, X, Eye, EyeOff } from 'lucide-react';
 import { DashboardLayout } from '@/layouts/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,6 +24,8 @@ interface TaskQuestion {
   options: string[];
   correct_answer: number;
   order: number;
+  image?: File | null;
+  imagePreview?: string;
 }
 
 interface Video {
@@ -43,7 +45,6 @@ export default function AdminTaskCreate() {
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
 
-  // Get pre-selected values from URL
   const preSelectedCategoryId = searchParams.get('category');
   const preSelectedVideoId = searchParams.get('video');
 
@@ -53,7 +54,10 @@ export default function AdminTaskCreate() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // Form data
+  // Answer file state
+  const [answerFile, setAnswerFile] = useState<File | null>(null);
+  const answerFileRef = useRef<HTMLInputElement>(null);
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -63,19 +67,17 @@ export default function AdminTaskCreate() {
     allow_resubmission: false,
     requires_approval: false,
     questions: [] as TaskQuestion[],
+    has_answer_file: false,
   });
 
   useEffect(() => {
     loadData();
   }, []);
 
-  // Filter videos when category changes
   useEffect(() => {
     if (formData.category_id) {
       const filtered = videos.filter(v => String(v.category) === String(formData.category_id));
       setFilteredVideos(filtered);
-      
-      // Check if current video is in the filtered list
       if (formData.video_id && !filtered.find(v => String(v.id) === String(formData.video_id))) {
         setFormData(prev => ({ ...prev, video_id: '' }));
       }
@@ -97,7 +99,6 @@ export default function AdminTaskCreate() {
       setCategories(Array.isArray(categoriesData) ? categoriesData : []);
       setVideos(Array.isArray(videosData) ? videosData : []);
 
-      // Set pre-selected category if video is provided
       if (preSelectedVideoId && videosData.length > 0) {
         const selectedVideo = videosData.find((v: Video) => String(v.id) === String(preSelectedVideoId));
         if (selectedVideo) {
@@ -124,7 +125,9 @@ export default function AdminTaskCreate() {
         question: '',
         options: ['', '', '', ''],
         correct_answer: 0,
-        order: prev.questions.length + 1
+        order: prev.questions.length + 1,
+        image: null,
+        imagePreview: '',
       }]
     }));
   };
@@ -152,6 +155,31 @@ export default function AdminTaskCreate() {
     }));
   };
 
+  const handleQuestionImageChange = (qIndex: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData(prev => ({
+          ...prev,
+          questions: prev.questions.map((q, i) =>
+            i === qIndex ? { ...q, image: file, imagePreview: reader.result as string } : q
+          )
+        }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeQuestionImage = (qIndex: number) => {
+    setFormData(prev => ({
+      ...prev,
+      questions: prev.questions.map((q, i) =>
+        i === qIndex ? { ...q, image: null, imagePreview: '' } : q
+      )
+    }));
+  };
+
   const handleSave = async () => {
     if (!formData.title.trim()) {
       toast({ title: 'Xatolik', description: 'Sarlavhani kiriting', variant: 'destructive' });
@@ -170,22 +198,60 @@ export default function AdminTaskCreate() {
 
     setSaving(true);
     try {
-      const payload = {
-        title: formData.title,
-        description: formData.description,
-        task_type: formData.task_type,
-        video: formData.video_id,
-        allow_resubmission: formData.allow_resubmission,
-        requires_approval: formData.task_type !== 'test' && formData.requires_approval,
-        questions: formData.task_type === 'test' ? formData.questions.map((q, idx) => ({
-          question: q.question,
-          options: q.options.filter(o => o.trim()),
-          correct_answer: q.correct_answer,
-          order: idx + 1
-        })) : [],
-      };
+      // Use FormData if there are question images or answer file
+      const hasImages = formData.questions.some(q => q.image);
+      
+      if (hasImages || answerFile) {
+        const fd = new FormData();
+        fd.append('title', formData.title);
+        fd.append('description', formData.description);
+        fd.append('task_type', formData.task_type);
+        fd.append('video', formData.video_id);
+        fd.append('allow_resubmission', String(formData.allow_resubmission));
+        fd.append('requires_approval', String(formData.task_type !== 'test' && formData.requires_approval));
+        
+        if (answerFile) {
+          fd.append('answer_file', answerFile);
+        }
+        
+        if (formData.task_type === 'test') {
+          const questionsData = formData.questions.map((q, idx) => ({
+            question: q.question,
+            options: q.options.filter(o => o.trim()),
+            correct_answer: q.correct_answer,
+            order: idx + 1,
+            has_image: !!q.image,
+          }));
+          fd.append('questions', JSON.stringify(questionsData));
+          
+          // Append question images
+          formData.questions.forEach((q, idx) => {
+            if (q.image) {
+              fd.append(`question_image_${idx}`, q.image);
+            }
+          });
+        }
+        
+        await tasksApi.create(fd);
+      } else {
+        const payload = {
+          title: formData.title,
+          description: formData.description,
+          task_type: formData.task_type,
+          video: formData.video_id,
+          allow_resubmission: formData.allow_resubmission,
+          requires_approval: formData.task_type !== 'test' && formData.requires_approval,
+          questions: formData.task_type === 'test' ? formData.questions.map((q, idx) => ({
+            question: q.question,
+            options: q.options.filter(o => o.trim()),
+            correct_answer: q.correct_answer,
+            order: idx + 1
+          })) : [],
+        };
 
-      await tasksApi.create(payload);
+        await tasksApi.create(payload);
+      }
+      
       toast({ title: 'Muvaffaqiyat', description: 'Vazifa yaratildi' });
       navigate('/admin/tasks');
     } catch (error) {
@@ -266,7 +332,7 @@ export default function AdminTaskCreate() {
             </div>
           </div>
 
-          {/* Course and Video Selection - Cascading */}
+          {/* Course and Video Selection */}
           <div className="rounded-xl border border-border bg-card p-6 space-y-4">
             <h2 className="text-lg font-semibold mb-4">Dars tanlash</h2>
 
@@ -341,6 +407,66 @@ export default function AdminTaskCreate() {
             )}
           </div>
 
+          {/* Answer File Section */}
+          <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold">Savol-javob fayli</h2>
+                <p className="text-sm text-muted-foreground">
+                  Vazifa bajarilgandan keyin o'quvchiga ko'rsatiladigan javoblar fayli. Yuklab olish va skrinshot qilish mumkin emas.
+                </p>
+              </div>
+              <Switch
+                checked={formData.has_answer_file}
+                onCheckedChange={(checked) => setFormData(prev => ({ ...prev, has_answer_file: checked }))}
+              />
+            </div>
+
+            {formData.has_answer_file && (
+              <div className="space-y-3">
+                <input
+                  ref={answerFileRef}
+                  type="file"
+                  accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) setAnswerFile(file);
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => answerFileRef.current?.click()}
+                >
+                  <Upload className="mr-2 h-4 w-4" />
+                  {answerFile ? answerFile.name : 'Javob faylini tanlang (PDF, Word, Rasm)'}
+                </Button>
+                {answerFile && (
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted">
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm">{answerFile.name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        ({Math.round(answerFile.size / 1024)}KB)
+                      </span>
+                    </div>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setAnswerFile(null)}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+                <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800">
+                  <p className="text-xs text-amber-700 dark:text-amber-400 flex items-center gap-2">
+                    <EyeOff className="h-4 w-4 flex-shrink-0" />
+                    Bu fayl faqat vazifani bajargandan keyin ko'rsatiladi. O'quvchi uni yuklab ololmaydi va skrinshot qila olmaydi.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Questions for Test type */}
           {formData.task_type === 'test' && (
             <div className="rounded-xl border border-border bg-card p-6 space-y-4">
@@ -388,6 +514,50 @@ export default function AdminTaskCreate() {
                         />
                       </div>
 
+                      {/* Question Image Upload */}
+                      <div className="space-y-2">
+                        <Label className="flex items-center gap-2">
+                          <ImageIcon className="h-4 w-4" />
+                          Savol rasmi (ixtiyoriy)
+                        </Label>
+                        {question.imagePreview ? (
+                          <div className="relative max-w-sm">
+                            <img
+                              src={question.imagePreview}
+                              alt={`Savol ${qIndex + 1} rasmi`}
+                              className="w-full rounded-lg border border-border"
+                            />
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="absolute top-2 right-2 bg-background/80 hover:bg-background h-8 w-8"
+                              onClick={() => removeQuestionImage(qIndex)}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <div>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              id={`q-image-${qIndex}`}
+                              onChange={(e) => handleQuestionImageChange(qIndex, e)}
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => document.getElementById(`q-image-${qIndex}`)?.click()}
+                            >
+                              <ImageIcon className="mr-2 h-4 w-4" />
+                              Rasm yuklash
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+
                       <div className="grid grid-cols-2 gap-3">
                         {question.options.map((opt, oIndex) => (
                           <div key={oIndex} className="flex items-center gap-2">
@@ -415,7 +585,7 @@ export default function AdminTaskCreate() {
             </div>
           )}
 
-          {/* File/Text task content - Full editor for admin */}
+          {/* File/Text task content */}
           {formData.task_type !== 'test' && (
             <div className="rounded-xl border border-border bg-card p-6 space-y-4">
               <div className="flex items-center gap-4 mb-4">
@@ -442,7 +612,6 @@ export default function AdminTaskCreate() {
                 )}
               </div>
               
-              {/* Admin can write instructions using rich text editor */}
               <div className="space-y-2">
                 <Label>Vazifa ko'rsatmalari (ixtiyoriy)</Label>
                 <p className="text-xs text-muted-foreground mb-2">

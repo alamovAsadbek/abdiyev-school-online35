@@ -1,6 +1,6 @@
 import {useState, useEffect} from 'react';
 import {useNavigate} from 'react-router-dom';
-import {Search, Lock, ShoppingCart, Gift} from 'lucide-react';
+import {Search, Lock, ShoppingCart, Gift, LayoutGrid, Table2} from 'lucide-react';
 import {DashboardLayout} from '@/layouts/DashboardLayout';
 import {demoCategories, getUserCourses, Category, formatCurrency} from '@/data/demoData';
 import {useAuth} from '@/contexts/AuthContext';
@@ -8,8 +8,11 @@ import {Input} from '@/components/ui/input';
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select';
 import {Dialog, DialogContent, DialogHeader, DialogTitle} from '@/components/ui/dialog';
 import {Button} from '@/components/ui/button';
+import {DataTable, Column} from '@/components/DataTable';
 import {categoriesApi, userCoursesApi} from '@/services/api';
 import {useToast} from '@/hooks/use-toast';
+
+type ViewMode = 'card' | 'table';
 
 export default function StudentCourses() {
     const navigate = useNavigate();
@@ -22,12 +25,10 @@ export default function StudentCourses() {
     const [accessibleCourseIds, setAccessibleCourseIds] = useState<string[]>([]);
     const [courseGrantedBy, setCourseGrantedBy] = useState<Record<string, string>>({});
     const [isLoading, setIsLoading] = useState(true);
-
-
+    const [viewMode, setViewMode] = useState<ViewMode>('card');
 
     const loadData = async () => {
         try {
-            // Try to load from API first
             const [categoriesData, userCoursesData] = await Promise.all([
                 categoriesApi.getAll().catch(() => null),
                 userCoursesApi.getMyCourses().catch(() => null)
@@ -51,7 +52,6 @@ export default function StudentCourses() {
                 setCourseGrantedBy(map);
                 setAccessibleCourseIds(Object.keys(map));
             } else if (user) {
-                // Fallback to demo data
                 const userCourses = getUserCourses(user.id);
                 const map: Record<string, string> = {};
                 userCourses.forEach((uc) => {
@@ -62,7 +62,6 @@ export default function StudentCourses() {
             }
         } catch (error) {
             console.error('Error loading data:', error);
-            // Fallback to demo data
             if (user) {
                 const userCourses = getUserCourses(user.id);
                 const map: Record<string, string> = {};
@@ -77,9 +76,7 @@ export default function StudentCourses() {
         }
     };
 
-    // Filter categories
     const filteredCategories = categories?.filter(category => {
-        // Hide inactive courses
         if ((category as any).is_active === false) return false;
         
         const matchesSearch =
@@ -90,18 +87,20 @@ export default function StudentCourses() {
 
         if (filterAccess === 'accessible') return matchesSearch && hasAccess;
         if (filterAccess === 'locked') return matchesSearch && !hasAccess;
+        if (filterAccess === 'free') return matchesSearch && Number((category as any).price ?? 0) === 0;
 
         return matchesSearch;
     }) ?? [];
 
-
     const handleCourseClick = (categoryId: string) => {
         const id = String(categoryId);
         const hasAccess = accessibleCourseIds.includes(id);
-        if (hasAccess) {
+        const course = categories?.find((c) => String((c as any).id) === id);
+        const isFree = Number((course as any)?.price ?? 0) === 0;
+        
+        if (hasAccess || isFree) {
             navigate(`/student/category/${id}`);
         } else {
-            const course = categories?.find((c) => String((c as any).id) === id);
             setSelectedCourse(course || null);
         }
     };
@@ -109,7 +108,6 @@ export default function StudentCourses() {
     const handlePurchase = () => {
         if (!selectedCourse) return;
         
-        // Add to cart
         const savedCart = localStorage.getItem('course_cart');
         const cart = savedCart ? JSON.parse(savedCart) : [];
         
@@ -128,11 +126,72 @@ export default function StudentCourses() {
         navigate('/student/checkout');
     };
 
-
     useEffect(() => {
         loadData();
     }, [user]);
 
+    // DataTable columns for courses
+    const courseColumns: Column<any>[] = [
+        {
+            key: 'name',
+            header: 'Kurs',
+            render: (course) => {
+                const categoryId = String(course.id);
+                const hasAccess = accessibleCourseIds.includes(categoryId);
+                const grantedBy = courseGrantedBy[categoryId];
+                const isGifted = hasAccess && grantedBy === 'gift';
+                return (
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-xl">
+                            {course.icon}
+                        </div>
+                        <div>
+                            <p className="font-medium text-card-foreground">{course.name}</p>
+                            <p className="text-xs text-muted-foreground line-clamp-1">{course.description || ''}</p>
+                        </div>
+                        {isGifted && <Gift className="h-4 w-4 text-accent" />}
+                        {!hasAccess && <Lock className="h-4 w-4 text-muted-foreground" />}
+                    </div>
+                );
+            },
+        },
+        {
+            key: 'video_count',
+            header: 'Videolar',
+            render: (course) => `${course.videoCount ?? course.video_count ?? 0} ta`,
+        },
+        {
+            key: 'price',
+            header: 'Narxi',
+            sortable: true,
+            render: (course) => {
+                const categoryId = String(course.id);
+                const hasAccess = accessibleCourseIds.includes(categoryId);
+                const price = Number(course.price ?? 0);
+                return (
+                    <span className={`font-semibold ${hasAccess ? 'text-green-600' : price === 0 ? 'text-green-600' : 'text-primary'}`}>
+                        {hasAccess ? 'Ochiq' : price === 0 ? 'Bepul' : formatCurrency(price)}
+                    </span>
+                );
+            },
+        },
+        {
+            key: 'status',
+            header: 'Holat',
+            render: (course) => {
+                const categoryId = String(course.id);
+                const hasAccess = accessibleCourseIds.includes(categoryId);
+                const price = Number(course.price ?? 0);
+                if (hasAccess) {
+                    return <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">Ochiq</span>;
+                }
+                if (price === 0) {
+                    return <span className="px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">Bepul</span>;
+                }
+                return <span className="px-2 py-1 rounded-full text-xs bg-muted text-muted-foreground">Yopiq</span>;
+            },
+        },
+    ];
 
     return (
         <DashboardLayout>
@@ -164,78 +223,110 @@ export default function StudentCourses() {
                         <SelectItem value="all">Barcha kurslar</SelectItem>
                         <SelectItem value="accessible">Ochiq kurslar</SelectItem>
                         <SelectItem value="locked">Yopiq kurslar</SelectItem>
+                        <SelectItem value="free">Bepul kurslar</SelectItem>
                     </SelectContent>
                 </Select>
+                {/* View Toggle */}
+                <div className="flex items-center gap-2">
+                    <Button
+                        variant={viewMode === 'card' ? 'default' : 'outline'}
+                        size="icon"
+                        onClick={() => setViewMode('card')}
+                        className={viewMode === 'card' ? 'gradient-primary text-primary-foreground' : ''}
+                    >
+                        <LayoutGrid className="h-4 w-4" />
+                    </Button>
+                    <Button
+                        variant={viewMode === 'table' ? 'default' : 'outline'}
+                        size="icon"
+                        onClick={() => setViewMode('table')}
+                        className={viewMode === 'table' ? 'gradient-primary text-primary-foreground' : ''}
+                    >
+                        <Table2 className="h-4 w-4" />
+                    </Button>
+                </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-                {filteredCategories.map((category, index) => {
-                    const categoryId = String((category as any).id);
-                    const hasAccess = accessibleCourseIds.includes(categoryId);
-                    const grantedBy = courseGrantedBy[categoryId];
-                    const isGifted = hasAccess && grantedBy === 'gift';
+            {viewMode === 'card' ? (
+                <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                        {filteredCategories.map((category, index) => {
+                            const categoryId = String((category as any).id);
+                            const hasAccess = accessibleCourseIds.includes(categoryId);
+                            const grantedBy = courseGrantedBy[categoryId];
+                            const isGifted = hasAccess && grantedBy === 'gift';
 
-                    const videoCount = (category as any).videoCount ?? (category as any).video_count ?? 0;
-                    const price = Number((category as any).price ?? 0);
+                            const videoCount = (category as any).videoCount ?? (category as any).video_count ?? 0;
+                            const price = Number((category as any).price ?? 0);
+                            const isFree = price === 0;
 
-                    return (
-                        <div
-                            key={categoryId}
-                            className="animate-fade-in relative"
-                            style={{animationDelay: `${0.1 + index * 0.05}s`}}
-                        >
-                            {/* Course Card */}
-                            <div
-                                onClick={() => handleCourseClick(categoryId)}
-                                className={`rounded-xl border bg-card p-5 cursor-pointer transition-all hover:shadow-lg ${hasAccess ? 'border-border hover:border-primary/50' : 'border-border/50'
-                                }`}
-                            >
-                                {/* Icon and Lock/Gift Badge */}
-                                <div className="flex items-start justify-between mb-4">
+                            return (
+                                <div
+                                    key={categoryId}
+                                    className="animate-fade-in relative"
+                                    style={{animationDelay: `${0.1 + index * 0.05}s`}}
+                                >
                                     <div
-                                        className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-2xl">
-                                        {(category as any).icon}
+                                        onClick={() => handleCourseClick(categoryId)}
+                                        className={`rounded-xl border bg-card p-5 cursor-pointer transition-all hover:shadow-lg ${hasAccess || isFree ? 'border-border hover:border-primary/50' : 'border-border/50'}`}
+                                    >
+                                        <div className="flex items-start justify-between mb-4">
+                                            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-2xl">
+                                                {(category as any).icon}
+                                            </div>
+
+                                            {!hasAccess && !isFree ? (
+                                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
+                                                    <Lock className="h-4 w-4 text-muted-foreground"/>
+                                                </div>
+                                            ) : isGifted ? (
+                                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent/10 text-accent">
+                                                    <Gift className="h-4 w-4"/>
+                                                </div>
+                                            ) : isFree && !hasAccess ? (
+                                                <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 font-medium">Bepul</span>
+                                            ) : null}
+                                        </div>
+
+                                        <h3 className="font-semibold text-card-foreground mb-2 line-clamp-1">
+                                            {(category as any).name}
+                                        </h3>
+                                        <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
+                                            {(category as any).description || ''}
+                                        </p>
+
+                                        <div className="flex items-center justify-between pt-3 border-t border-border">
+                                            <span className={`text-lg font-bold ${hasAccess ? 'text-green-600' : isFree ? 'text-green-600' : 'text-primary'}`}>
+                                                {hasAccess ? 'Ochiq' : isFree ? 'Bepul' : formatCurrency(price)}
+                                            </span>
+                                            <span className="text-xs text-muted-foreground">
+                                                {videoCount} ta video
+                                            </span>
+                                        </div>
                                     </div>
-
-                                    {!hasAccess ? (
-                                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
-                                            <Lock className="h-4 w-4 text-muted-foreground"/>
-                                        </div>
-                                    ) : isGifted ? (
-                                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent/10 text-accent">
-                                            <Gift className="h-4 w-4"/>
-                                        </div>
-                                    ) : null}
                                 </div>
+                            );
+                        })}
+                    </div>
 
-                                {/* Course Info */}
-                                <h3 className="font-semibold text-card-foreground mb-2 line-clamp-1">
-                                    {(category as any).name}
-                                </h3>
-                                <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
-                                    {(category as any).description || ''}
-                                </p>
-
-                                {/* Price and Status */}
-                                <div className="flex items-center justify-between pt-3 border-t border-border">
-                  <span className={`text-lg font-bold ${hasAccess ? 'text-success' : 'text-primary'}`}>
-                    {hasAccess ? 'Ochiq' : formatCurrency(price)}
-                  </span>
-                                    <span className="text-xs text-muted-foreground">
-                    {videoCount} ta video
-                  </span>
-                                </div>
-                            </div>
+                    {filteredCategories.length === 0 && (
+                        <div className="flex flex-col items-center justify-center min-h-[300px] text-center">
+                            <p className="text-muted-foreground">
+                                {search || filterAccess !== 'all' ? "Hech qanday kurs topilmadi" : "Hali kurslar yo'q"}
+                            </p>
                         </div>
-                    );
-                })}
-            </div>
-
-            {filteredCategories.length === 0 && (
-                <div className="flex flex-col items-center justify-center min-h-[300px] text-center">
-                    <p className="text-muted-foreground">
-                        {search || filterAccess !== 'all' ? "Hech qanday kurs topilmadi" : "Hali kurslar yo'q"}
-                    </p>
+                    )}
+                </>
+            ) : (
+                <div className="animate-fade-in">
+                    <DataTable
+                        data={filteredCategories.map(c => ({ ...c, id: String((c as any).id) }))}
+                        columns={courseColumns}
+                        searchPlaceholder="Kurs qidirish..."
+                        searchKeys={['name', 'description']}
+                        onRowClick={(course) => handleCourseClick(String(course.id))}
+                        emptyMessage={search || filterAccess !== 'all' ? "Hech qanday kurs topilmadi" : "Hali kurslar yo'q"}
+                    />
                 </div>
             )}
 
@@ -269,8 +360,8 @@ export default function StudentCourses() {
                             <p className="text-sm text-muted-foreground flex items-start gap-2">
                                 <Lock className="h-4 w-4 mt-0.5 flex-shrink-0"/>
                                 <span>
-                  Bu kursga kirish uchun sotib olish kerak. Sotib olganingizdan so'ng barcha video darslar va materiallar ochiladi.
-                </span>
+                                    Bu kursga kirish uchun sotib olish kerak. Sotib olganingizdan so'ng barcha video darslar va materiallar ochiladi.
+                                </span>
                             </p>
                         </div>
                     </div>
