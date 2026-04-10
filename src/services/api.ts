@@ -136,7 +136,8 @@ export const tasksApi = {
     return api.get(`/tasks/by_video/?video_id=${videoId}`);
   },
   create: async (data: any) => {
-    return api.post('/tasks/', data);
+    const isFormData = data instanceof FormData;
+    return api.post('/tasks/', data, isFormData);
   },
   update: async (id: string, data: any) => {
     return api.put(`/tasks/${id}/`, data);
