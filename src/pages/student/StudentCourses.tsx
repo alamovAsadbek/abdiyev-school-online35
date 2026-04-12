@@ -1,6 +1,6 @@
 import {useState, useEffect} from 'react';
 import {useNavigate} from 'react-router-dom';
-import {Search, Lock, ShoppingCart, Gift, LayoutGrid, Table2} from 'lucide-react';
+import {Search, Lock, ShoppingCart, Gift, LayoutGrid, Table2, ArrowUpDown} from 'lucide-react';
 import {DashboardLayout} from '@/layouts/DashboardLayout';
 import {demoCategories, getUserCourses, Category, formatCurrency} from '@/data/demoData';
 import {useAuth} from '@/contexts/AuthContext';
@@ -20,6 +20,7 @@ export default function StudentCourses() {
     const {toast} = useToast();
     const [search, setSearch] = useState('');
     const [filterAccess, setFilterAccess] = useState<string>('all');
+    const [sortOrder, setSortOrder] = useState<string>('default');
     const [selectedCourse, setSelectedCourse] = useState<Category | null>(null);
     const [categories, setCategories] = useState<Category[]>();
     const [accessibleCourseIds, setAccessibleCourseIds] = useState<string[]>([]);
@@ -76,7 +77,7 @@ export default function StudentCourses() {
         }
     };
 
-    const filteredCategories = categories?.filter(category => {
+    const filteredCategories = (categories?.filter(category => {
         if ((category as any).is_active === false) return false;
         
         const matchesSearch =
@@ -90,7 +91,18 @@ export default function StudentCourses() {
         if (filterAccess === 'free') return matchesSearch && Number((category as any).price ?? 0) === 0;
 
         return matchesSearch;
-    }) ?? [];
+    }) ?? []).sort((a, b) => {
+        if (sortOrder === 'newest') {
+            return ((b as any).id || 0) - ((a as any).id || 0);
+        }
+        if (sortOrder === 'price-low') {
+            return Number((a as any).price ?? 0) - Number((b as any).price ?? 0);
+        }
+        if (sortOrder === 'price-high') {
+            return Number((b as any).price ?? 0) - Number((a as any).price ?? 0);
+        }
+        return 0;
+    });
 
     const handleCourseClick = (categoryId: string) => {
         const id = String(categoryId);
@@ -224,6 +236,18 @@ export default function StudentCourses() {
                         <SelectItem value="accessible">Ochiq kurslar</SelectItem>
                         <SelectItem value="locked">Yopiq kurslar</SelectItem>
                         <SelectItem value="free">Bepul kurslar</SelectItem>
+                    </SelectContent>
+                </Select>
+                <Select value={sortOrder} onValueChange={setSortOrder}>
+                    <SelectTrigger className="w-[180px]">
+                        <ArrowUpDown className="mr-2 h-4 w-4" />
+                        <SelectValue placeholder="Saralash"/>
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="default">Standart</SelectItem>
+                        <SelectItem value="newest">Eng yangi</SelectItem>
+                        <SelectItem value="price-low">Narx: past→yuqori</SelectItem>
+                        <SelectItem value="price-high">Narx: yuqori→past</SelectItem>
                     </SelectContent>
                 </Select>
                 {/* View Toggle */}
