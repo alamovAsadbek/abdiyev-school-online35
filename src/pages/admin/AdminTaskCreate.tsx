@@ -225,6 +225,7 @@ export default function AdminTaskCreate() {
             correct_answer: q.correct_answer,
             order: idx + 1,
             has_image: !!q.image,
+            description: q.explanation || '',
           }));
           fd.append('questions', JSON.stringify(questionsData));
           
