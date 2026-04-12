@@ -26,6 +26,8 @@ interface TaskQuestion {
   order: number;
   image?: File | null;
   imagePreview?: string;
+  explanation?: string;
+  showExplanation?: boolean;
 }
 
 interface Video {
@@ -128,6 +130,8 @@ export default function AdminTaskCreate() {
         order: prev.questions.length + 1,
         image: null,
         imagePreview: '',
+        explanation: '',
+        showExplanation: false,
       }]
     }));
   };
@@ -221,6 +225,7 @@ export default function AdminTaskCreate() {
             correct_answer: q.correct_answer,
             order: idx + 1,
             has_image: !!q.image,
+            description: q.explanation || '',
           }));
           fd.append('questions', JSON.stringify(questionsData));
           
@@ -245,7 +250,8 @@ export default function AdminTaskCreate() {
             question: q.question,
             options: q.options.filter(o => o.trim()),
             correct_answer: q.correct_answer,
-            order: idx + 1
+            order: idx + 1,
+            description: q.explanation || '',
           })) : [],
         };
 
@@ -555,6 +561,24 @@ export default function AdminTaskCreate() {
                               Rasm yuklash
                             </Button>
                           </div>
+                        )}
+                      </div>
+
+                      {/* Per-question explanation */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-sm">Savol tushuntirishi (ixtiyoriy)</Label>
+                          <Switch
+                            checked={question.showExplanation || false}
+                            onCheckedChange={(checked) => updateQuestion(qIndex, 'showExplanation', checked)}
+                          />
+                        </div>
+                        {question.showExplanation && (
+                          <RichTextEditor
+                            value={question.explanation || ''}
+                            onChange={(val) => updateQuestion(qIndex, 'explanation', val)}
+                            placeholder="Savol uchun qo'shimcha tushuntirish yozing..."
+                          />
                         )}
                       </div>
 

@@ -125,9 +125,29 @@ export default function StudentVideoView() {
                         return String(courseCategory) === String(videoData.category);
                     }
                 );
-                setHasAccess(hasAccessToCourse);
 
-                if (!hasAccessToCourse) {
+                // Also check if the course is free (price = 0)
+                let isFree = false;
+                try {
+                    const categoryData = await categoriesApi.getById(String(videoData.category));
+                    isFree = Number(categoryData?.price ?? 0) === 0;
+                    
+                    // Also check if video's module is free
+                    if (!isFree && videoData.module && categoryData?.is_modular) {
+                        try {
+                            const modulesData = await import('@/services/api').then(m => m.modulesApi.getByCategory(String(videoData.category)));
+                            const modulesList = modulesData?.results || modulesData || [];
+                            const videoModule = modulesList.find((m: any) => String(m.id) === String(videoData.module));
+                            if (videoModule && Number(videoModule.price ?? 0) === 0) {
+                                isFree = true;
+                            }
+                        } catch {}
+                    }
+                } catch {}
+
+                setHasAccess(hasAccessToCourse || isFree);
+
+                if (!hasAccessToCourse && !isFree) {
                     setLoading(false);
                     return;
                 }

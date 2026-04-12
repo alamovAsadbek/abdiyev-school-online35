@@ -119,6 +119,7 @@ class Task(models.Model):
 class TaskQuestion(models.Model):
     task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='questions')
     question = models.TextField()
+    description = models.TextField(blank=True, null=True)  # Per-question explanation/description
     image = models.ImageField(upload_to='question_images/', blank=True, null=True)  # Per-question image
     options = models.JSONField()
     correct_answer = models.IntegerField()

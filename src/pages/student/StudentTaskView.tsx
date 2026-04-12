@@ -541,10 +541,25 @@ export default function StudentTaskView() {
                         className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary font-semibold text-sm">
                       {qIndex + 1}
                     </span>
-                                        <div
-                                            className="font-medium text-card-foreground pt-1 prose prose-sm dark:prose-invert max-w-none"
-                                            dangerouslySetInnerHTML={{__html: question.question}}
-                                        />
+                                        <div className="flex-1">
+                                            <div
+                                                className="font-medium text-card-foreground pt-1 prose prose-sm dark:prose-invert max-w-none"
+                                                dangerouslySetInnerHTML={{__html: question.question}}
+                                            />
+                                            {(question as any).image && (
+                                                <img
+                                                    src={(question as any).image}
+                                                    alt={`Savol ${qIndex + 1} rasmi`}
+                                                    className="mt-3 max-w-md rounded-lg border border-border"
+                                                />
+                                            )}
+                                            {(question as any).description && (
+                                                <div
+                                                    className="mt-3 text-sm text-muted-foreground prose prose-sm dark:prose-invert max-w-none"
+                                                    dangerouslySetInnerHTML={{__html: (question as any).description}}
+                                                />
+                                            )}
+                                        </div>
                                     </div>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 ml-11">
