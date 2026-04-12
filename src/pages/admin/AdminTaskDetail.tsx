@@ -35,6 +35,8 @@ interface TaskQuestion {
     options: string[];
     correct_answer: number;
     order: number;
+    image?: string;
+    description?: string;
 }
 
 interface Task {
@@ -102,7 +104,9 @@ export default function AdminTaskDetail() {
                     question: q.question,
                     options: [...q.options],
                     correct_answer: q.correct_answer,
-                    order: idx + 1
+                    order: idx + 1,
+                    image: q.image || '',
+                    description: q.description || '',
                 })) || [],
             });
         } catch (error) {
