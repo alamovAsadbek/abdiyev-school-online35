@@ -562,6 +562,24 @@ export default function AdminTaskCreate() {
                         )}
                       </div>
 
+                      {/* Per-question explanation */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-sm">Savol tushuntirishi (ixtiyoriy)</Label>
+                          <Switch
+                            checked={question.showExplanation || false}
+                            onCheckedChange={(checked) => updateQuestion(qIndex, 'showExplanation', checked)}
+                          />
+                        </div>
+                        {question.showExplanation && (
+                          <RichTextEditor
+                            value={question.explanation || ''}
+                            onChange={(val) => updateQuestion(qIndex, 'explanation', val)}
+                            placeholder="Savol uchun qo'shimcha tushuntirish yozing..."
+                          />
+                        )}
+                      </div>
+
                       <div className="grid grid-cols-2 gap-3">
                         {question.options.map((opt, oIndex) => (
                           <div key={oIndex} className="flex items-center gap-2">
