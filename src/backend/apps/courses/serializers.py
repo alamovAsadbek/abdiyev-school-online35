@@ -34,7 +34,7 @@ class CategorySerializer(serializers.ModelSerializer):
 class TaskQuestionSerializer(serializers.ModelSerializer):
     class Meta:
         model = TaskQuestion
-        fields = ['id', 'question', 'options', 'correct_answer', 'order']
+        fields = ['id', 'question', 'description', 'image', 'options', 'correct_answer', 'order']
 
 
 class TaskSerializer(serializers.ModelSerializer):
