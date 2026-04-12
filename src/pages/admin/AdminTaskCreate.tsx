@@ -250,7 +250,8 @@ export default function AdminTaskCreate() {
             question: q.question,
             options: q.options.filter(o => o.trim()),
             correct_answer: q.correct_answer,
-            order: idx + 1
+            order: idx + 1,
+            description: q.explanation || '',
           })) : [],
         };
 
