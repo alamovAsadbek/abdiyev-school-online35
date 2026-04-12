@@ -26,6 +26,8 @@ interface TaskQuestion {
   order: number;
   image?: File | null;
   imagePreview?: string;
+  explanation?: string;
+  showExplanation?: boolean;
 }
 
 interface Video {
@@ -128,6 +130,8 @@ export default function AdminTaskCreate() {
         order: prev.questions.length + 1,
         image: null,
         imagePreview: '',
+        explanation: '',
+        showExplanation: false,
       }]
     }));
   };
