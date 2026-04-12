@@ -131,6 +131,9 @@ export default function StudentCategoryView() {
         // Free course: all modules accessible
         if (Number(category?.price ?? 0) === 0) return true;
         if (accessibleModuleIds.includes('all')) return true;
+        // Check if this specific module is free
+        const module = modules.find(m => String(m.id) === String(moduleId));
+        if (module && Number(module.price ?? 0) === 0) return true;
         if (accessibleModuleIds.length === 0) return false;
         return accessibleModuleIds.includes(String(moduleId));
     };
