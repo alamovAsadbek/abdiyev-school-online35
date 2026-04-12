@@ -408,6 +408,29 @@ export default function AdminTaskDetail() {
                                             />
                                         </div>
 
+                                        {/* Show existing image */}
+                                        {question.image && (
+                                            <div className="space-y-1">
+                                                <Label className="text-sm">Savol rasmi</Label>
+                                                <img
+                                                    src={question.image}
+                                                    alt={`Savol ${qIndex + 1} rasmi`}
+                                                    className="max-w-sm rounded-lg border border-border"
+                                                />
+                                            </div>
+                                        )}
+
+                                        {/* Show description/explanation */}
+                                        {question.description && (
+                                            <div className="space-y-1">
+                                                <Label className="text-sm">Tushuntirish</Label>
+                                                <div
+                                                    className="text-sm text-muted-foreground p-3 rounded-lg bg-muted/50 prose prose-sm dark:prose-invert max-w-none"
+                                                    dangerouslySetInnerHTML={{__html: question.description}}
+                                                />
+                                            </div>
+                                        )}
+
                                         <div className="grid grid-cols-2 gap-3">
                                             {question.options.map((opt, oIndex) => (
                                                 <div key={oIndex} className="flex items-center gap-2">
