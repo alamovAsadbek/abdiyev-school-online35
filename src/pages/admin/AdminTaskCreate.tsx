@@ -210,6 +210,11 @@ export default function AdminTaskCreate() {
   };
 
   const handleSave = async () => {
+    if (existingTask) {
+      toast({ title: 'Xatolik', description: 'Bu darsga avval vazifa yuklangan. Avval mavjud vazifani o\'chiring', variant: 'destructive' });
+      return;
+    }
+
     if (!formData.title.trim()) {
       toast({ title: 'Xatolik', description: 'Sarlavhani kiriting', variant: 'destructive' });
       return;
