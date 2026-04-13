@@ -35,6 +35,8 @@ interface TaskQuestion {
     imagePreview?: string;
     options: string[];
     correctAnswer: number;
+    showExplanation?: boolean;
+    optionExplanations?: string[];
 }
 
 export default function AdminVideoAddWithTask() {
@@ -73,6 +75,9 @@ export default function AdminVideoAddWithTask() {
         allowResubmission: true,
     });
     const [taskFile, setTaskFile] = useState<File | null>(null);
+    const [answerFile, setAnswerFile] = useState<File | null>(null);
+    const [hasAnswerFile, setHasAnswerFile] = useState(false);
+    const answerFileRef = useRef<HTMLInputElement>(null);
     const [questions, setQuestions] = useState<TaskQuestion[]>([]);
 
     const [categories, setCategories] = useState<any[]>([]);
@@ -288,22 +293,58 @@ export default function AdminVideoAddWithTask() {
 
         setIsLoading(true);
         try {
-            const payload: any = {
-                title: taskData.title,
-                description: taskData.description,
-                video: createdVideoId,
-                allow_resubmission: taskData.allowResubmission,
-            };
-            if (taskType === 'test') {
-                payload.questions = questions.map((q, idx) => ({
-                    question: q.question,
-                    options: q.options.filter(o => o.trim()),
-                    correct_answer: q.correctAnswer,
-                    order: idx + 1,
-                }));
+            const hasImages = questions.some(q => q.image);
+            
+            if (hasImages || answerFile) {
+                const fd = new FormData();
+                fd.append('title', taskData.title);
+                fd.append('description', taskData.description);
+                fd.append('video', createdVideoId!);
+                fd.append('task_type', taskType);
+                fd.append('allow_resubmission', String(taskData.allowResubmission));
+                
+                if (answerFile) {
+                    fd.append('answer_file', answerFile);
+                }
+                
+                if (taskType === 'test') {
+                    const questionsData = questions.map((q, idx) => ({
+                        question: q.question,
+                        options: q.options.filter(o => o.trim()),
+                        correct_answer: q.correctAnswer,
+                        order: idx + 1,
+                        has_image: !!q.image,
+                        option_explanations: q.optionExplanations || [],
+                    }));
+                    fd.append('questions', JSON.stringify(questionsData));
+                    
+                    questions.forEach((q, idx) => {
+                        if (q.image) {
+                            fd.append(`question_image_${idx}`, q.image);
+                        }
+                    });
+                }
+                
+                await tasksApi.create(fd);
+            } else {
+                const payload: any = {
+                    title: taskData.title,
+                    description: taskData.description,
+                    video: createdVideoId,
+                    task_type: taskType,
+                    allow_resubmission: taskData.allowResubmission,
+                };
+                if (taskType === 'test') {
+                    payload.questions = questions.map((q, idx) => ({
+                        question: q.question,
+                        options: q.options.filter(o => o.trim()),
+                        correct_answer: q.correctAnswer,
+                        order: idx + 1,
+                        option_explanations: q.optionExplanations || [],
+                    }));
+                }
+                await tasksApi.create(payload);
             }
-
-            await tasksApi.create(payload);
             toast({title: 'Muvaffaqiyat', description: 'Vazifa qo\'shildi'});
             navigate('/admin/videos');
         } catch (error: any) {
@@ -589,6 +630,42 @@ export default function AdminVideoAddWithTask() {
                             </div>
                         )}
 
+                        {/* Answer File Section */}
+                        {taskType !== 'none' && (
+                            <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <h2 className="text-lg font-semibold">Savol-javob fayli</h2>
+                                        <p className="text-sm text-muted-foreground">
+                                            Vazifa bajarilgandan keyin o'quvchiga ko'rsatiladigan javoblar fayli
+                                        </p>
+                                    </div>
+                                    <Switch checked={hasAnswerFile} onCheckedChange={setHasAnswerFile} />
+                                </div>
+                                {hasAnswerFile && (
+                                    <div className="space-y-3">
+                                        <input ref={answerFileRef} type="file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" className="hidden"
+                                            onChange={(e) => { const file = e.target.files?.[0]; if (file) setAnswerFile(file); }} />
+                                        <Button type="button" variant="outline" className="w-full" onClick={() => answerFileRef.current?.click()}>
+                                            <Upload className="mr-2 h-4 w-4" />
+                                            {answerFile ? answerFile.name : 'Javob faylini tanlang'}
+                                        </Button>
+                                        {answerFile && (
+                                            <div className="flex items-center justify-between p-3 rounded-lg bg-muted">
+                                                <div className="flex items-center gap-2">
+                                                    <FileText className="h-4 w-4 text-muted-foreground" />
+                                                    <span className="text-sm">{answerFile.name}</span>
+                                                </div>
+                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setAnswerFile(null)}>
+                                                    <X className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
                         {/* File Upload Section */}
                         {taskType === 'file' && (
                             <div className="rounded-xl border border-border bg-card p-6 space-y-4">
@@ -714,25 +791,51 @@ export default function AdminVideoAddWithTask() {
                                                 </div>
                                             </div>
 
+                                            {/* Per-answer explanation toggle */}
+                                            <div className="space-y-2">
+                                                <div className="flex items-center justify-between">
+                                                    <Label className="text-sm">Javob tushuntirishi (ixtiyoriy)</Label>
+                                                    <Switch checked={q.showExplanation || false}
+                                                            onCheckedChange={(checked) => updateQuestion(qIndex, 'showExplanation', checked)} />
+                                                </div>
+                                            </div>
+
                                             {/* Options */}
                                             <div className="space-y-2">
                                                 <Label>Javob variantlari (to'g'ri javobni belgilang)</Label>
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                <div className="space-y-3">
                                                     {q.options.map((opt, oIndex) => (
-                                                        <div key={oIndex} className="flex items-center gap-2">
-                                                            <input
-                                                                type="radio"
-                                                                name={`correct-${qIndex}`}
-                                                                checked={q.correctAnswer === oIndex}
-                                                                onChange={() => updateQuestion(qIndex, 'correctAnswer', oIndex)}
-                                                                className="accent-primary h-4 w-4"
-                                                            />
-                                                            <Input
-                                                                placeholder={`Variant ${String.fromCharCode(65 + oIndex)}`}
-                                                                value={opt}
-                                                                onChange={(e) => updateOption(qIndex, oIndex, e.target.value)}
-                                                                className={q.correctAnswer === oIndex ? 'border-success' : ''}
-                                                            />
+                                                        <div key={oIndex} className="space-y-1">
+                                                            <div className="flex items-center gap-2">
+                                                                <input
+                                                                    type="radio"
+                                                                    name={`correct-${qIndex}`}
+                                                                    checked={q.correctAnswer === oIndex}
+                                                                    onChange={() => updateQuestion(qIndex, 'correctAnswer', oIndex)}
+                                                                    className="accent-primary h-4 w-4"
+                                                                />
+                                                                <Input
+                                                                    placeholder={`Variant ${String.fromCharCode(65 + oIndex)}`}
+                                                                    value={opt}
+                                                                    onChange={(e) => updateOption(qIndex, oIndex, e.target.value)}
+                                                                    className={q.correctAnswer === oIndex ? 'border-success' : ''}
+                                                                />
+                                                            </div>
+                                                            {q.showExplanation && (
+                                                                <div className="ml-6">
+                                                                    <Textarea
+                                                                        placeholder={`${String.fromCharCode(65 + oIndex)} varianti uchun tushuntirish...`}
+                                                                        value={q.optionExplanations?.[oIndex] || ''}
+                                                                        onChange={(e) => {
+                                                                            const explanations = [...(q.optionExplanations || ['', '', '', ''])];
+                                                                            explanations[oIndex] = e.target.value;
+                                                                            updateQuestion(qIndex, 'optionExplanations', explanations);
+                                                                        }}
+                                                                        rows={2}
+                                                                        className="text-sm"
+                                                                    />
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     ))}
                                                 </div>

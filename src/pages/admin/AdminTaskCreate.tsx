@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Plus, Trash2, Save, GripVertical, Upload, FileText, Image as ImageIcon, X, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Save, GripVertical, Upload, FileText, Image as ImageIcon, X, Eye, EyeOff, AlertTriangle } from 'lucide-react';
 import { DashboardLayout } from '@/layouts/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,6 +28,7 @@ interface TaskQuestion {
   imagePreview?: string;
   explanation?: string;
   showExplanation?: boolean;
+  optionExplanations?: string[];
 }
 
 interface Video {
@@ -60,6 +61,10 @@ export default function AdminTaskCreate() {
   const [answerFile, setAnswerFile] = useState<File | null>(null);
   const answerFileRef = useRef<HTMLInputElement>(null);
 
+  // Existing task on selected video
+  const [existingTask, setExistingTask] = useState<any>(null);
+  const [checkingTask, setCheckingTask] = useState(false);
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -87,6 +92,26 @@ export default function AdminTaskCreate() {
       setFilteredVideos(videos);
     }
   }, [formData.category_id, videos]);
+
+  // Check if selected video already has a task
+  useEffect(() => {
+    if (formData.video_id) {
+      setCheckingTask(true);
+      tasksApi.getByVideo(formData.video_id)
+        .then(data => {
+          const task = Array.isArray(data) ? data[0] : (data?.results?.[0] || data);
+          if (task && task.id) {
+            setExistingTask(task);
+          } else {
+            setExistingTask(null);
+          }
+        })
+        .catch(() => setExistingTask(null))
+        .finally(() => setCheckingTask(false));
+    } else {
+      setExistingTask(null);
+    }
+  }, [formData.video_id]);
 
   const loadData = async () => {
     try {
@@ -185,6 +210,11 @@ export default function AdminTaskCreate() {
   };
 
   const handleSave = async () => {
+    if (existingTask) {
+      toast({ title: 'Xatolik', description: 'Bu darsga avval vazifa yuklangan. Avval mavjud vazifani o\'chiring', variant: 'destructive' });
+      return;
+    }
+
     if (!formData.title.trim()) {
       toast({ title: 'Xatolik', description: 'Sarlavhani kiriting', variant: 'destructive' });
       return;
@@ -226,6 +256,7 @@ export default function AdminTaskCreate() {
             order: idx + 1,
             has_image: !!q.image,
             description: q.explanation || '',
+            option_explanations: q.optionExplanations || [],
           }));
           fd.append('questions', JSON.stringify(questionsData));
           
@@ -252,6 +283,7 @@ export default function AdminTaskCreate() {
             correct_answer: q.correct_answer,
             order: idx + 1,
             description: q.explanation || '',
+            option_explanations: q.optionExplanations || [],
           })) : [],
         };
 
@@ -383,6 +415,67 @@ export default function AdminTaskCreate() {
               </div>
             </div>
           </div>
+
+          {/* Existing task warning */}
+          {checkingTask && formData.video_id && (
+            <div className="flex items-center gap-2 p-4 rounded-lg bg-muted">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary" />
+              <span className="text-sm text-muted-foreground">Tekshirilmoqda...</span>
+            </div>
+          )}
+          {existingTask && (
+            <div className="rounded-xl border-2 border-destructive/50 bg-destructive/5 p-5 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-destructive/10">
+                  <AlertTriangle className="h-5 w-5 text-destructive" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-foreground">Bu darsga avval vazifa yuklangan!</h3>
+                  <p className="text-sm text-muted-foreground">Yangi vazifa yaratish uchun avval mavjud vazifani o'chiring</p>
+                </div>
+              </div>
+              <div className="rounded-lg border border-border bg-card p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-foreground">{existingTask.title}</span>
+                  <span className="px-2 py-1 rounded-full text-xs bg-muted text-muted-foreground">
+                    {existingTask.task_type === 'test' ? 'Test' : existingTask.task_type === 'file' ? 'Fayl' : 'Matn'}
+                  </span>
+                </div>
+                {existingTask.description && (
+                  <p className="text-sm text-muted-foreground line-clamp-2">{existingTask.description?.replace(/<[^>]+>/g, '')}</p>
+                )}
+                {existingTask.questions?.length > 0 && (
+                  <p className="text-xs text-muted-foreground">{existingTask.questions.length} ta savol</p>
+                )}
+                <div className="flex gap-2 pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate(`/admin/tasks/${existingTask.id}`)}
+                  >
+                    <Eye className="mr-1 h-4 w-4" /> Ko'rish
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={async () => {
+                      if (confirm('Bu vazifani o\'chirishni xohlaysizmi?')) {
+                        try {
+                          await tasksApi.delete(existingTask.id);
+                          setExistingTask(null);
+                          toast({ title: 'Muvaffaqiyat', description: 'Vazifa o\'chirildi' });
+                        } catch {
+                          toast({ title: 'Xatolik', description: 'O\'chirishda xatolik', variant: 'destructive' });
+                        }
+                      }
+                    }}
+                  >
+                    <Trash2 className="mr-1 h-4 w-4" /> O'chirish
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Settings */}
           <div className="rounded-xl border border-border bg-card p-6 space-y-4">
@@ -564,40 +657,53 @@ export default function AdminTaskCreate() {
                         )}
                       </div>
 
-                      {/* Per-question explanation */}
+                      {/* Per-answer explanation toggle */}
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <Label className="text-sm">Savol tushuntirishi (ixtiyoriy)</Label>
+                          <Label className="text-sm">Javob tushuntirishi (ixtiyoriy)</Label>
                           <Switch
                             checked={question.showExplanation || false}
                             onCheckedChange={(checked) => updateQuestion(qIndex, 'showExplanation', checked)}
                           />
                         </div>
                         {question.showExplanation && (
-                          <RichTextEditor
-                            value={question.explanation || ''}
-                            onChange={(val) => updateQuestion(qIndex, 'explanation', val)}
-                            placeholder="Savol uchun qo'shimcha tushuntirish yozing..."
-                          />
+                          <p className="text-xs text-muted-foreground">Har bitta javob varianti uchun tushuntirish yozing</p>
                         )}
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-3">
                         {question.options.map((opt, oIndex) => (
-                          <div key={oIndex} className="flex items-center gap-2">
-                            <input
-                              type="radio"
-                              name={`correct-${qIndex}`}
-                              checked={question.correct_answer === oIndex}
-                              onChange={() => updateQuestion(qIndex, 'correct_answer', oIndex)}
-                              className="accent-primary"
-                            />
-                            <Input
-                              placeholder={`Variant ${String.fromCharCode(65 + oIndex)}`}
-                              value={opt}
-                              onChange={(e) => updateOption(qIndex, oIndex, e.target.value)}
-                              className="flex-1"
-                            />
+                          <div key={oIndex} className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="radio"
+                                name={`correct-${qIndex}`}
+                                checked={question.correct_answer === oIndex}
+                                onChange={() => updateQuestion(qIndex, 'correct_answer', oIndex)}
+                                className="accent-primary"
+                              />
+                              <Input
+                                placeholder={`Variant ${String.fromCharCode(65 + oIndex)}`}
+                                value={opt}
+                                onChange={(e) => updateOption(qIndex, oIndex, e.target.value)}
+                                className="flex-1"
+                              />
+                            </div>
+                            {question.showExplanation && (
+                              <div className="ml-6">
+                                <Textarea
+                                  placeholder={`${String.fromCharCode(65 + oIndex)} varianti uchun tushuntirish...`}
+                                  value={(question as any).optionExplanations?.[oIndex] || ''}
+                                  onChange={(e) => {
+                                    const explanations = [...((question as any).optionExplanations || ['', '', '', ''])];
+                                    explanations[oIndex] = e.target.value;
+                                    updateQuestion(qIndex, 'optionExplanations' as any, explanations);
+                                  }}
+                                  rows={2}
+                                  className="text-sm"
+                                />
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
