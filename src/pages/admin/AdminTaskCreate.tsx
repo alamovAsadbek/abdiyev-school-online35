@@ -409,6 +409,67 @@ export default function AdminTaskCreate() {
             </div>
           </div>
 
+          {/* Existing task warning */}
+          {checkingTask && formData.video_id && (
+            <div className="flex items-center gap-2 p-4 rounded-lg bg-muted">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary" />
+              <span className="text-sm text-muted-foreground">Tekshirilmoqda...</span>
+            </div>
+          )}
+          {existingTask && (
+            <div className="rounded-xl border-2 border-destructive/50 bg-destructive/5 p-5 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-destructive/10">
+                  <AlertTriangle className="h-5 w-5 text-destructive" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-foreground">Bu darsga avval vazifa yuklangan!</h3>
+                  <p className="text-sm text-muted-foreground">Yangi vazifa yaratish uchun avval mavjud vazifani o'chiring</p>
+                </div>
+              </div>
+              <div className="rounded-lg border border-border bg-card p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-foreground">{existingTask.title}</span>
+                  <span className="px-2 py-1 rounded-full text-xs bg-muted text-muted-foreground">
+                    {existingTask.task_type === 'test' ? 'Test' : existingTask.task_type === 'file' ? 'Fayl' : 'Matn'}
+                  </span>
+                </div>
+                {existingTask.description && (
+                  <p className="text-sm text-muted-foreground line-clamp-2">{existingTask.description?.replace(/<[^>]+>/g, '')}</p>
+                )}
+                {existingTask.questions?.length > 0 && (
+                  <p className="text-xs text-muted-foreground">{existingTask.questions.length} ta savol</p>
+                )}
+                <div className="flex gap-2 pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate(`/admin/tasks/${existingTask.id}`)}
+                  >
+                    <Eye className="mr-1 h-4 w-4" /> Ko'rish
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={async () => {
+                      if (confirm('Bu vazifani o\'chirishni xohlaysizmi?')) {
+                        try {
+                          await tasksApi.delete(existingTask.id);
+                          setExistingTask(null);
+                          toast({ title: 'Muvaffaqiyat', description: 'Vazifa o\'chirildi' });
+                        } catch {
+                          toast({ title: 'Xatolik', description: 'O\'chirishda xatolik', variant: 'destructive' });
+                        }
+                      }
+                    }}
+                  >
+                    <Trash2 className="mr-1 h-4 w-4" /> O'chirish
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Settings */}
           <div className="rounded-xl border border-border bg-card p-6 space-y-4">
             <h2 className="text-lg font-semibold mb-4">Sozlamalar</h2>
