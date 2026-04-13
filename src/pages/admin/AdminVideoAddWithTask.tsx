@@ -630,6 +630,42 @@ export default function AdminVideoAddWithTask() {
                             </div>
                         )}
 
+                        {/* Answer File Section */}
+                        {taskType !== 'none' && (
+                            <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <h2 className="text-lg font-semibold">Savol-javob fayli</h2>
+                                        <p className="text-sm text-muted-foreground">
+                                            Vazifa bajarilgandan keyin o'quvchiga ko'rsatiladigan javoblar fayli
+                                        </p>
+                                    </div>
+                                    <Switch checked={hasAnswerFile} onCheckedChange={setHasAnswerFile} />
+                                </div>
+                                {hasAnswerFile && (
+                                    <div className="space-y-3">
+                                        <input ref={answerFileRef} type="file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" className="hidden"
+                                            onChange={(e) => { const file = e.target.files?.[0]; if (file) setAnswerFile(file); }} />
+                                        <Button type="button" variant="outline" className="w-full" onClick={() => answerFileRef.current?.click()}>
+                                            <Upload className="mr-2 h-4 w-4" />
+                                            {answerFile ? answerFile.name : 'Javob faylini tanlang'}
+                                        </Button>
+                                        {answerFile && (
+                                            <div className="flex items-center justify-between p-3 rounded-lg bg-muted">
+                                                <div className="flex items-center gap-2">
+                                                    <FileText className="h-4 w-4 text-muted-foreground" />
+                                                    <span className="text-sm">{answerFile.name}</span>
+                                                </div>
+                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setAnswerFile(null)}>
+                                                    <X className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
                         {/* File Upload Section */}
                         {taskType === 'file' && (
                             <div className="rounded-xl border border-border bg-card p-6 space-y-4">
