@@ -716,25 +716,51 @@ export default function AdminVideoAddWithTask() {
                                                 </div>
                                             </div>
 
+                                            {/* Per-answer explanation toggle */}
+                                            <div className="space-y-2">
+                                                <div className="flex items-center justify-between">
+                                                    <Label className="text-sm">Javob tushuntirishi (ixtiyoriy)</Label>
+                                                    <Switch checked={q.showExplanation || false}
+                                                            onCheckedChange={(checked) => updateQuestion(qIndex, 'showExplanation', checked)} />
+                                                </div>
+                                            </div>
+
                                             {/* Options */}
                                             <div className="space-y-2">
                                                 <Label>Javob variantlari (to'g'ri javobni belgilang)</Label>
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                <div className="space-y-3">
                                                     {q.options.map((opt, oIndex) => (
-                                                        <div key={oIndex} className="flex items-center gap-2">
-                                                            <input
-                                                                type="radio"
-                                                                name={`correct-${qIndex}`}
-                                                                checked={q.correctAnswer === oIndex}
-                                                                onChange={() => updateQuestion(qIndex, 'correctAnswer', oIndex)}
-                                                                className="accent-primary h-4 w-4"
-                                                            />
-                                                            <Input
-                                                                placeholder={`Variant ${String.fromCharCode(65 + oIndex)}`}
-                                                                value={opt}
-                                                                onChange={(e) => updateOption(qIndex, oIndex, e.target.value)}
-                                                                className={q.correctAnswer === oIndex ? 'border-success' : ''}
-                                                            />
+                                                        <div key={oIndex} className="space-y-1">
+                                                            <div className="flex items-center gap-2">
+                                                                <input
+                                                                    type="radio"
+                                                                    name={`correct-${qIndex}`}
+                                                                    checked={q.correctAnswer === oIndex}
+                                                                    onChange={() => updateQuestion(qIndex, 'correctAnswer', oIndex)}
+                                                                    className="accent-primary h-4 w-4"
+                                                                />
+                                                                <Input
+                                                                    placeholder={`Variant ${String.fromCharCode(65 + oIndex)}`}
+                                                                    value={opt}
+                                                                    onChange={(e) => updateOption(qIndex, oIndex, e.target.value)}
+                                                                    className={q.correctAnswer === oIndex ? 'border-success' : ''}
+                                                                />
+                                                            </div>
+                                                            {q.showExplanation && (
+                                                                <div className="ml-6">
+                                                                    <Textarea
+                                                                        placeholder={`${String.fromCharCode(65 + oIndex)} varianti uchun tushuntirish...`}
+                                                                        value={q.optionExplanations?.[oIndex] || ''}
+                                                                        onChange={(e) => {
+                                                                            const explanations = [...(q.optionExplanations || ['', '', '', ''])];
+                                                                            explanations[oIndex] = e.target.value;
+                                                                            updateQuestion(qIndex, 'optionExplanations', explanations);
+                                                                        }}
+                                                                        rows={2}
+                                                                        className="text-sm"
+                                                                    />
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     ))}
                                                 </div>
