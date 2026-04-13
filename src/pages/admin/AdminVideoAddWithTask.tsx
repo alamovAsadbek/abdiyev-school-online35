@@ -290,22 +290,58 @@ export default function AdminVideoAddWithTask() {
 
         setIsLoading(true);
         try {
-            const payload: any = {
-                title: taskData.title,
-                description: taskData.description,
-                video: createdVideoId,
-                allow_resubmission: taskData.allowResubmission,
-            };
-            if (taskType === 'test') {
-                payload.questions = questions.map((q, idx) => ({
-                    question: q.question,
-                    options: q.options.filter(o => o.trim()),
-                    correct_answer: q.correctAnswer,
-                    order: idx + 1,
-                }));
+            const hasImages = questions.some(q => q.image);
+            
+            if (hasImages || answerFile) {
+                const fd = new FormData();
+                fd.append('title', taskData.title);
+                fd.append('description', taskData.description);
+                fd.append('video', createdVideoId!);
+                fd.append('task_type', taskType);
+                fd.append('allow_resubmission', String(taskData.allowResubmission));
+                
+                if (answerFile) {
+                    fd.append('answer_file', answerFile);
+                }
+                
+                if (taskType === 'test') {
+                    const questionsData = questions.map((q, idx) => ({
+                        question: q.question,
+                        options: q.options.filter(o => o.trim()),
+                        correct_answer: q.correctAnswer,
+                        order: idx + 1,
+                        has_image: !!q.image,
+                        option_explanations: q.optionExplanations || [],
+                    }));
+                    fd.append('questions', JSON.stringify(questionsData));
+                    
+                    questions.forEach((q, idx) => {
+                        if (q.image) {
+                            fd.append(`question_image_${idx}`, q.image);
+                        }
+                    });
+                }
+                
+                await tasksApi.create(fd);
+            } else {
+                const payload: any = {
+                    title: taskData.title,
+                    description: taskData.description,
+                    video: createdVideoId,
+                    task_type: taskType,
+                    allow_resubmission: taskData.allowResubmission,
+                };
+                if (taskType === 'test') {
+                    payload.questions = questions.map((q, idx) => ({
+                        question: q.question,
+                        options: q.options.filter(o => o.trim()),
+                        correct_answer: q.correctAnswer,
+                        order: idx + 1,
+                        option_explanations: q.optionExplanations || [],
+                    }));
+                }
+                await tasksApi.create(payload);
             }
-
-            await tasksApi.create(payload);
             toast({title: 'Muvaffaqiyat', description: 'Vazifa qo\'shildi'});
             navigate('/admin/videos');
         } catch (error: any) {
