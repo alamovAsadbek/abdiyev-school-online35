@@ -602,22 +602,39 @@ export default function AdminTaskCreate() {
                         )}
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-3">
                         {question.options.map((opt, oIndex) => (
-                          <div key={oIndex} className="flex items-center gap-2">
-                            <input
-                              type="radio"
-                              name={`correct-${qIndex}`}
-                              checked={question.correct_answer === oIndex}
-                              onChange={() => updateQuestion(qIndex, 'correct_answer', oIndex)}
-                              className="accent-primary"
-                            />
-                            <Input
-                              placeholder={`Variant ${String.fromCharCode(65 + oIndex)}`}
-                              value={opt}
-                              onChange={(e) => updateOption(qIndex, oIndex, e.target.value)}
-                              className="flex-1"
-                            />
+                          <div key={oIndex} className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="radio"
+                                name={`correct-${qIndex}`}
+                                checked={question.correct_answer === oIndex}
+                                onChange={() => updateQuestion(qIndex, 'correct_answer', oIndex)}
+                                className="accent-primary"
+                              />
+                              <Input
+                                placeholder={`Variant ${String.fromCharCode(65 + oIndex)}`}
+                                value={opt}
+                                onChange={(e) => updateOption(qIndex, oIndex, e.target.value)}
+                                className="flex-1"
+                              />
+                            </div>
+                            {question.showExplanation && (
+                              <div className="ml-6">
+                                <Textarea
+                                  placeholder={`${String.fromCharCode(65 + oIndex)} varianti uchun tushuntirish...`}
+                                  value={(question as any).optionExplanations?.[oIndex] || ''}
+                                  onChange={(e) => {
+                                    const explanations = [...((question as any).optionExplanations || ['', '', '', ''])];
+                                    explanations[oIndex] = e.target.value;
+                                    updateQuestion(qIndex, 'optionExplanations' as any, explanations);
+                                  }}
+                                  rows={2}
+                                  className="text-sm"
+                                />
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
