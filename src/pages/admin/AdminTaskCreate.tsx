@@ -60,6 +60,10 @@ export default function AdminTaskCreate() {
   const [answerFile, setAnswerFile] = useState<File | null>(null);
   const answerFileRef = useRef<HTMLInputElement>(null);
 
+  // Existing task on selected video
+  const [existingTask, setExistingTask] = useState<any>(null);
+  const [checkingTask, setCheckingTask] = useState(false);
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -87,6 +91,26 @@ export default function AdminTaskCreate() {
       setFilteredVideos(videos);
     }
   }, [formData.category_id, videos]);
+
+  // Check if selected video already has a task
+  useEffect(() => {
+    if (formData.video_id) {
+      setCheckingTask(true);
+      tasksApi.getByVideo(formData.video_id)
+        .then(data => {
+          const task = Array.isArray(data) ? data[0] : (data?.results?.[0] || data);
+          if (task && task.id) {
+            setExistingTask(task);
+          } else {
+            setExistingTask(null);
+          }
+        })
+        .catch(() => setExistingTask(null))
+        .finally(() => setCheckingTask(false));
+    } else {
+      setExistingTask(null);
+    }
+  }, [formData.video_id]);
 
   const loadData = async () => {
     try {
