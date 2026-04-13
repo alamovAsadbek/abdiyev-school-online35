@@ -28,6 +28,7 @@ interface TaskQuestion {
   imagePreview?: string;
   explanation?: string;
   showExplanation?: boolean;
+  optionExplanations?: string[];
 }
 
 interface Video {
