@@ -35,6 +35,8 @@ interface TaskQuestion {
     imagePreview?: string;
     options: string[];
     correctAnswer: number;
+    showExplanation?: boolean;
+    optionExplanations?: string[];
 }
 
 export default function AdminVideoAddWithTask() {
