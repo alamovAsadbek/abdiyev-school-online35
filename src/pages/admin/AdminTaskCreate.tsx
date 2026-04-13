@@ -256,6 +256,7 @@ export default function AdminTaskCreate() {
             order: idx + 1,
             has_image: !!q.image,
             description: q.explanation || '',
+            option_explanations: q.optionExplanations || [],
           }));
           fd.append('questions', JSON.stringify(questionsData));
           
