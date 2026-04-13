@@ -283,6 +283,7 @@ export default function AdminTaskCreate() {
             correct_answer: q.correct_answer,
             order: idx + 1,
             description: q.explanation || '',
+            option_explanations: q.optionExplanations || [],
           })) : [],
         };
 
