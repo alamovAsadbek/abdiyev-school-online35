@@ -588,21 +588,17 @@ export default function AdminTaskCreate() {
                         )}
                       </div>
 
-                      {/* Per-question explanation */}
+                      {/* Per-answer explanation toggle */}
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <Label className="text-sm">Savol tushuntirishi (ixtiyoriy)</Label>
+                          <Label className="text-sm">Javob tushuntirishi (ixtiyoriy)</Label>
                           <Switch
                             checked={question.showExplanation || false}
                             onCheckedChange={(checked) => updateQuestion(qIndex, 'showExplanation', checked)}
                           />
                         </div>
                         {question.showExplanation && (
-                          <RichTextEditor
-                            value={question.explanation || ''}
-                            onChange={(val) => updateQuestion(qIndex, 'explanation', val)}
-                            placeholder="Savol uchun qo'shimcha tushuntirish yozing..."
-                          />
+                          <p className="text-xs text-muted-foreground">Har bitta javob varianti uchun tushuntirish yozing</p>
                         )}
                       </div>
 
