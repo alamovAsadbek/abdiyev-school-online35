@@ -75,6 +75,9 @@ export default function AdminVideoAddWithTask() {
         allowResubmission: true,
     });
     const [taskFile, setTaskFile] = useState<File | null>(null);
+    const [answerFile, setAnswerFile] = useState<File | null>(null);
+    const [hasAnswerFile, setHasAnswerFile] = useState(false);
+    const answerFileRef = useRef<HTMLInputElement>(null);
     const [questions, setQuestions] = useState<TaskQuestion[]>([]);
 
     const [categories, setCategories] = useState<any[]>([]);
