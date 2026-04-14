@@ -10,25 +10,44 @@ import {Separator} from '@/components/ui/separator';
 import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs';
 import {User, Mail, Phone, Calendar, Save, X, CreditCard, Clock, Key} from 'lucide-react';
 import {toast} from 'sonner';
-import {getUserPayments, formatCurrency, getDaysUntilExpiry, Payment} from '@/data/demoData';
 import {cn, formatDate} from '@/lib/utils';
 import {DataTable, Column} from '@/components/DataTable';
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select';
+import {paymentsApi} from '@/services/api';
+
+interface Payment {
+    id: string;
+    amount: number;
+    description: string;
+    status: string;
+    created_at: string;
+    expires_at: string;
+    category?: { id: string; name: string };
+}
 
 export default function StudentProfile() {
     const {user, updateProfile} = useAuth();
     const navigate = useNavigate();
     const [isEditing, setIsEditing] = useState(false);
     const [dateFilter, setDateFilter] = useState<string>('all');
-
-    // Parse name into first and last name
-    const nameParts = user?.name.split(' ') || [];
-    const initialFirstName = nameParts[0] || '';
-    const initialLastName = nameParts.slice(1).join(' ') || '';
+    const [payments, setPayments] = useState<Payment[]>([]);
+    const [loadingPayments, setLoadingPayments] = useState(true);
 
     useEffect(() => {
-        console.log(user)
-    }, [user]);
+        fetchPayments();
+    }, []);
+
+    const fetchPayments = async () => {
+        try {
+            const res = await paymentsApi.getMyPayments();
+            const data = res?.results || res || [];
+            setPayments(Array.isArray(data) ? data : []);
+        } catch (error) {
+            console.error('Failed to fetch payments:', error);
+        } finally {
+            setLoadingPayments(false);
+        }
+    };
 
     const [formData, setFormData] = useState({
         firstName: user.first_name,
@@ -37,26 +56,29 @@ export default function StudentProfile() {
         phone: user.phone,
     });
 
-    // Get user payments
-    const allPayments = user ? getUserPayments(user.id).sort((a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    ) : [];
+    const formatCurrency = (amount: number) => {
+        return new Intl.NumberFormat('uz-UZ').format(amount) + ' so\'m';
+    };
+
+    const getDaysUntilExpiry = (expiresAt: string) => {
+        const today = new Date();
+        const expiry = new Date(expiresAt);
+        const diff = expiry.getTime() - today.getTime();
+        return Math.ceil(diff / (1000 * 60 * 60 * 24));
+    };
 
     // Filter payments by date
-    const userPayments = allPayments.filter(payment => {
+    const userPayments = payments.filter(payment => {
         if (dateFilter === 'all') return true;
-        const paymentDate = new Date(payment.createdAt);
+        const paymentDate = new Date(payment.created_at);
         const now = new Date();
 
         if (dateFilter === '7days') {
-            const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-            return paymentDate >= sevenDaysAgo;
+            return paymentDate >= new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
         } else if (dateFilter === '30days') {
-            const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-            return paymentDate >= thirtyDaysAgo;
+            return paymentDate >= new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
         } else if (dateFilter === '90days') {
-            const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-            return paymentDate >= ninetyDaysAgo;
+            return paymentDate >= new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
         }
         return true;
     });
@@ -99,13 +121,13 @@ export default function StudentProfile() {
         {
             key: 'description',
             header: 'Tavsif',
-            render: (payment) => payment.description || '—',
+            render: (payment) => payment.description || payment.category?.name || '—',
         },
         {
             key: 'status',
             header: 'Holat',
             render: (payment) => {
-                const daysLeft = payment.status === 'active' ? getDaysUntilExpiry(payment.expiresAt) : 0;
+                const daysLeft = payment.status === 'active' ? getDaysUntilExpiry(payment.expires_at) : 0;
                 return (
                     <div>
             <span className={cn(
@@ -126,27 +148,27 @@ export default function StudentProfile() {
             },
         },
         {
-            key: 'createdAt',
+            key: 'created_at',
             header: 'Qabul qilingan',
             sortable: true,
             render: (payment) => (
                 <div className="text-sm">
                     <div className="flex items-center gap-1 text-muted-foreground">
                         <Calendar className="h-3 w-3"/>
-                        {formatDate(payment.createdAt)}
+                        {formatDate(payment.created_at)}
                     </div>
                 </div>
             ),
         },
         {
-            key: 'expiresAt',
+            key: 'expires_at',
             header: 'Tugash sanasi',
             sortable: true,
             render: (payment) => (
                 <div className="text-sm">
                     <div className="flex items-center gap-1 text-muted-foreground">
                         <Clock className="h-3 w-3"/>
-                        {formatDate(payment.expiresAt)}
+                        {formatDate(payment.expires_at)}
                     </div>
                 </div>
             ),

@@ -205,6 +205,13 @@ class TaskViewSet(viewsets.ModelViewSet):
         questions_data = data.pop('questions', [])
         task_type = data.get('task_type', 'test')
 
+        # Parse questions if sent as JSON string (FormData case)
+        if isinstance(questions_data, str):
+            try:
+                questions_data = json.loads(questions_data)
+            except (json.JSONDecodeError, TypeError):
+                questions_data = []
+
         # Set requires_approval for file/text tasks
         if task_type in ['file', 'text']:
             data['requires_approval'] = True
@@ -215,12 +222,24 @@ class TaskViewSet(viewsets.ModelViewSet):
 
         # Create questions if provided
         for idx, q_data in enumerate(questions_data):
+            if isinstance(q_data, str):
+                try:
+                    q_data = json.loads(q_data)
+                except (json.JSONDecodeError, TypeError):
+                    continue
+
+            # Handle question image from FormData
+            image_key = f'question_image_{idx}'
+            question_image = request.FILES.get(image_key)
+
             TaskQuestion.objects.create(
                 task=task,
                 question=q_data.get('question', ''),
                 options=q_data.get('options', []),
                 correct_answer=q_data.get('correct_answer', 0),
-                order=idx + 1
+                order=idx + 1,
+                description=q_data.get('description', ''),
+                image=question_image,
             )
 
         # Refresh to include questions
@@ -233,6 +252,13 @@ class TaskViewSet(viewsets.ModelViewSet):
         data = request.data.copy()
         questions_data = data.pop('questions', None)
 
+        # Parse questions if sent as JSON string (FormData case)
+        if isinstance(questions_data, str):
+            try:
+                questions_data = json.loads(questions_data)
+            except (json.JSONDecodeError, TypeError):
+                questions_data = None
+
         serializer = self.get_serializer(instance, data=data, partial=True)
         serializer.is_valid(raise_exception=True)
         task = serializer.save()
@@ -242,12 +268,23 @@ class TaskViewSet(viewsets.ModelViewSet):
             # Delete existing questions and recreate
             task.questions.all().delete()
             for idx, q_data in enumerate(questions_data):
+                if isinstance(q_data, str):
+                    try:
+                        q_data = json.loads(q_data)
+                    except (json.JSONDecodeError, TypeError):
+                        continue
+
+                image_key = f'question_image_{idx}'
+                question_image = request.FILES.get(image_key)
+
                 TaskQuestion.objects.create(
                     task=task,
                     question=q_data.get('question', ''),
                     options=q_data.get('options', []),
                     correct_answer=q_data.get('correct_answer', 0),
-                    order=idx + 1
+                    order=idx + 1,
+                    description=q_data.get('description', ''),
+                    image=question_image,
                 )
 
         task.refresh_from_db()
