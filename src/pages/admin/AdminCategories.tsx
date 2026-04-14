@@ -2,9 +2,8 @@ import {useState, useEffect} from 'react';
 import {useNavigate} from 'react-router-dom';
 import {Plus, Pencil, Trash2, Video, Layers, Filter} from 'lucide-react';
 import {DashboardLayout} from '@/layouts/DashboardLayout';
-import {DataTable, Column} from '@/components/DataTable';
+import {DataTable, Column, Filter as FilterType} from '@/components/DataTable';
 import {Button} from '@/components/ui/button';
-import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select';
 import {useToast} from '@/hooks/use-toast';
 import {ConfirmDialog} from '@/components/ConfirmDialog';
 import {categoriesApi} from '@/services/api';
@@ -32,14 +31,11 @@ interface Category {
     created_at: string;
 }
 
-const iconOptions = ['⚗️', '🧪', '🔬', '📊', '🧬', '⚛️', '🔥', '💧'];
-
 export default function AdminCategories() {
     const navigate = useNavigate();
     const [categories, setCategories] = useState<Category[]>([]);
     const [loading, setLoading] = useState(true);
     const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
-    const [filterType, setFilterType] = useState<string>('all');
     const {toast} = useToast();
 
     useEffect(() => {
@@ -81,7 +77,6 @@ export default function AdminCategories() {
         }
     };
 
-
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat('uz-UZ').format(amount) + ' so\'m';
     };
@@ -117,7 +112,11 @@ export default function AdminCategories() {
             key: 'price',
             header: 'Narxi',
             sortable: true,
-            render: (category) => formatCurrency(category.price),
+            render: (category) => (
+                <span className={category.price === 0 ? 'text-green-600 font-medium' : ''}>
+                    {category.price === 0 ? 'Bepul' : formatCurrency(category.price)}
+                </span>
+            ),
         },
         {
             key: 'is_modular',
@@ -188,6 +187,41 @@ export default function AdminCategories() {
         },
     ];
 
+    const filters: FilterType[] = [
+        {
+            key: 'is_modular',
+            label: 'Turi',
+            options: [
+                { value: 'true', label: 'Modulli' },
+                { value: 'false', label: 'Oddiy' },
+            ],
+        },
+        {
+            key: 'is_active',
+            label: 'Holat',
+            options: [
+                { value: 'true', label: 'Faol' },
+                { value: 'false', label: "To'xtatilgan" },
+            ],
+        },
+        {
+            key: 'price_type',
+            label: 'Narxi',
+            options: [
+                { value: 'free', label: 'Bepul' },
+                { value: 'paid', label: 'Pullik' },
+            ],
+        },
+    ];
+
+    // Pre-process data for filtering (convert booleans to strings for DataTable filter matching)
+    const processedCategories = categories.map(c => ({
+        ...c,
+        is_modular: c.is_modular,
+        is_active: c.is_active !== false,
+        price_type: c.price === 0 ? 'free' : 'paid',
+    }));
+
     return (
         <DashboardLayout>
             {/* Header */}
@@ -206,37 +240,15 @@ export default function AdminCategories() {
                 </Button>
             </div>
 
-            {/* Filter */}
-            <div className="flex gap-3 mb-6">
-                <Select value={filterType} onValueChange={setFilterType}>
-                    <SelectTrigger className="w-[200px]">
-                        <Filter className="h-4 w-4 mr-2" />
-                        <SelectValue placeholder="Turi bo'yicha" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">Barchasi</SelectItem>
-                        <SelectItem value="modular">Modulli</SelectItem>
-                        <SelectItem value="simple">Oddiy</SelectItem>
-                        <SelectItem value="active">Faol</SelectItem>
-                        <SelectItem value="inactive">To'xtatilgan</SelectItem>
-                    </SelectContent>
-                </Select>
-            </div>
-
             {/* Data Table */}
             <div className="animate-fade-in" style={{animationDelay: '0.1s'}}>
                 <DataTable
-                    data={categories.filter(c => {
-                        if (filterType === 'modular') return c.is_modular;
-                        if (filterType === 'simple') return !c.is_modular;
-                        if (filterType === 'active') return c.is_active !== false;
-                        if (filterType === 'inactive') return c.is_active === false;
-                        return true;
-                    })}
-                    columns={columns}
+                    data={processedCategories}
+                    columns={columns as any}
+                    filters={filters}
                     searchPlaceholder="Kategoriya nomi bo'yicha qidirish..."
                     searchKeys={['name', 'description']}
-                    onRowClick={(category) => navigate(`/admin/categories/${category.id}`)}
+                    onRowClick={(category: any) => navigate(`/admin/categories/${category.id}`)}
                     emptyMessage={loading ? "Yuklanmoqda..." : "Kategoriyalar topilmadi"}
                 />
             </div>
