@@ -2,7 +2,7 @@ import {useState, useEffect} from 'react';
 import {useNavigate} from 'react-router-dom';
 import {Plus, Pencil, Trash2, HelpCircle} from 'lucide-react';
 import {DashboardLayout} from '@/layouts/DashboardLayout';
-import {DataTable, Column, Filter} from '@/components/DataTable';
+import {DataTable, Column, Filter as FilterType} from '@/components/DataTable';
 import {Button} from '@/components/ui/button';
 import {Input} from '@/components/ui/input';
 import {Label} from '@/components/ui/label';
@@ -64,6 +64,7 @@ export default function AdminTasks() {
     const navigate = useNavigate();
     const [tasks, setTasks] = useState<Task[]>([]);
     const [videos, setVideos] = useState<Video[]>([]);
+    const [categories, setCategories] = useState<{id: string; name: string; icon: string}[]>([]);
     const [loading, setLoading] = useState(true);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -83,17 +84,19 @@ export default function AdminTasks() {
 
     const fetchData = async () => {
         try {
-            const [tasksRes, videosRes] = await Promise.all([
+            const [tasksRes, videosRes, categoriesRes] = await Promise.all([
                 tasksApi.getAll(),
                 videosApi.getAll(),
+                categoriesApi.getAll(),
             ]);
 
             const tasksData = tasksRes?.results || tasksRes || [];
             const videosData = videosRes?.results || videosRes || [];
+            const categoriesData = categoriesRes?.results || categoriesRes || [];
 
-            console.log(tasksData, videosData);
             setTasks(Array.isArray(tasksData) ? tasksData : []);
             setVideos(Array.isArray(videosData) ? videosData : []);
+            setCategories(Array.isArray(categoriesData) ? categoriesData : []);
         } catch (error) {
             console.error('Failed to fetch data:', error);
             toast({
@@ -320,6 +323,32 @@ export default function AdminTasks() {
         },
     ];
 
+    const filters: FilterType[] = [
+        {
+            key: 'task_type',
+            label: 'Vazifa turi',
+            options: [
+                { value: 'test', label: 'Test' },
+                { value: 'file', label: 'Fayl yuklash' },
+                { value: 'text', label: 'Matn' },
+            ],
+        },
+        {
+            key: 'allow_resubmission',
+            label: 'Qayta topshirish',
+            options: [
+                { value: 'true', label: 'Ha' },
+                { value: 'false', label: "Yo'q" },
+            ],
+        },
+    ];
+
+    // Add task_type field for filtering
+    const processedTasks = tasks.map(t => ({
+        ...t,
+        task_type: (t as any).task_type || 'test',
+    }));
+
     return (
         <DashboardLayout>
             {/* Header */}
@@ -344,8 +373,9 @@ export default function AdminTasks() {
             {/* Data Table */}
             <div className="animate-fade-in" style={{animationDelay: '0.1s'}}>
                 <DataTable
-                    data={tasks}
-                    columns={columns}
+                    data={processedTasks}
+                    columns={columns as any}
+                    filters={filters}
                     searchPlaceholder="Vazifa nomi bo'yicha qidirish..."
                     searchKeys={['title', 'description']}
                     emptyMessage={loading ? "Yuklanmoqda..." : "Vazifalar topilmadi"}
