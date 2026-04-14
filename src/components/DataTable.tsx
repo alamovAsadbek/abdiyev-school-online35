@@ -75,7 +75,14 @@ export function DataTable<T extends { id: string }>({
     // Apply filters
     Object.entries(filterValues).forEach(([key, value]) => {
       if (value && value !== 'all') {
-        result = result.filter(item => (item as any)[key] === value);
+        result = result.filter(item => {
+          const itemValue = (item as any)[key];
+          // Handle boolean comparison with string filter values
+          if (typeof itemValue === 'boolean') {
+            return String(itemValue) === value;
+          }
+          return String(itemValue) === value;
+        });
       }
     });
 
