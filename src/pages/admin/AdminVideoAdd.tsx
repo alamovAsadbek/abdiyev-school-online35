@@ -344,79 +344,101 @@ export default function AdminVideoAdd() {
                             </p>
                         </div>
 
-                        <Tabs defaultValue="file" className="w-full">
-                            <TabsList className="grid w-full grid-cols-2">
-                                <TabsTrigger value="file">Fayl yuklash</TabsTrigger>
-                                <TabsTrigger value="url">URL (YouTube, etc)</TabsTrigger>
-                            </TabsList>
+                        <div className="space-y-2">
+                            <Label>Video manbai</Label>
+                            <Select value={videoMode} onValueChange={(v) => setVideoMode(v as 'file' | 'url')}>
+                                <SelectTrigger>
+                                    <SelectValue/>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="file">Video fayl yuklash</SelectItem>
+                                    <SelectItem value="url">Video havola (YouTube, Vimeo, ...)</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
 
-                            <TabsContent value="file" className="space-y-4">
-                                <div className="space-y-2">
-                                    <Label>Video fayl * (faqat MP4, max 150MB)</Label>
-                                    <div className="flex flex-col gap-3">
-                                        <input
-                                            ref={videoInputRef}
-                                            type="file"
-                                            accept="video/mp4"
-                                            className="hidden"
-                                            onChange={handleVideoFileChange}
-                                        />
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            className={`w-full ${videoError ? 'border-destructive' : ''}`}
-                                            onClick={() => videoInputRef.current?.click()}
-                                        >
-                                            <Upload className="mr-2 h-4 w-4"/>
-                                            {videoFile ? videoFile.name : 'Video tanlang (MP4, max 150MB)'}
-                                        </Button>
-                                        {videoError && (
-                                            <p className="text-sm text-destructive flex items-center gap-1">
-                                                <AlertTriangle className="h-4 w-4"/>
-                                                {videoError}
-                                            </p>
-                                        )}
-                                        {videoFile && !videoError && (
-                                            <div className="flex items-center justify-between p-3 rounded-lg bg-muted">
-                                                <div>
-                                                    <span
-                                                        className="text-sm text-muted-foreground">{videoFile.name}</span>
-                                                    <span className="text-xs text-muted-foreground ml-2">
-                            ({Math.round(videoFile.size / (1024 * 1024))}MB)
-                          </span>
-                                                </div>
-                                                <Button
-                                                    type="button"
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => {
-                                                        setVideoFile(null);
-                                                        setVideoError('');
-                                                    }}
-                                                >
-                                                    <X className="h-4 w-4"/>
-                                                </Button>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </TabsContent>
-
-                            <TabsContent value="url" className="space-y-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="videoUrl">Video URL (embed) *</Label>
-                                    <Input
-                                        id="videoUrl"
-                                        placeholder="https://www.youtube.com/embed/..."
-                                        value={formData.videoUrl}
-                                        onChange={(e) => setFormData(prev => ({...prev, videoUrl: e.target.value}))}
+                        {videoMode === 'file' ? (
+                            <div className="space-y-2">
+                                <Label>Video fayl * (faqat MP4, max 150MB)</Label>
+                                <div className="flex flex-col gap-3">
+                                    <input
+                                        ref={videoInputRef}
+                                        type="file"
+                                        accept="video/mp4"
+                                        className="hidden"
+                                        onChange={handleVideoFileChange}
                                     />
-                                    <p className="text-xs text-muted-foreground">
-                                        YouTube uchun: Videoning embed URL manzilini kiriting
-                                    </p>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        className={`w-full ${videoError ? 'border-destructive' : ''}`}
+                                        onClick={() => videoInputRef.current?.click()}
+                                    >
+                                        <Upload className="mr-2 h-4 w-4"/>
+                                        {videoFile ? videoFile.name : 'Video tanlang (MP4, max 150MB)'}
+                                    </Button>
+                                    {videoError && (
+                                        <p className="text-sm text-destructive flex items-center gap-1">
+                                            <AlertTriangle className="h-4 w-4"/>
+                                            {videoError}
+                                        </p>
+                                    )}
+                                    {videoFile && !videoError && (
+                                        <div className="flex items-center justify-between p-3 rounded-lg bg-muted">
+                                            <div>
+                                                <span className="text-sm text-muted-foreground">{videoFile.name}</span>
+                                                <span className="text-xs text-muted-foreground ml-2">
+                                                    ({Math.round(videoFile.size / (1024 * 1024))}MB)
+                                                </span>
+                                            </div>
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={() => {
+                                                    setVideoFile(null);
+                                                    setVideoError('');
+                                                    if (videoFilePreview) URL.revokeObjectURL(videoFilePreview);
+                                                    setVideoFilePreview('');
+                                                }}
+                                            >
+                                                <X className="h-4 w-4"/>
+                                            </Button>
+                                        </div>
+                                    )}
+                                    {videoFilePreview && !videoError && (
+                                        <div className="rounded-lg overflow-hidden border border-border bg-black">
+                                            <video src={videoFilePreview} controls className="w-full aspect-video"/>
+                                        </div>
+                                    )}
                                 </div>
-                            </TabsContent>
-                        </Tabs>
+                            </div>
+                        ) : (
+                            <div className="space-y-2">
+                                <Label htmlFor="videoUrl">Video havolasi *</Label>
+                                <Input
+                                    id="videoUrl"
+                                    placeholder="https://www.youtube.com/watch?v=..."
+                                    value={formData.videoUrl}
+                                    onChange={(e) => setFormData(prev => ({...prev, videoUrl: e.target.value}))}
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                    YouTube, Vimeo yoki to'g'ridan-to'g'ri video havolasi
+                                </p>
+                                {formData.videoUrl && (
+                                    <div className="rounded-lg overflow-hidden border border-border bg-black aspect-video">
+                                        <iframe
+                                            src={toEmbedUrl(formData.videoUrl)}
+                                            title="Video preview"
+                                            className="w-full h-full"
+                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+                                            allowFullScreen
+                                            style={{border: 'none'}}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         <div className="space-y-2">
                             <Label htmlFor="duration">Davomiyligi</Label>
