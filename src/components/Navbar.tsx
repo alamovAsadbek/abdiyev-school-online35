@@ -113,6 +113,15 @@ export function Navbar() {
                     </div>
 
                     <div className="flex items-center gap-2">
+                        <a
+                            href={ADMIN_CONTACT_URL}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-border hover:bg-muted transition-colors"
+                            title={ADMIN_CONTACT_LABEL}
+                        >
+                            <MessageCircle className="h-4 w-4" />
+                        </a>
                         <NotificationBell/>
                         <div
                             className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold text-sm">
