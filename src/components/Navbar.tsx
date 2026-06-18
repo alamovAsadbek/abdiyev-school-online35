@@ -45,6 +45,18 @@ export function Navbar() {
                 )}
             >
                 <div className="flex items-center justify-end h-full px-6 gap-3">
+                    {/* Admin contact bot */}
+                    <a
+                        href={ADMIN_CONTACT_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 px-3 h-9 rounded-md border border-border text-sm hover:bg-muted transition-colors"
+                        title={ADMIN_CONTACT_LABEL}
+                    >
+                        <MessageCircle className="h-4 w-4" />
+                        <span className="hidden lg:inline">{ADMIN_CONTACT_LABEL}</span>
+                    </a>
+
                     {/* Notifications (API) */}
                     <NotificationBell/>
 
