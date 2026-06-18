@@ -548,11 +548,12 @@ export default function StudentTaskView() {
                                                 dangerouslySetInnerHTML={{__html: question.question}}
                                             />
                                             {(question as any).image && (
-                                                <img
-                                                    src={(question as any).image}
-                                                    alt={`Savol ${qIndex + 1} rasmi`}
-                                                    className="mt-3 max-w-md rounded-lg border border-border"
-                                                />
+                                                <div className="mt-3 max-w-md">
+                                                    <ProtectedImageViewer
+                                                        src={(question as any).image}
+                                                        alt={`Savol ${qIndex + 1} rasmi`}
+                                                    />
+                                                </div>
                                             )}
                                             {(question as any).description && (
                                                 <div
