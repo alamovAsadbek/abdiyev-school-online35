@@ -7,7 +7,7 @@ import {Input} from '@/components/ui/input';
 import {Label} from '@/components/ui/label';
 import {useToast} from '@/hooks/use-toast';
 import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs';
-// import bgImg from '@/data/images/loginBackground.png';
+// import bgImgclear from '@/data/images/loginBackground.png';
 
 export default function Login() {
     const [username, setUsername] = useState('');

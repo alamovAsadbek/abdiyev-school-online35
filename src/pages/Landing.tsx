@@ -78,7 +78,7 @@ export default function Landing() {
               <span className="text-sm font-medium">1000+ o'quvchi bizga ishonadi</span>
             </div>
             <h1 className="text-4xl lg:text-6xl font-bold text-foreground mb-6 animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
-              Kimyo fanini o'rganishning{' '}
+              Fanlarni o'rganishning{' '}
               <span className="gradient-text">eng zamonaviy</span> usuli
             </h1>
             <p className="text-lg lg:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto animate-fade-in-up" style={{ animationDelay: '0.2s' }}>

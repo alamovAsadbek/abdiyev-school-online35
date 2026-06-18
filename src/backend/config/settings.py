@@ -185,69 +185,69 @@ SWAGGER_SETTINGS = {
 }
 
 # Logging configuration - Daily log files
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'verbose': {
-            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
-            'style': '{',
-        },
-        'simple': {
-            'format': '[{asctime}] {levelname} {name}: {message}',
-            'style': '{',
-            'datefmt': '%Y-%m-%d %H:%M:%S',
-        },
-    },
-    'handlers': {
-        'file': {
-            'level': 'INFO',
-            'class': 'logging.handlers.TimedRotatingFileHandler',
-            'filename': LOGS_DIR / 'app.log',
-            'when': 'midnight',
-            'interval': 1,
-            'backupCount': 30,
-            'formatter': 'simple',
-            'encoding': 'utf-8',
-        },
-        'console': {
-            'level': 'DEBUG',
-            'class': 'logging.StreamHandler',
-            'formatter': 'simple',
-        },
-        'error_file': {
-            'level': 'ERROR',
-            'class': 'logging.handlers.TimedRotatingFileHandler',
-            'filename': LOGS_DIR / 'error.log',
-            'when': 'midnight',
-            'interval': 1,
-            'backupCount': 30,
-            'formatter': 'verbose',
-            'encoding': 'utf-8',
-        },
-    },
-    'root': {
-        'handlers': ['console', 'file'],
-        'level': 'INFO',
-    },
-    'loggers': {
-        'django': {
-            'handlers': ['console', 'file', 'error_file'],
-            'level': 'INFO',
-            'propagate': False,
-        },
-        'django.request': {
-            'handlers': ['console', 'file', 'error_file'],
-            'level': 'INFO',
-            'propagate': False,
-        },
-        'apps': {
-            'handlers': ['console', 'file', 'error_file'],
-            'level': 'DEBUG',
-            'propagate': False,
-        },
-    },
-}
+# LOGGING = {
+#     'version': 1,
+#     'disable_existing_loggers': False,
+#     'formatters': {
+#         'verbose': {
+#             'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+#             'style': '{',
+#         },
+#         'simple': {
+#             'format': '[{asctime}] {levelname} {name}: {message}',
+#             'style': '{',
+#             'datefmt': '%Y-%m-%d %H:%M:%S',
+#         },
+#     },
+#     'handlers': {
+#         'file': {
+#             'level': 'INFO',
+#             'class': 'logging.handlers.TimedRotatingFileHandler',
+#             'filename': LOGS_DIR / 'app.log',
+#             'when': 'midnight',
+#             'interval': 1,
+#             'backupCount': 30,
+#             'formatter': 'simple',
+#             'encoding': 'utf-8',
+#         },
+#         'console': {
+#             'level': 'DEBUG',
+#             'class': 'logging.StreamHandler',
+#             'formatter': 'simple',
+#         },
+#         'error_file': {
+#             'level': 'ERROR',
+#             'class': 'logging.handlers.TimedRotatingFileHandler',
+#             'filename': LOGS_DIR / 'error.log',
+#             'when': 'midnight',
+#             'interval': 1,
+#             'backupCount': 30,
+#             'formatter': 'verbose',
+#             'encoding': 'utf-8',
+#         },
+#     },
+#     'root': {
+#         'handlers': ['console', 'file'],
+#         'level': 'INFO',
+#     },
+#     'loggers': {
+#         'django': {
+#             'handlers': ['console', 'file', 'error_file'],
+#             'level': 'INFO',
+#             'propagate': False,
+#         },
+#         'django.request': {
+#             'handlers': ['console', 'file', 'error_file'],
+#             'level': 'INFO',
+#             'propagate': False,
+#         },
+#         'apps': {
+#             'handlers': ['console', 'file', 'error_file'],
+#             'level': 'DEBUG',
+#             'propagate': False,
+#         },
+#     },
+# }
 
 X_FRAME_OPTIONS = 'DENY'
 
