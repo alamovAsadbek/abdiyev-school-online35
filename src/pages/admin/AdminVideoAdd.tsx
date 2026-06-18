@@ -37,6 +37,8 @@ export default function AdminVideoAdd() {
 
     const [categories, setCategories] = useState(demoCategories);
     const [videoFile, setVideoFile] = useState<File | null>(null);
+    const [videoFilePreview, setVideoFilePreview] = useState<string>('');
+    const [videoMode, setVideoMode] = useState<'file' | 'url'>('file');
     const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
     const [thumbnailPreview, setThumbnailPreview] = useState<string>('');
     const [thumbnailMode, setThumbnailMode] = useState<'upload' | 'url'>('upload');
