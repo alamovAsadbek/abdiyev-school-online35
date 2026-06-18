@@ -14,7 +14,8 @@ import {cn} from '@/lib/utils';
 import {useState} from 'react';
 import {ConfirmDialog} from '@/components/ConfirmDialog';
 import {NotificationBell} from '@/components/NotificationBell';
-import {LogOut} from "lucide-react";
+import {LogOut, MessageCircle} from "lucide-react";
+import {ADMIN_CONTACT_URL, ADMIN_CONTACT_LABEL} from '@/lib/variables';
 
 export function Navbar() {
     const {user, logout} = useAuth();
