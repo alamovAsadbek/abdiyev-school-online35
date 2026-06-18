@@ -196,8 +196,12 @@ export default function AdminVideoAdd() {
             return;
         }
 
-        if (!videoFile && !formData.videoUrl) {
-            toast({title: 'Xatolik', description: 'Video yuklang yoki video URL kiriting', variant: 'destructive'});
+        if (videoMode === 'file' && !videoFile && !editId) {
+            toast({title: 'Xatolik', description: 'Video faylini yuklang', variant: 'destructive'});
+            return;
+        }
+        if (videoMode === 'url' && !formData.videoUrl) {
+            toast({title: 'Xatolik', description: 'Video URL kiriting', variant: 'destructive'});
             return;
         }
 
@@ -213,22 +217,21 @@ export default function AdminVideoAdd() {
         setIsLoading(true);
 
         try {
-            // Try to save via API
             const formDataToSend = new FormData();
             formDataToSend.append('title', formData.title);
             formDataToSend.append('description', formData.description);
             formDataToSend.append('category', formData.categoryId);
             formDataToSend.append('duration', formData.duration);
 
-            if (videoFile) {
+            if (videoMode === 'file' && videoFile) {
                 formDataToSend.append('video_file', videoFile);
-            } else {
+            } else if (videoMode === 'url') {
                 formDataToSend.append('video_url', formData.videoUrl);
             }
 
             if (thumbnailFile) {
                 formDataToSend.append('thumbnail', thumbnailFile);
-            } else {
+            } else if (formData.thumbnail) {
                 formDataToSend.append('thumbnail_url', formData.thumbnail);
             }
 
@@ -241,51 +244,13 @@ export default function AdminVideoAdd() {
             }
 
             navigate('/admin/videos');
-        } catch (error) {
-            // Fallback to localStorage
-            let videoData = formData.videoUrl;
-            let thumbnailData = formData.thumbnail || thumbnailPreview;
-            let homeworkData = '';
-
-            // Get existing videos from localStorage or use demo data
-            const existingVideos = JSON.parse(localStorage.getItem('abdiyev_videos') || JSON.stringify(demoVideos));
-
-            if (editId) {
-                // Update existing video
-                const updatedVideos = existingVideos.map((v: Video) =>
-                    v.id === editId
-                        ? {
-                            ...v,
-                            ...formData,
-                            videoUrl: videoData,
-                            thumbnail: thumbnailData,
-                            homeworkFile: homeworkData || (v as any).homeworkFile,
-                        }
-                        : v
-                );
-                localStorage.setItem('abdiyev_videos', JSON.stringify(updatedVideos));
-                toast({title: 'Muvaffaqiyat', description: 'Video yangilandi'});
-            } else {
-                // Add new video
-                const categoryVideos = existingVideos.filter((v: Video) => v.categoryId === formData.categoryId);
-
-                const newVideo: Video = {
-                    id: `vid-${Date.now()}`,
-                    ...formData,
-                    videoUrl: videoData,
-                    thumbnail: thumbnailData,
-                    order: categoryVideos.length + 1,
-                    createdAt: new Date().toISOString().split('T')[0],
-                    viewCount: 0,
-                    homeworkFile: homeworkData,
-                } as any;
-
-                existingVideos.push(newVideo);
-                localStorage.setItem('abdiyev_videos', JSON.stringify(existingVideos));
-                toast({title: 'Muvaffaqiyat', description: 'Video qo\'shildi'});
-            }
-
-            navigate('/admin/videos');
+        } catch (error: any) {
+            console.error('Video save failed:', error);
+            toast({
+                title: 'Xatolik',
+                description: error?.message || 'Video saqlashda xatolik yuz berdi. Iltimos qayta urinib ko\'ring.',
+                variant: 'destructive',
+            });
         } finally {
             setIsLoading(false);
         }
