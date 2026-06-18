@@ -125,19 +125,41 @@ export default function AdminVideoAdd() {
 
             setVideoFile(file);
             setVideoError('');
+            const blobUrl = URL.createObjectURL(file);
+            setVideoFilePreview(blobUrl);
 
             // Get video duration
             const video = document.createElement('video');
             video.preload = 'metadata';
             video.onloadedmetadata = () => {
-                window.URL.revokeObjectURL(video.src);
                 const duration = video.duration;
                 const minutes = Math.floor(duration / 60);
                 const seconds = Math.floor(duration % 60);
                 setFormData(prev => ({...prev, duration: `${minutes}:${seconds.toString().padStart(2, '0')}`}));
             };
-            video.src = URL.createObjectURL(file);
+            video.src = blobUrl;
         }
+    };
+
+    // Convert YouTube watch/short URLs to embed for preview
+    const toEmbedUrl = (url: string): string => {
+        if (!url) return '';
+        try {
+            const u = new URL(url);
+            if (u.hostname.includes('youtube.com')) {
+                if (u.pathname.startsWith('/embed/')) return url;
+                const v = u.searchParams.get('v');
+                if (v) return `https://www.youtube.com/embed/${v}`;
+            }
+            if (u.hostname.includes('youtu.be')) {
+                return `https://www.youtube.com/embed/${u.pathname.slice(1)}`;
+            }
+            if (u.hostname.includes('vimeo.com')) {
+                const id = u.pathname.split('/').filter(Boolean)[0];
+                if (id) return `https://player.vimeo.com/video/${id}`;
+            }
+        } catch { /* ignore */ }
+        return url;
     };
 
     const handleThumbnailFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
