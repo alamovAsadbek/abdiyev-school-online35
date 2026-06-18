@@ -37,6 +37,8 @@ export default function AdminVideoAdd() {
 
     const [categories, setCategories] = useState(demoCategories);
     const [videoFile, setVideoFile] = useState<File | null>(null);
+    const [videoFilePreview, setVideoFilePreview] = useState<string>('');
+    const [videoMode, setVideoMode] = useState<'file' | 'url'>('file');
     const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
     const [thumbnailPreview, setThumbnailPreview] = useState<string>('');
     const [thumbnailMode, setThumbnailMode] = useState<'upload' | 'url'>('upload');
@@ -123,19 +125,41 @@ export default function AdminVideoAdd() {
 
             setVideoFile(file);
             setVideoError('');
+            const blobUrl = URL.createObjectURL(file);
+            setVideoFilePreview(blobUrl);
 
             // Get video duration
             const video = document.createElement('video');
             video.preload = 'metadata';
             video.onloadedmetadata = () => {
-                window.URL.revokeObjectURL(video.src);
                 const duration = video.duration;
                 const minutes = Math.floor(duration / 60);
                 const seconds = Math.floor(duration % 60);
                 setFormData(prev => ({...prev, duration: `${minutes}:${seconds.toString().padStart(2, '0')}`}));
             };
-            video.src = URL.createObjectURL(file);
+            video.src = blobUrl;
         }
+    };
+
+    // Convert YouTube watch/short URLs to embed for preview
+    const toEmbedUrl = (url: string): string => {
+        if (!url) return '';
+        try {
+            const u = new URL(url);
+            if (u.hostname.includes('youtube.com')) {
+                if (u.pathname.startsWith('/embed/')) return url;
+                const v = u.searchParams.get('v');
+                if (v) return `https://www.youtube.com/embed/${v}`;
+            }
+            if (u.hostname.includes('youtu.be')) {
+                return `https://www.youtube.com/embed/${u.pathname.slice(1)}`;
+            }
+            if (u.hostname.includes('vimeo.com')) {
+                const id = u.pathname.split('/').filter(Boolean)[0];
+                if (id) return `https://player.vimeo.com/video/${id}`;
+            }
+        } catch { /* ignore */ }
+        return url;
     };
 
     const handleThumbnailFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -172,8 +196,12 @@ export default function AdminVideoAdd() {
             return;
         }
 
-        if (!videoFile && !formData.videoUrl) {
-            toast({title: 'Xatolik', description: 'Video yuklang yoki video URL kiriting', variant: 'destructive'});
+        if (videoMode === 'file' && !videoFile && !editId) {
+            toast({title: 'Xatolik', description: 'Video faylini yuklang', variant: 'destructive'});
+            return;
+        }
+        if (videoMode === 'url' && !formData.videoUrl) {
+            toast({title: 'Xatolik', description: 'Video URL kiriting', variant: 'destructive'});
             return;
         }
 
@@ -189,22 +217,21 @@ export default function AdminVideoAdd() {
         setIsLoading(true);
 
         try {
-            // Try to save via API
             const formDataToSend = new FormData();
             formDataToSend.append('title', formData.title);
             formDataToSend.append('description', formData.description);
             formDataToSend.append('category', formData.categoryId);
             formDataToSend.append('duration', formData.duration);
 
-            if (videoFile) {
+            if (videoMode === 'file' && videoFile) {
                 formDataToSend.append('video_file', videoFile);
-            } else {
+            } else if (videoMode === 'url') {
                 formDataToSend.append('video_url', formData.videoUrl);
             }
 
             if (thumbnailFile) {
                 formDataToSend.append('thumbnail', thumbnailFile);
-            } else {
+            } else if (formData.thumbnail) {
                 formDataToSend.append('thumbnail_url', formData.thumbnail);
             }
 
@@ -217,51 +244,13 @@ export default function AdminVideoAdd() {
             }
 
             navigate('/admin/videos');
-        } catch (error) {
-            // Fallback to localStorage
-            let videoData = formData.videoUrl;
-            let thumbnailData = formData.thumbnail || thumbnailPreview;
-            let homeworkData = '';
-
-            // Get existing videos from localStorage or use demo data
-            const existingVideos = JSON.parse(localStorage.getItem('abdiyev_videos') || JSON.stringify(demoVideos));
-
-            if (editId) {
-                // Update existing video
-                const updatedVideos = existingVideos.map((v: Video) =>
-                    v.id === editId
-                        ? {
-                            ...v,
-                            ...formData,
-                            videoUrl: videoData,
-                            thumbnail: thumbnailData,
-                            homeworkFile: homeworkData || (v as any).homeworkFile,
-                        }
-                        : v
-                );
-                localStorage.setItem('abdiyev_videos', JSON.stringify(updatedVideos));
-                toast({title: 'Muvaffaqiyat', description: 'Video yangilandi'});
-            } else {
-                // Add new video
-                const categoryVideos = existingVideos.filter((v: Video) => v.categoryId === formData.categoryId);
-
-                const newVideo: Video = {
-                    id: `vid-${Date.now()}`,
-                    ...formData,
-                    videoUrl: videoData,
-                    thumbnail: thumbnailData,
-                    order: categoryVideos.length + 1,
-                    createdAt: new Date().toISOString().split('T')[0],
-                    viewCount: 0,
-                    homeworkFile: homeworkData,
-                } as any;
-
-                existingVideos.push(newVideo);
-                localStorage.setItem('abdiyev_videos', JSON.stringify(existingVideos));
-                toast({title: 'Muvaffaqiyat', description: 'Video qo\'shildi'});
-            }
-
-            navigate('/admin/videos');
+        } catch (error: any) {
+            console.error('Video save failed:', error);
+            toast({
+                title: 'Xatolik',
+                description: error?.message || 'Video saqlashda xatolik yuz berdi. Iltimos qayta urinib ko\'ring.',
+                variant: 'destructive',
+            });
         } finally {
             setIsLoading(false);
         }
@@ -355,79 +344,101 @@ export default function AdminVideoAdd() {
                             </p>
                         </div>
 
-                        <Tabs defaultValue="file" className="w-full">
-                            <TabsList className="grid w-full grid-cols-2">
-                                <TabsTrigger value="file">Fayl yuklash</TabsTrigger>
-                                <TabsTrigger value="url">URL (YouTube, etc)</TabsTrigger>
-                            </TabsList>
+                        <div className="space-y-2">
+                            <Label>Video manbai</Label>
+                            <Select value={videoMode} onValueChange={(v) => setVideoMode(v as 'file' | 'url')}>
+                                <SelectTrigger>
+                                    <SelectValue/>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="file">Video fayl yuklash</SelectItem>
+                                    <SelectItem value="url">Video havola (YouTube, Vimeo, ...)</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
 
-                            <TabsContent value="file" className="space-y-4">
-                                <div className="space-y-2">
-                                    <Label>Video fayl * (faqat MP4, max 150MB)</Label>
-                                    <div className="flex flex-col gap-3">
-                                        <input
-                                            ref={videoInputRef}
-                                            type="file"
-                                            accept="video/mp4"
-                                            className="hidden"
-                                            onChange={handleVideoFileChange}
-                                        />
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            className={`w-full ${videoError ? 'border-destructive' : ''}`}
-                                            onClick={() => videoInputRef.current?.click()}
-                                        >
-                                            <Upload className="mr-2 h-4 w-4"/>
-                                            {videoFile ? videoFile.name : 'Video tanlang (MP4, max 150MB)'}
-                                        </Button>
-                                        {videoError && (
-                                            <p className="text-sm text-destructive flex items-center gap-1">
-                                                <AlertTriangle className="h-4 w-4"/>
-                                                {videoError}
-                                            </p>
-                                        )}
-                                        {videoFile && !videoError && (
-                                            <div className="flex items-center justify-between p-3 rounded-lg bg-muted">
-                                                <div>
-                                                    <span
-                                                        className="text-sm text-muted-foreground">{videoFile.name}</span>
-                                                    <span className="text-xs text-muted-foreground ml-2">
-                            ({Math.round(videoFile.size / (1024 * 1024))}MB)
-                          </span>
-                                                </div>
-                                                <Button
-                                                    type="button"
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => {
-                                                        setVideoFile(null);
-                                                        setVideoError('');
-                                                    }}
-                                                >
-                                                    <X className="h-4 w-4"/>
-                                                </Button>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </TabsContent>
-
-                            <TabsContent value="url" className="space-y-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="videoUrl">Video URL (embed) *</Label>
-                                    <Input
-                                        id="videoUrl"
-                                        placeholder="https://www.youtube.com/embed/..."
-                                        value={formData.videoUrl}
-                                        onChange={(e) => setFormData(prev => ({...prev, videoUrl: e.target.value}))}
+                        {videoMode === 'file' ? (
+                            <div className="space-y-2">
+                                <Label>Video fayl * (faqat MP4, max 150MB)</Label>
+                                <div className="flex flex-col gap-3">
+                                    <input
+                                        ref={videoInputRef}
+                                        type="file"
+                                        accept="video/mp4"
+                                        className="hidden"
+                                        onChange={handleVideoFileChange}
                                     />
-                                    <p className="text-xs text-muted-foreground">
-                                        YouTube uchun: Videoning embed URL manzilini kiriting
-                                    </p>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        className={`w-full ${videoError ? 'border-destructive' : ''}`}
+                                        onClick={() => videoInputRef.current?.click()}
+                                    >
+                                        <Upload className="mr-2 h-4 w-4"/>
+                                        {videoFile ? videoFile.name : 'Video tanlang (MP4, max 150MB)'}
+                                    </Button>
+                                    {videoError && (
+                                        <p className="text-sm text-destructive flex items-center gap-1">
+                                            <AlertTriangle className="h-4 w-4"/>
+                                            {videoError}
+                                        </p>
+                                    )}
+                                    {videoFile && !videoError && (
+                                        <div className="flex items-center justify-between p-3 rounded-lg bg-muted">
+                                            <div>
+                                                <span className="text-sm text-muted-foreground">{videoFile.name}</span>
+                                                <span className="text-xs text-muted-foreground ml-2">
+                                                    ({Math.round(videoFile.size / (1024 * 1024))}MB)
+                                                </span>
+                                            </div>
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={() => {
+                                                    setVideoFile(null);
+                                                    setVideoError('');
+                                                    if (videoFilePreview) URL.revokeObjectURL(videoFilePreview);
+                                                    setVideoFilePreview('');
+                                                }}
+                                            >
+                                                <X className="h-4 w-4"/>
+                                            </Button>
+                                        </div>
+                                    )}
+                                    {videoFilePreview && !videoError && (
+                                        <div className="rounded-lg overflow-hidden border border-border bg-black">
+                                            <video src={videoFilePreview} controls className="w-full aspect-video"/>
+                                        </div>
+                                    )}
                                 </div>
-                            </TabsContent>
-                        </Tabs>
+                            </div>
+                        ) : (
+                            <div className="space-y-2">
+                                <Label htmlFor="videoUrl">Video havolasi *</Label>
+                                <Input
+                                    id="videoUrl"
+                                    placeholder="https://www.youtube.com/watch?v=..."
+                                    value={formData.videoUrl}
+                                    onChange={(e) => setFormData(prev => ({...prev, videoUrl: e.target.value}))}
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                    YouTube, Vimeo yoki to'g'ridan-to'g'ri video havolasi
+                                </p>
+                                {formData.videoUrl && (
+                                    <div className="rounded-lg overflow-hidden border border-border bg-black aspect-video">
+                                        <iframe
+                                            src={toEmbedUrl(formData.videoUrl)}
+                                            title="Video preview"
+                                            className="w-full h-full"
+                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+                                            allowFullScreen
+                                            style={{border: 'none'}}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         <div className="space-y-2">
                             <Label htmlFor="duration">Davomiyligi</Label>
