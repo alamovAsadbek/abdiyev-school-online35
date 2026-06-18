@@ -8,6 +8,7 @@ import {DashboardLayout} from '@/layouts/DashboardLayout';
 import {Button} from '@/components/ui/button';
 import {useToast} from '@/hooks/use-toast';
 import {RichTextEditor} from '@/components/RichTextEditor';
+import {ProtectedImageViewer} from '@/components/ProtectedImageViewer';
 import {cn} from '@/lib/utils';
 import {tasksApi, submissionsApi, videosApi, progressApi} from '@/services/api';
 import {useProgress} from '@/contexts/ProgressContext';
