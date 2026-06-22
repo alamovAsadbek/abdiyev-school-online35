@@ -250,9 +250,26 @@ class TaskViewSet(viewsets.ModelViewSet):
                 correct_answer = int(q_data.get('correct_answer', 0))
             except (TypeError, ValueError):
                 return f'{idx}-savol uchun to‘g‘ri javob noto‘g‘ri tanlangan'
-            if correct_answer < 0 or correct_answer >= len(options):
+            original_options = q_data.get('options', [])
+            if correct_answer < 0 or correct_answer >= len(original_options) or not str(original_options[correct_answer]).strip():
                 return f'{idx}-savol uchun to‘g‘ri javobni to‘ldirilgan variantlardan tanlang'
         return None
+
+    def _get_question_options_and_answer(self, q_data):
+        original_options = list(q_data.get('options', []))
+        correct_answer = int(q_data.get('correct_answer', 0) or 0)
+        filtered_options = []
+        normalized_answer = 0
+
+        for original_index, option in enumerate(original_options):
+            option_text = str(option).strip()
+            if not option_text:
+                continue
+            if original_index == correct_answer:
+                normalized_answer = len(filtered_options)
+            filtered_options.append(option_text)
+
+        return filtered_options, normalized_answer
 
     def create(self, request, *args, **kwargs):
         """Handle task creation with questions"""
@@ -286,12 +303,13 @@ class TaskViewSet(viewsets.ModelViewSet):
                 # Handle question image from FormData
                 image_key = f'question_image_{idx}'
                 question_image = request.FILES.get(image_key)
+                options, correct_answer = self._get_question_options_and_answer(q_data)
 
                 TaskQuestion.objects.create(
                     task=task,
                     question=q_data.get('question', ''),
-                    options=[option for option in q_data.get('options', []) if str(option).strip()],
-                    correct_answer=q_data.get('correct_answer', 0),
+                    options=options,
+                    correct_answer=correct_answer,
                     order=idx + 1,
                     description=q_data.get('description', ''),
                     image=question_image,
@@ -333,12 +351,13 @@ class TaskViewSet(viewsets.ModelViewSet):
                 for idx, q_data in enumerate(questions_data):
                     image_key = f'question_image_{idx}'
                     question_image = request.FILES.get(image_key)
+                    options, correct_answer = self._get_question_options_and_answer(q_data)
 
                     TaskQuestion.objects.create(
                         task=task,
                         question=q_data.get('question', ''),
-                        options=[option for option in q_data.get('options', []) if str(option).strip()],
-                        correct_answer=q_data.get('correct_answer', 0),
+                        options=options,
+                        correct_answer=correct_answer,
                         order=idx + 1,
                         description=q_data.get('description', ''),
                         image=question_image,
