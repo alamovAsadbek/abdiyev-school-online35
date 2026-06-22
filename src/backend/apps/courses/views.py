@@ -1,6 +1,8 @@
 import datetime
 import json
 
+from django.db import transaction
+from django.utils.html import strip_tags
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -199,18 +201,66 @@ class TaskViewSet(viewsets.ModelViewSet):
     serializer_class = TaskSerializer
     permission_classes = [IsAuthenticated]
 
+    def _normalize_questions(self, raw_questions):
+        """Accept JSON body, FormData string, or QueryDict pop-list and return question dicts."""
+        if raw_questions in (None, ''):
+            return []
+
+        if isinstance(raw_questions, list) and len(raw_questions) == 1 and isinstance(raw_questions[0], str):
+            raw_questions = raw_questions[0]
+
+        if isinstance(raw_questions, str):
+            try:
+                raw_questions = json.loads(raw_questions)
+            except (json.JSONDecodeError, TypeError):
+                return []
+
+        if not isinstance(raw_questions, list):
+            return []
+
+        normalized = []
+        for item in raw_questions:
+            if isinstance(item, str):
+                try:
+                    item = json.loads(item)
+                except (json.JSONDecodeError, TypeError):
+                    continue
+            if isinstance(item, list) and len(item) == 1 and isinstance(item[0], dict):
+                item = item[0]
+            if isinstance(item, dict):
+                normalized.append(item)
+        return normalized
+
+    def _validate_test_questions(self, questions_data):
+        if not questions_data:
+            return 'Test vazifasi uchun kamida 1 ta savol kiriting'
+
+        for idx, q_data in enumerate(questions_data, start=1):
+            question_text = strip_tags(str(q_data.get('question', ''))).replace('&nbsp;', ' ').strip()
+            options = [str(option).strip() for option in q_data.get('options', []) if str(option).strip()]
+            if not question_text:
+                return f'{idx}-savol matni kiritilmagan'
+            if len(options) < 2:
+                return f'{idx}-savol uchun kamida 2 ta javob varianti kiriting'
+            try:
+                correct_answer = int(q_data.get('correct_answer', 0))
+            except (TypeError, ValueError):
+                return f'{idx}-savol uchun to‘g‘ri javob noto‘g‘ri tanlangan'
+            if correct_answer < 0 or correct_answer >= len(options):
+                return f'{idx}-savol uchun to‘g‘ri javobni to‘ldirilgan variantlardan tanlang'
+        return None
+
     def create(self, request, *args, **kwargs):
         """Handle task creation with questions"""
         data = request.data.copy()
         questions_data = data.pop('questions', [])
         task_type = data.get('task_type', 'test')
 
-        # Parse questions if sent as JSON string (FormData case)
-        if isinstance(questions_data, str):
-            try:
-                questions_data = json.loads(questions_data)
-            except (json.JSONDecodeError, TypeError):
-                questions_data = []
+        questions_data = self._normalize_questions(questions_data)
+        if task_type == 'test':
+            validation_error = self._validate_test_questions(questions_data)
+            if validation_error:
+                return Response({'error': validation_error}, status=status.HTTP_400_BAD_REQUEST)
 
         # Set requires_approval for file/text tasks
         if task_type in ['file', 'text']:
@@ -218,29 +268,29 @@ class TaskViewSet(viewsets.ModelViewSet):
 
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
-        task = serializer.save()
 
-        # Create questions if provided
-        for idx, q_data in enumerate(questions_data):
-            if isinstance(q_data, str):
-                try:
-                    q_data = json.loads(q_data)
-                except (json.JSONDecodeError, TypeError):
-                    continue
+        with transaction.atomic():
+            task = serializer.save()
+            answer_file = request.FILES.get('answer_file')
+            if answer_file:
+                task.answer_file = answer_file
+                task.save(update_fields=['answer_file'])
 
-            # Handle question image from FormData
-            image_key = f'question_image_{idx}'
-            question_image = request.FILES.get(image_key)
+            # Create questions if provided
+            for idx, q_data in enumerate(questions_data):
+                # Handle question image from FormData
+                image_key = f'question_image_{idx}'
+                question_image = request.FILES.get(image_key)
 
-            TaskQuestion.objects.create(
-                task=task,
-                question=q_data.get('question', ''),
-                options=q_data.get('options', []),
-                correct_answer=q_data.get('correct_answer', 0),
-                order=idx + 1,
-                description=q_data.get('description', ''),
-                image=question_image,
-            )
+                TaskQuestion.objects.create(
+                    task=task,
+                    question=q_data.get('question', ''),
+                    options=[option for option in q_data.get('options', []) if str(option).strip()],
+                    correct_answer=q_data.get('correct_answer', 0),
+                    order=idx + 1,
+                    description=q_data.get('description', ''),
+                    image=question_image,
+                )
 
         # Refresh to include questions
         task.refresh_from_db()
@@ -252,40 +302,41 @@ class TaskViewSet(viewsets.ModelViewSet):
         data = request.data.copy()
         questions_data = data.pop('questions', None)
 
-        # Parse questions if sent as JSON string (FormData case)
-        if isinstance(questions_data, str):
-            try:
-                questions_data = json.loads(questions_data)
-            except (json.JSONDecodeError, TypeError):
-                questions_data = None
+        if questions_data is not None:
+            questions_data = self._normalize_questions(questions_data)
+            task_type = data.get('task_type', instance.task_type)
+            if task_type == 'test':
+                validation_error = self._validate_test_questions(questions_data)
+                if validation_error:
+                    return Response({'error': validation_error}, status=status.HTTP_400_BAD_REQUEST)
 
         serializer = self.get_serializer(instance, data=data, partial=True)
         serializer.is_valid(raise_exception=True)
-        task = serializer.save()
 
-        # Update questions if provided
-        if questions_data is not None:
-            # Delete existing questions and recreate
-            task.questions.all().delete()
-            for idx, q_data in enumerate(questions_data):
-                if isinstance(q_data, str):
-                    try:
-                        q_data = json.loads(q_data)
-                    except (json.JSONDecodeError, TypeError):
-                        continue
+        with transaction.atomic():
+            task = serializer.save()
+            answer_file = request.FILES.get('answer_file')
+            if answer_file:
+                task.answer_file = answer_file
+                task.save(update_fields=['answer_file'])
 
-                image_key = f'question_image_{idx}'
-                question_image = request.FILES.get(image_key)
+            # Update questions if provided
+            if questions_data is not None:
+                # Delete existing questions and recreate
+                task.questions.all().delete()
+                for idx, q_data in enumerate(questions_data):
+                    image_key = f'question_image_{idx}'
+                    question_image = request.FILES.get(image_key)
 
-                TaskQuestion.objects.create(
-                    task=task,
-                    question=q_data.get('question', ''),
-                    options=q_data.get('options', []),
-                    correct_answer=q_data.get('correct_answer', 0),
-                    order=idx + 1,
-                    description=q_data.get('description', ''),
-                    image=question_image,
-                )
+                    TaskQuestion.objects.create(
+                        task=task,
+                        question=q_data.get('question', ''),
+                        options=[option for option in q_data.get('options', []) if str(option).strip()],
+                        correct_answer=q_data.get('correct_answer', 0),
+                        order=idx + 1,
+                        description=q_data.get('description', ''),
+                        image=question_image,
+                    )
 
         task.refresh_from_db()
         return Response(self.get_serializer(task).data)
