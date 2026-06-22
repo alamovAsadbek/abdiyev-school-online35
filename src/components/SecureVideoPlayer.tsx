@@ -11,6 +11,27 @@ interface SecureVideoPlayerProps {
     className?: string;
 }
 
+const toEmbedUrl = (url: string): string => {
+    if (!url) return '';
+    try {
+        const u = new URL(url);
+        if (u.hostname.includes('youtube.com')) {
+            if (u.pathname.startsWith('/embed/')) return url;
+            const v = u.searchParams.get('v');
+            if (v) return `https://www.youtube.com/embed/${v}`;
+        }
+        if (u.hostname.includes('youtu.be')) {
+            const id = u.pathname.split('/').filter(Boolean)[0];
+            if (id) return `https://www.youtube.com/embed/${id}`;
+        }
+        if (u.hostname.includes('vimeo.com')) {
+            const id = u.pathname.split('/').filter(Boolean)[0];
+            if (id) return `https://player.vimeo.com/video/${id}`;
+        }
+    } catch { /* ignore */ }
+    return url;
+};
+
 export function SecureVideoPlayer({
                                       videoUrl,
                                       title,
@@ -114,6 +135,7 @@ export function SecureVideoPlayer({
     const isEmbedUrl = videoUrl?.includes('youtube.com') ||
         videoUrl?.includes('youtu.be') ||
         videoUrl?.includes('vimeo.com');
+    const embedUrl = isEmbedUrl ? toEmbedUrl(videoUrl) : videoUrl;
 
     const isMobile =
         typeof navigator !== "undefined" &&
@@ -142,7 +164,7 @@ export function SecureVideoPlayer({
         >
             {isEmbedUrl ? (
                 <iframe
-                    src={videoUrl}
+                    src={embedUrl}
                     title={title}
                     className="w-full h-full"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
