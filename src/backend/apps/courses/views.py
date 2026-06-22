@@ -219,6 +219,9 @@ class TaskViewSet(viewsets.ModelViewSet):
             except (json.JSONDecodeError, TypeError):
                 return []
 
+        if isinstance(raw_questions, list) and len(raw_questions) == 1 and isinstance(raw_questions[0], list):
+            raw_questions = raw_questions[0]
+
         if not isinstance(raw_questions, list):
             return []
 
