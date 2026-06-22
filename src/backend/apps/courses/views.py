@@ -141,6 +141,8 @@ class VideoViewSet(viewsets.ModelViewSet):
             video.video_file = video_file
             video.video_url = None
         elif video_url:
+            if video.video_file:
+                video.video_file = None
             video.video_url = video_url
 
         # Update thumbnail file if provided
@@ -148,6 +150,8 @@ class VideoViewSet(viewsets.ModelViewSet):
             video.thumbnail = thumbnail_file
             video.thumbnail_url = None
         elif thumbnail_url:
+            if video.thumbnail:
+                video.thumbnail = None
             video.thumbnail_url = thumbnail_url
 
         video.save()
