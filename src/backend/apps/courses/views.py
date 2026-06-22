@@ -258,6 +258,7 @@ class TaskViewSet(viewsets.ModelViewSet):
         """Handle task creation with questions"""
         data = request.data.copy()
         questions_data = data.pop('questions', [])
+        data.pop('answer_file', None)
         task_type = data.get('task_type', 'test')
 
         questions_data = self._normalize_questions(questions_data)
@@ -305,6 +306,7 @@ class TaskViewSet(viewsets.ModelViewSet):
         instance = self.get_object()
         data = request.data.copy()
         questions_data = data.pop('questions', None)
+        data.pop('answer_file', None)
 
         if questions_data is not None:
             questions_data = self._normalize_questions(questions_data)
