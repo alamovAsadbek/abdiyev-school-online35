@@ -28,6 +28,37 @@ import {RichTextEditor} from '@/components/RichTextEditor';
 const MAX_VIDEO_SIZE = 150 * 1024 * 1024;
 const ALLOWED_VIDEO_TYPES = ['video/mp4'];
 
+const getPlainText = (value: string) => value.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+
+const getApiErrorMessage = (error: any, fallback: string) => {
+    const data = error?.response?.data;
+    if (typeof data === 'string') return data;
+    if (data?.error) return data.error;
+    if (data?.detail) return data.detail;
+    return error?.message || fallback;
+};
+
+const toEmbedUrl = (url: string): string => {
+    if (!url) return '';
+    try {
+        const u = new URL(url);
+        if (u.hostname.includes('youtube.com')) {
+            if (u.pathname.startsWith('/embed/')) return url;
+            const v = u.searchParams.get('v');
+            if (v) return `https://www.youtube.com/embed/${v}`;
+        }
+        if (u.hostname.includes('youtu.be')) {
+            const id = u.pathname.split('/').filter(Boolean)[0];
+            if (id) return `https://www.youtube.com/embed/${id}`;
+        }
+        if (u.hostname.includes('vimeo.com')) {
+            const id = u.pathname.split('/').filter(Boolean)[0];
+            if (id) return `https://player.vimeo.com/video/${id}`;
+        }
+    } catch { /* ignore */ }
+    return url;
+};
+
 interface TaskQuestion {
     id: string;
     question: string;
@@ -82,6 +113,8 @@ export default function AdminVideoAddWithTask() {
 
     const [categories, setCategories] = useState<any[]>([]);
     const [videoFile, setVideoFile] = useState<File | null>(null);
+    const [videoFilePreview, setVideoFilePreview] = useState<string>('');
+    const [videoMode, setVideoMode] = useState<'file' | 'url'>('file');
     const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
     const [thumbnailPreview, setThumbnailPreview] = useState<string>('');
     const [thumbnailMode, setThumbnailMode] = useState<'upload' | 'url'>('upload');
@@ -146,16 +179,17 @@ export default function AdminVideoAddWithTask() {
             }
             setVideoFile(file);
             setVideoError('');
+            const blobUrl = URL.createObjectURL(file);
+            setVideoFilePreview(blobUrl);
             const video = document.createElement('video');
             video.preload = 'metadata';
             video.onloadedmetadata = () => {
-                window.URL.revokeObjectURL(video.src);
                 const duration = video.duration;
                 const minutes = Math.floor(duration / 60);
                 const seconds = Math.floor(duration % 60);
                 setFormData(prev => ({...prev, duration: `${minutes}:${seconds.toString().padStart(2, '0')}`}));
             };
-            video.src = URL.createObjectURL(file);
+            video.src = blobUrl;
         }
     };
 
@@ -217,8 +251,12 @@ export default function AdminVideoAddWithTask() {
             toast({title: 'Xatolik', description: 'Modulli kurs uchun modulni tanlang', variant: 'destructive'});
             return;
         }
-        if (!videoFile) {
+        if (videoMode === 'file' && !videoFile) {
             toast({title: 'Xatolik', description: 'Video faylni yuklang', variant: 'destructive'});
+            return;
+        }
+        if (videoMode === 'url' && !formData.videoUrl.trim()) {
+            toast({title: 'Xatolik', description: 'Video havolasini kiriting', variant: 'destructive'});
             return;
         }
         if (!thumbnailFile && !formData.thumbnail) {
@@ -233,7 +271,11 @@ export default function AdminVideoAddWithTask() {
             formDataToSend.append('description', formData.description || '');
             formDataToSend.append('category', formData.categoryId);
             formDataToSend.append('duration', formData.duration || '0:00');
-            formDataToSend.append('video_file', videoFile);
+            if (videoMode === 'file' && videoFile) {
+                formDataToSend.append('video_file', videoFile);
+            } else if (videoMode === 'url') {
+                formDataToSend.append('video_url', formData.videoUrl.trim());
+            }
             
             // Add module if selected
             if (formData.moduleId) {
@@ -275,7 +317,7 @@ export default function AdminVideoAddWithTask() {
             // Validate each question
             for (let i = 0; i < questions.length; i++) {
                 const q = questions[i];
-                if (!q.question.trim()) {
+                if (!getPlainText(q.question)) {
                     toast({title: 'Xatolik', description: `${i + 1}-savol matni kiritilmagan`, variant: 'destructive'});
                     return;
                 }
@@ -284,6 +326,14 @@ export default function AdminVideoAddWithTask() {
                     toast({
                         title: 'Xatolik',
                         description: `${i + 1}-savol uchun kamida 2 ta variant kerak`,
+                        variant: 'destructive'
+                    });
+                    return;
+                }
+                if (!q.options[q.correctAnswer]?.trim()) {
+                    toast({
+                        title: 'Xatolik',
+                        description: `${i + 1}-savol uchun to'g'ri javobni to'ldirilgan variantlardan tanlang`,
                         variant: 'destructive'
                     });
                     return;
@@ -348,7 +398,11 @@ export default function AdminVideoAddWithTask() {
             toast({title: 'Muvaffaqiyat', description: 'Vazifa qo\'shildi'});
             navigate('/admin/videos');
         } catch (error: any) {
-            toast({title: 'Xatolik', description: error.message || 'Vazifa saqlashda xatolik', variant: 'destructive'});
+            toast({
+                title: 'Video yuklandi, lekin vazifa yuklanmadi',
+                description: `${getApiErrorMessage(error, 'Vazifa saqlashda xatolik')}. Davom etish uchun video darsga kirib tahrirlashingiz mumkin.`,
+                variant: 'destructive'
+            });
         } finally {
             setIsLoading(false);
         }
@@ -476,41 +530,75 @@ export default function AdminVideoAddWithTask() {
                                 </p>
                             </div>
 
-                            <input ref={videoInputRef} type="file" accept="video/mp4" className="hidden"
-                                   onChange={handleVideoFileChange}/>
-                            <Button type="button" variant="outline"
-                                    className={`w-full ${videoError ? 'border-destructive' : ''}`}
-                                    onClick={() => videoInputRef.current?.click()}>
-                                <Upload className="mr-2 h-4 w-4"/>
-                                {videoFile ? videoFile.name : 'Video tanlang (MP4)'}
-                            </Button>
-                            {videoError && <p className="text-sm text-destructive">{videoError}</p>}
+                            <div className="space-y-2">
+                                <Label>Video manbai</Label>
+                                <Select value={videoMode} onValueChange={(value) => {
+                                    const mode = value as 'file' | 'url';
+                                    setVideoMode(mode);
+                                    setVideoError('');
+                                    if (mode === 'file') {
+                                        setFormData(prev => ({...prev, videoUrl: ''}));
+                                    } else {
+                                        setVideoFile(null);
+                                        setVideoFilePreview('');
+                                    }
+                                }}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="file">Video fayl yuklash</SelectItem>
+                                        <SelectItem value="url">Video havola (YouTube, Vimeo, ...)</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
 
-                            {/* Video metadata after file selected */}
-                            {videoFile && (
-                                <div className="p-4 rounded-lg bg-muted/50 border border-border space-y-2">
-                                    <h3 className="font-medium text-sm text-foreground">Video ma'lumotlari</h3>
-                                    <div className="grid grid-cols-2 gap-2 text-sm">
-                                        <div>
-                                            <span className="text-muted-foreground">Fayl nomi: </span>
-                                            <span className="text-foreground">{videoFile.name}</span>
-                                        </div>
-                                        <div>
-                                            <span className="text-muted-foreground">Hajmi: </span>
-                                            <span
-                                                className="text-foreground">{(videoFile.size / (1024 * 1024)).toFixed(2)} MB</span>
-                                        </div>
-                                        <div>
-                                            <span className="text-muted-foreground">Format: </span>
-                                            <span className="text-foreground">{videoFile.type}</span>
-                                        </div>
-                                        {formData.duration && (
-                                            <div>
-                                                <span className="text-muted-foreground">Davomiylik: </span>
-                                                <span className="text-foreground">{formData.duration}</span>
+                            {videoMode === 'file' ? (
+                                <div className="space-y-3">
+                                    <input ref={videoInputRef} type="file" accept="video/mp4" className="hidden"
+                                           onChange={handleVideoFileChange}/>
+                                    <Button type="button" variant="outline"
+                                            className={`w-full ${videoError ? 'border-destructive' : ''}`}
+                                            onClick={() => videoInputRef.current?.click()}>
+                                        <Upload className="mr-2 h-4 w-4"/>
+                                        {videoFile ? videoFile.name : 'Video tanlang (MP4)'}
+                                    </Button>
+                                    {videoError && <p className="text-sm text-destructive">{videoError}</p>}
+
+                                    {videoFile && (
+                                        <div className="p-4 rounded-lg bg-muted/50 border border-border space-y-3">
+                                            <div className="flex items-center justify-between gap-3">
+                                                <h3 className="font-medium text-sm text-foreground">Video ma'lumotlari</h3>
+                                                <Button type="button" variant="ghost" size="sm" onClick={() => { setVideoFile(null); setVideoFilePreview(''); }}>
+                                                    <X className="mr-1 h-4 w-4"/> O'chirish
+                                                </Button>
                                             </div>
-                                        )}
-                                    </div>
+                                            <div className="grid grid-cols-2 gap-2 text-sm">
+                                                <div><span className="text-muted-foreground">Fayl nomi: </span><span className="text-foreground">{videoFile.name}</span></div>
+                                                <div><span className="text-muted-foreground">Hajmi: </span><span className="text-foreground">{(videoFile.size / (1024 * 1024)).toFixed(2)} MB</span></div>
+                                                <div><span className="text-muted-foreground">Format: </span><span className="text-foreground">{videoFile.type}</span></div>
+                                                {formData.duration && <div><span className="text-muted-foreground">Davomiylik: </span><span className="text-foreground">{formData.duration}</span></div>}
+                                            </div>
+                                            {videoFilePreview && <video src={videoFilePreview} controls className="w-full rounded-lg bg-black aspect-video" />}
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    <Input
+                                        placeholder="https://www.youtube.com/watch?v=..."
+                                        value={formData.videoUrl}
+                                        onChange={(e) => setFormData(prev => ({...prev, videoUrl: e.target.value}))}
+                                    />
+                                    {formData.videoUrl && (
+                                        <div className="rounded-lg overflow-hidden border border-border bg-black aspect-video">
+                                            <iframe
+                                                src={toEmbedUrl(formData.videoUrl)}
+                                                title="Video preview"
+                                                className="w-full h-full"
+                                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+                                                allowFullScreen
+                                            />
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
