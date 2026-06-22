@@ -232,8 +232,16 @@ class TaskViewSet(viewsets.ModelViewSet):
                     item = json.loads(item)
                 except (json.JSONDecodeError, TypeError):
                     continue
-            if isinstance(item, list) and len(item) == 1 and isinstance(item[0], dict):
-                item = item[0]
+            if isinstance(item, list):
+                for nested_item in item:
+                    if isinstance(nested_item, str):
+                        try:
+                            nested_item = json.loads(nested_item)
+                        except (json.JSONDecodeError, TypeError):
+                            continue
+                    if isinstance(nested_item, dict):
+                        normalized.append(nested_item)
+                continue
             if isinstance(item, dict):
                 normalized.append(item)
         return normalized
