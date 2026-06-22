@@ -530,41 +530,75 @@ export default function AdminVideoAddWithTask() {
                                 </p>
                             </div>
 
-                            <input ref={videoInputRef} type="file" accept="video/mp4" className="hidden"
-                                   onChange={handleVideoFileChange}/>
-                            <Button type="button" variant="outline"
-                                    className={`w-full ${videoError ? 'border-destructive' : ''}`}
-                                    onClick={() => videoInputRef.current?.click()}>
-                                <Upload className="mr-2 h-4 w-4"/>
-                                {videoFile ? videoFile.name : 'Video tanlang (MP4)'}
-                            </Button>
-                            {videoError && <p className="text-sm text-destructive">{videoError}</p>}
+                            <div className="space-y-2">
+                                <Label>Video manbai</Label>
+                                <Select value={videoMode} onValueChange={(value) => {
+                                    const mode = value as 'file' | 'url';
+                                    setVideoMode(mode);
+                                    setVideoError('');
+                                    if (mode === 'file') {
+                                        setFormData(prev => ({...prev, videoUrl: ''}));
+                                    } else {
+                                        setVideoFile(null);
+                                        setVideoFilePreview('');
+                                    }
+                                }}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="file">Video fayl yuklash</SelectItem>
+                                        <SelectItem value="url">Video havola (YouTube, Vimeo, ...)</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
 
-                            {/* Video metadata after file selected */}
-                            {videoFile && (
-                                <div className="p-4 rounded-lg bg-muted/50 border border-border space-y-2">
-                                    <h3 className="font-medium text-sm text-foreground">Video ma'lumotlari</h3>
-                                    <div className="grid grid-cols-2 gap-2 text-sm">
-                                        <div>
-                                            <span className="text-muted-foreground">Fayl nomi: </span>
-                                            <span className="text-foreground">{videoFile.name}</span>
-                                        </div>
-                                        <div>
-                                            <span className="text-muted-foreground">Hajmi: </span>
-                                            <span
-                                                className="text-foreground">{(videoFile.size / (1024 * 1024)).toFixed(2)} MB</span>
-                                        </div>
-                                        <div>
-                                            <span className="text-muted-foreground">Format: </span>
-                                            <span className="text-foreground">{videoFile.type}</span>
-                                        </div>
-                                        {formData.duration && (
-                                            <div>
-                                                <span className="text-muted-foreground">Davomiylik: </span>
-                                                <span className="text-foreground">{formData.duration}</span>
+                            {videoMode === 'file' ? (
+                                <div className="space-y-3">
+                                    <input ref={videoInputRef} type="file" accept="video/mp4" className="hidden"
+                                           onChange={handleVideoFileChange}/>
+                                    <Button type="button" variant="outline"
+                                            className={`w-full ${videoError ? 'border-destructive' : ''}`}
+                                            onClick={() => videoInputRef.current?.click()}>
+                                        <Upload className="mr-2 h-4 w-4"/>
+                                        {videoFile ? videoFile.name : 'Video tanlang (MP4)'}
+                                    </Button>
+                                    {videoError && <p className="text-sm text-destructive">{videoError}</p>}
+
+                                    {videoFile && (
+                                        <div className="p-4 rounded-lg bg-muted/50 border border-border space-y-3">
+                                            <div className="flex items-center justify-between gap-3">
+                                                <h3 className="font-medium text-sm text-foreground">Video ma'lumotlari</h3>
+                                                <Button type="button" variant="ghost" size="sm" onClick={() => { setVideoFile(null); setVideoFilePreview(''); }}>
+                                                    <X className="mr-1 h-4 w-4"/> O'chirish
+                                                </Button>
                                             </div>
-                                        )}
-                                    </div>
+                                            <div className="grid grid-cols-2 gap-2 text-sm">
+                                                <div><span className="text-muted-foreground">Fayl nomi: </span><span className="text-foreground">{videoFile.name}</span></div>
+                                                <div><span className="text-muted-foreground">Hajmi: </span><span className="text-foreground">{(videoFile.size / (1024 * 1024)).toFixed(2)} MB</span></div>
+                                                <div><span className="text-muted-foreground">Format: </span><span className="text-foreground">{videoFile.type}</span></div>
+                                                {formData.duration && <div><span className="text-muted-foreground">Davomiylik: </span><span className="text-foreground">{formData.duration}</span></div>}
+                                            </div>
+                                            {videoFilePreview && <video src={videoFilePreview} controls className="w-full rounded-lg bg-black aspect-video" />}
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    <Input
+                                        placeholder="https://www.youtube.com/watch?v=..."
+                                        value={formData.videoUrl}
+                                        onChange={(e) => setFormData(prev => ({...prev, videoUrl: e.target.value}))}
+                                    />
+                                    {formData.videoUrl && (
+                                        <div className="rounded-lg overflow-hidden border border-border bg-black aspect-video">
+                                            <iframe
+                                                src={toEmbedUrl(formData.videoUrl)}
+                                                title="Video preview"
+                                                className="w-full h-full"
+                                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+                                                allowFullScreen
+                                            />
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
