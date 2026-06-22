@@ -84,7 +84,7 @@ export default function AdminVideoEdit() {
         ]);
         const categoriesData = categoriesRes?.results || categoriesRes || [];
         const categoriesList = Array.isArray(categoriesData) ? categoriesData : [];
-        const currentCategory = categoriesData.find((cat: any) => String(cat.id) === String(videoRes.category));
+        const currentCategory = categoriesList.find((cat: any) => String(cat.id) === String(videoRes.category));
         setCategories(categoriesList);
         setSelectedCategory(currentCategory || null);
         setVideoMode(isExternalVideoUrl(videoRes.video_url || '') ? 'url' : 'file');
