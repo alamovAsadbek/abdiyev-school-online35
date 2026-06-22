@@ -318,7 +318,7 @@ export default function AdminVideoAddWithTask() {
             for (let i = 0; i < questions.length; i++) {
                 const q = questions[i];
                 if (!getPlainText(q.question)) {
-                toast({title: 'Xatolik', description: `${i + 1}-savol matni kiritilmagan`, variant: 'destructive'});
+                    toast({title: 'Xatolik', description: `${i + 1}-savol matni kiritilmagan`, variant: 'destructive'});
                     return;
                 }
                 const validOptions = q.options.filter(o => o.trim());
