@@ -28,6 +28,37 @@ import {RichTextEditor} from '@/components/RichTextEditor';
 const MAX_VIDEO_SIZE = 150 * 1024 * 1024;
 const ALLOWED_VIDEO_TYPES = ['video/mp4'];
 
+const getPlainText = (value: string) => value.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+
+const getApiErrorMessage = (error: any, fallback: string) => {
+    const data = error?.response?.data;
+    if (typeof data === 'string') return data;
+    if (data?.error) return data.error;
+    if (data?.detail) return data.detail;
+    return error?.message || fallback;
+};
+
+const toEmbedUrl = (url: string): string => {
+    if (!url) return '';
+    try {
+        const u = new URL(url);
+        if (u.hostname.includes('youtube.com')) {
+            if (u.pathname.startsWith('/embed/')) return url;
+            const v = u.searchParams.get('v');
+            if (v) return `https://www.youtube.com/embed/${v}`;
+        }
+        if (u.hostname.includes('youtu.be')) {
+            const id = u.pathname.split('/').filter(Boolean)[0];
+            if (id) return `https://www.youtube.com/embed/${id}`;
+        }
+        if (u.hostname.includes('vimeo.com')) {
+            const id = u.pathname.split('/').filter(Boolean)[0];
+            if (id) return `https://player.vimeo.com/video/${id}`;
+        }
+    } catch { /* ignore */ }
+    return url;
+};
+
 interface TaskQuestion {
     id: string;
     question: string;
@@ -82,6 +113,8 @@ export default function AdminVideoAddWithTask() {
 
     const [categories, setCategories] = useState<any[]>([]);
     const [videoFile, setVideoFile] = useState<File | null>(null);
+    const [videoFilePreview, setVideoFilePreview] = useState<string>('');
+    const [videoMode, setVideoMode] = useState<'file' | 'url'>('file');
     const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
     const [thumbnailPreview, setThumbnailPreview] = useState<string>('');
     const [thumbnailMode, setThumbnailMode] = useState<'upload' | 'url'>('upload');
