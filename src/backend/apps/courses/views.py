@@ -86,7 +86,7 @@ class VideoViewSet(viewsets.ModelViewSet):
         data = request.data.dict()  # ❗ file bo‘lmagan fieldlar
 
         video_file = request.FILES.get('video_file')
-        thumbnail_file = request.FILES.get('thumbnail')
+        thumbnail_file = request.FILES.get('thumbnail') or request.FILES.get('thumbnail_file')
 
         video_url = data.get('video_url')
         thumbnail_url = data.get('thumbnail_url')
@@ -124,7 +124,7 @@ class VideoViewSet(viewsets.ModelViewSet):
         video_url = data.get('video_url', '')
 
         # Handle thumbnail file or URL
-        thumbnail_file = request.FILES.get('thumbnail')
+        thumbnail_file = request.FILES.get('thumbnail') or request.FILES.get('thumbnail_file')
         thumbnail_url = data.get('thumbnail_url', '')
 
         # Remove file fields from data to avoid serializer conflicts
