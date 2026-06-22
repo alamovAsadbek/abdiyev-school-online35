@@ -179,16 +179,17 @@ export default function AdminVideoAddWithTask() {
             }
             setVideoFile(file);
             setVideoError('');
+            const blobUrl = URL.createObjectURL(file);
+            setVideoFilePreview(blobUrl);
             const video = document.createElement('video');
             video.preload = 'metadata';
             video.onloadedmetadata = () => {
-                window.URL.revokeObjectURL(video.src);
                 const duration = video.duration;
                 const minutes = Math.floor(duration / 60);
                 const seconds = Math.floor(duration % 60);
                 setFormData(prev => ({...prev, duration: `${minutes}:${seconds.toString().padStart(2, '0')}`}));
             };
-            video.src = URL.createObjectURL(file);
+            video.src = blobUrl;
         }
     };
 
@@ -250,8 +251,12 @@ export default function AdminVideoAddWithTask() {
             toast({title: 'Xatolik', description: 'Modulli kurs uchun modulni tanlang', variant: 'destructive'});
             return;
         }
-        if (!videoFile) {
+        if (videoMode === 'file' && !videoFile) {
             toast({title: 'Xatolik', description: 'Video faylni yuklang', variant: 'destructive'});
+            return;
+        }
+        if (videoMode === 'url' && !formData.videoUrl.trim()) {
+            toast({title: 'Xatolik', description: 'Video havolasini kiriting', variant: 'destructive'});
             return;
         }
         if (!thumbnailFile && !formData.thumbnail) {
@@ -266,7 +271,11 @@ export default function AdminVideoAddWithTask() {
             formDataToSend.append('description', formData.description || '');
             formDataToSend.append('category', formData.categoryId);
             formDataToSend.append('duration', formData.duration || '0:00');
-            formDataToSend.append('video_file', videoFile);
+            if (videoMode === 'file' && videoFile) {
+                formDataToSend.append('video_file', videoFile);
+            } else if (videoMode === 'url') {
+                formDataToSend.append('video_url', formData.videoUrl.trim());
+            }
             
             // Add module if selected
             if (formData.moduleId) {
@@ -309,7 +318,7 @@ export default function AdminVideoAddWithTask() {
             for (let i = 0; i < questions.length; i++) {
                 const q = questions[i];
                 if (!q.question.trim()) {
-                    toast({title: 'Xatolik', description: `${i + 1}-savol matni kiritilmagan`, variant: 'destructive'});
+                toast({title: 'Xatolik', description: `${i + 1}-savol matni kiritilmagan`, variant: 'destructive'});
                     return;
                 }
                 const validOptions = q.options.filter(o => o.trim());
@@ -317,6 +326,14 @@ export default function AdminVideoAddWithTask() {
                     toast({
                         title: 'Xatolik',
                         description: `${i + 1}-savol uchun kamida 2 ta variant kerak`,
+                        variant: 'destructive'
+                    });
+                    return;
+                }
+                if (!q.options[q.correctAnswer]?.trim()) {
+                    toast({
+                        title: 'Xatolik',
+                        description: `${i + 1}-savol uchun to'g'ri javobni to'ldirilgan variantlardan tanlang`,
                         variant: 'destructive'
                     });
                     return;
@@ -381,7 +398,11 @@ export default function AdminVideoAddWithTask() {
             toast({title: 'Muvaffaqiyat', description: 'Vazifa qo\'shildi'});
             navigate('/admin/videos');
         } catch (error: any) {
-            toast({title: 'Xatolik', description: error.message || 'Vazifa saqlashda xatolik', variant: 'destructive'});
+            toast({
+                title: 'Video yuklandi, lekin vazifa yuklanmadi',
+                description: `${getApiErrorMessage(error, 'Vazifa saqlashda xatolik')}. Davom etish uchun video darsga kirib tahrirlashingiz mumkin.`,
+                variant: 'destructive'
+            });
         } finally {
             setIsLoading(false);
         }
