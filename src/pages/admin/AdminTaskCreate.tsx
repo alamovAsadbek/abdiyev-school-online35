@@ -43,6 +43,16 @@ interface Category {
   name: string;
 }
 
+const getPlainText = (value: string) => value.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+
+const getApiErrorMessage = (error: any, fallback: string) => {
+  const data = error?.response?.data;
+  if (typeof data === 'string') return data;
+  if (data?.error) return data.error;
+  if (data?.detail) return data.detail;
+  return error?.message || fallback;
+};
+
 export default function AdminTaskCreate() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -230,6 +240,25 @@ export default function AdminTaskCreate() {
       return;
     }
 
+    if (formData.task_type === 'test') {
+      for (let i = 0; i < formData.questions.length; i++) {
+        const q = formData.questions[i];
+        const validOptions = q.options.filter(o => o.trim());
+        if (!getPlainText(q.question)) {
+          toast({ title: 'Xatolik', description: `${i + 1}-savol matnini kiriting`, variant: 'destructive' });
+          return;
+        }
+        if (validOptions.length < 2) {
+          toast({ title: 'Xatolik', description: `${i + 1}-savol uchun kamida 2 ta javob varianti kiriting`, variant: 'destructive' });
+          return;
+        }
+        if (!q.options[q.correct_answer]?.trim()) {
+          toast({ title: 'Xatolik', description: `${i + 1}-savol uchun to'g'ri javobni to'ldirilgan variantlardan tanlang`, variant: 'destructive' });
+          return;
+        }
+      }
+    }
+
     setSaving(true);
     try {
       // Use FormData if there are question images or answer file
@@ -294,7 +323,7 @@ export default function AdminTaskCreate() {
       navigate('/admin/tasks');
     } catch (error) {
       console.error('Error saving task:', error);
-      toast({ title: 'Xatolik', description: 'Saqlashda xatolik', variant: 'destructive' });
+      toast({ title: 'Xatolik', description: getApiErrorMessage(error, 'Saqlashda xatolik'), variant: 'destructive' });
     } finally {
       setSaving(false);
     }
