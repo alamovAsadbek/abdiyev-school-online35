@@ -42,6 +42,11 @@ const getApiErrorMessage = (error: any, fallback: string) => {
   return error?.message || fallback;
 };
 
+const isExternalVideoUrl = (url: string) => {
+  if (!url) return false;
+  return /youtube\.com|youtu\.be|vimeo\.com/i.test(url) || !url.includes('/media/videos/');
+};
+
 export default function AdminVideoEdit() {
   const { videoId } = useParams();
   const navigate = useNavigate();
@@ -78,10 +83,11 @@ export default function AdminVideoEdit() {
           categoriesApi.getAll(),
         ]);
         const categoriesData = categoriesRes?.results || categoriesRes || [];
+        const categoriesList = Array.isArray(categoriesData) ? categoriesData : [];
         const currentCategory = categoriesData.find((cat: any) => String(cat.id) === String(videoRes.category));
-        setCategories(Array.isArray(categoriesData) ? categoriesData : []);
+        setCategories(categoriesList);
         setSelectedCategory(currentCategory || null);
-        setVideoMode(videoRes.video_url ? 'url' : 'file');
+        setVideoMode(isExternalVideoUrl(videoRes.video_url || '') ? 'url' : 'file');
         setThumbnailPreview(videoRes.thumbnail || '');
         setFormData({
           title: videoRes.title || '',
