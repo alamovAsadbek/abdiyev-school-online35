@@ -283,8 +283,8 @@ export default function StudentVideoView() {
             <DashboardLayout>
                 <div className="flex flex-col items-center justify-center min-h-[400px]">
                     <Lock className="h-12 w-12 text-muted-foreground mb-4"/>
-                    <p className="text-muted-foreground mb-4 text-center">
-                        Siz bu kursni sotib olmagansiz. Videoni ko'rish uchun avval kursni sotib oling.
+                    <p className="text-muted-foreground mb-4 text-center max-w-md">
+                        Bu video pullik modulga tegishli. Uni ko'rish uchun modulni sotib oling yoki admindan sovg'a kutib oling.
                     </p>
                     <Button onClick={() => navigate('/student/courses')}>
                         Kurslarga o'tish
