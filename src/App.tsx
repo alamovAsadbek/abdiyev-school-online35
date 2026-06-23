@@ -41,6 +41,7 @@ import AdminUserEdit from "./pages/admin/AdminUserEdit";
 import AdminPayments from "./pages/admin/AdminPayments";
 import AdminPaymentDetail from "./pages/admin/AdminPaymentDetail";
 import AdminCategoryDetail from "./pages/admin/AdminCategoryDetail";
+import AdminModuleEdit from "./pages/admin/AdminModuleEdit";
 import AdminNotifications from "./pages/admin/AdminNotifications";
 import AdminNotificationCreate from "./pages/admin/AdminNotificationCreate";
 import AdminTaskStatistics from "@/pages/admin/AdminTaskStatistics.tsx";
