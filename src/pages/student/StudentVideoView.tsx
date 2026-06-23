@@ -121,35 +121,45 @@ export default function StudentVideoView() {
                 // Check if user has access to this course
                 const myCourses = await userCoursesApi.getMyCourses();
                 const courses = myCourses?.results || myCourses || [];
-                const hasAccessToCourse = courses.some(
+                const currentCourse = courses.find(
                     (c: any) => {
-                        const courseCategory = c.category_id || c.categoryId || c.category;
+                        const courseCategory = c.category_id || c.categoryId || c.category?.id || c.category;
                         return String(courseCategory) === String(videoData.category);
                     }
                 );
 
-                // Also check if the course is free (price = 0)
-                let isFree = false;
+                // Determine if this specific video/module is accessible
+                let isAccessible = false;
                 try {
                     const categoryData = await categoriesApi.getById(String(videoData.category));
-                    isFree = Number(categoryData?.price ?? 0) === 0;
-                    
-                    // Also check if video's module is free
-                    if (!isFree && videoData.module && categoryData?.is_modular) {
-                        try {
-                            const modulesData = await import('@/services/api').then(m => m.modulesApi.getByCategory(String(videoData.category)));
-                            const modulesList = modulesData?.results || modulesData || [];
-                            const videoModule = modulesList.find((m: any) => String(m.id) === String(videoData.module));
-                            if (videoModule && Number(videoModule.price ?? 0) === 0) {
-                                isFree = true;
-                            }
-                        } catch {}
+                    const coursePrice = Number(categoryData?.price ?? 0);
+                    const isModular = !!categoryData?.is_modular;
+
+                    if (!isModular) {
+                        // Non-modular: free course OR user has it
+                        isAccessible = coursePrice === 0 || !!currentCourse;
+                    } else {
+                        // Modular: check this video's module
+                        let moduleFree = false;
+                        if (videoData.module) {
+                            try {
+                                const mod = await import('@/services/api').then(m => m.modulesApi.getById(String(videoData.module)));
+                                moduleFree = Number(mod?.price ?? 0) === 0;
+                            } catch {}
+                        }
+                        if (moduleFree) {
+                            isAccessible = true;
+                        } else if (currentCourse) {
+                            const gifted = currentCourse.modules_detail || currentCourse.modules || [];
+                            const giftedIds = gifted.map((m: any) => String(m.id || m));
+                            isAccessible = giftedIds.includes(String(videoData.module));
+                        }
                     }
                 } catch {}
 
-                setHasAccess(hasAccessToCourse || isFree);
+                setHasAccess(isAccessible);
 
-                if (!hasAccessToCourse && !isFree) {
+                if (!isAccessible) {
                     setLoading(false);
                     return;
                 }
