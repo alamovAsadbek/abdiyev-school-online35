@@ -64,23 +64,18 @@ export default function StudentCategoryView() {
             const response = await userCoursesApi.getMyCourses();
             const myCourses = response?.results || response || [];
             const currentCourse = myCourses.find((c: any) => String(c.category?.id || c.category) === String(categoryId));
-            console.log('Current course for category', categoryId, ':', currentCourse);
             if (currentCourse) {
-                // Check modules_detail first (contains full module info), then modules
                 const modulesList = currentCourse.modules_detail || currentCourse.modules || [];
                 if (modulesList.length > 0) {
                     const ids = modulesList.map((m: any) => String(m.id || m));
-                    console.log('Accessible module IDs:', ids);
                     setAccessibleModuleIds(ids);
                 } else if (!currentCourse.category_is_modular) {
-                    // Non-modular course: full access
                     setAccessibleModuleIds(['all']);
                 } else {
-                    // Modular course with no specific modules = full access (gifted whole course)
-                    setAccessibleModuleIds(['all']);
+                    // Modular course gifted without specific modules — only free modules accessible
+                    setAccessibleModuleIds([]);
                 }
             } else {
-                // No access to this course
                 setAccessibleModuleIds([]);
             }
         } catch (e) {
