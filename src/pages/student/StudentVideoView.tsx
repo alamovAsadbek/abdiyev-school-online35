@@ -78,29 +78,30 @@ export default function StudentVideoView() {
     // Check if a video is locked (previous not completed or task not done) - using backend progress
     const isVideoLocked = (targetVideoId: string): boolean => {
         if (progressLoading) return false; // Don't lock while loading
-        
+
         // If category doesn't require sequential access, nothing is locked
         if (category && category.requires_sequential === false) {
             return false;
         }
 
-        const sortedVideos = [...categoryVideos].sort((a, b) => a.order - b.order);
-        const targetIndex = sortedVideos.findIndex(v => String(v.id) === String(targetVideoId));
-        // First video is never locked
-        if (targetIndex === 0) return false;
+        // Scope sequential check to the SAME module (so other modules don't block free module videos)
+        const target = categoryVideos.find(v => String(v.id) === String(targetVideoId));
+        const sameScope = categoryVideos
+            .filter(v => String(v.module ?? '') === String(target?.module ?? ''))
+            .sort((a, b) => a.order - b.order);
+        const targetIndex = sameScope.findIndex(v => String(v.id) === String(targetVideoId));
+        if (targetIndex <= 0) return false;
 
-        // Check if previous video is completed
-        const previousVideo = sortedVideos[targetIndex - 1];
+        const previousVideo = sameScope[targetIndex - 1];
         if (!isVideoCompleted(previousVideo?.id)) {
             return true;
         }
-        
-        // Check if previous video's task is completed (if exists)
+
         const prevVideoTask = videoTasks[previousVideo?.id];
         if (prevVideoTask && !isTaskCompleted(prevVideoTask.id)) {
             return true;
         }
-        
+
         return false;
     };
     const currentVideoLocked = video ? isVideoLocked(video?.id) : false;
