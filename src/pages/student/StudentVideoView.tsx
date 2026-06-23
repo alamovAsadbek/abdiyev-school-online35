@@ -31,6 +31,7 @@ interface Video {
     category: string;
     category_name?: string;
     order: number;
+    module?: string | number | null;
 }
 
 interface Task {
