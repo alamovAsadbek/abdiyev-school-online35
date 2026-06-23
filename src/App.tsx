@@ -145,6 +145,8 @@ function AppRoutes() {
                    element={<ProtectedRoute allowedRole="admin"><AdminCategoryDetail/></ProtectedRoute>}/>
             <Route path="/admin/categories/:categoryId/edit"
                    element={<ProtectedRoute allowedRole="admin"><AdminCategoryCreate/></ProtectedRoute>}/>
+            <Route path="/admin/categories/:categoryId/modules/:moduleId/edit"
+                   element={<ProtectedRoute allowedRole="admin"><AdminModuleEdit/></ProtectedRoute>}/>
             <Route path="/admin/videos" element={<ProtectedRoute allowedRole="admin"><AdminVideos/></ProtectedRoute>}/>
             <Route path="/admin/videos/add"
                    element={<ProtectedRoute allowedRole="admin"><AdminVideoAddWithTask/></ProtectedRoute>}/>
