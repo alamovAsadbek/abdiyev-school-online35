@@ -41,6 +41,7 @@ import AdminUserEdit from "./pages/admin/AdminUserEdit";
 import AdminPayments from "./pages/admin/AdminPayments";
 import AdminPaymentDetail from "./pages/admin/AdminPaymentDetail";
 import AdminCategoryDetail from "./pages/admin/AdminCategoryDetail";
+import AdminModuleEdit from "./pages/admin/AdminModuleEdit";
 import AdminNotifications from "./pages/admin/AdminNotifications";
 import AdminNotificationCreate from "./pages/admin/AdminNotificationCreate";
 import AdminTaskStatistics from "@/pages/admin/AdminTaskStatistics.tsx";
@@ -144,6 +145,8 @@ function AppRoutes() {
                    element={<ProtectedRoute allowedRole="admin"><AdminCategoryDetail/></ProtectedRoute>}/>
             <Route path="/admin/categories/:categoryId/edit"
                    element={<ProtectedRoute allowedRole="admin"><AdminCategoryCreate/></ProtectedRoute>}/>
+            <Route path="/admin/categories/:categoryId/modules/:moduleId/edit"
+                   element={<ProtectedRoute allowedRole="admin"><AdminModuleEdit/></ProtectedRoute>}/>
             <Route path="/admin/videos" element={<ProtectedRoute allowedRole="admin"><AdminVideos/></ProtectedRoute>}/>
             <Route path="/admin/videos/add"
                    element={<ProtectedRoute allowedRole="admin"><AdminVideoAddWithTask/></ProtectedRoute>}/>

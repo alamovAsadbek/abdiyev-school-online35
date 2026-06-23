@@ -31,6 +31,7 @@ interface Video {
     category: string;
     category_name?: string;
     order: number;
+    module?: string | number | null;
 }
 
 interface Task {
@@ -78,29 +79,30 @@ export default function StudentVideoView() {
     // Check if a video is locked (previous not completed or task not done) - using backend progress
     const isVideoLocked = (targetVideoId: string): boolean => {
         if (progressLoading) return false; // Don't lock while loading
-        
+
         // If category doesn't require sequential access, nothing is locked
         if (category && category.requires_sequential === false) {
             return false;
         }
 
-        const sortedVideos = [...categoryVideos].sort((a, b) => a.order - b.order);
-        const targetIndex = sortedVideos.findIndex(v => String(v.id) === String(targetVideoId));
-        // First video is never locked
-        if (targetIndex === 0) return false;
+        // Scope sequential check to the SAME module (so other modules don't block free module videos)
+        const target = categoryVideos.find(v => String(v.id) === String(targetVideoId));
+        const sameScope = categoryVideos
+            .filter(v => String(v.module ?? '') === String(target?.module ?? ''))
+            .sort((a, b) => a.order - b.order);
+        const targetIndex = sameScope.findIndex(v => String(v.id) === String(targetVideoId));
+        if (targetIndex <= 0) return false;
 
-        // Check if previous video is completed
-        const previousVideo = sortedVideos[targetIndex - 1];
+        const previousVideo = sameScope[targetIndex - 1];
         if (!isVideoCompleted(previousVideo?.id)) {
             return true;
         }
-        
-        // Check if previous video's task is completed (if exists)
+
         const prevVideoTask = videoTasks[previousVideo?.id];
         if (prevVideoTask && !isTaskCompleted(prevVideoTask.id)) {
             return true;
         }
-        
+
         return false;
     };
     const currentVideoLocked = video ? isVideoLocked(video?.id) : false;
@@ -119,35 +121,45 @@ export default function StudentVideoView() {
                 // Check if user has access to this course
                 const myCourses = await userCoursesApi.getMyCourses();
                 const courses = myCourses?.results || myCourses || [];
-                const hasAccessToCourse = courses.some(
+                const currentCourse = courses.find(
                     (c: any) => {
-                        const courseCategory = c.category_id || c.categoryId || c.category;
+                        const courseCategory = c.category_id || c.categoryId || c.category?.id || c.category;
                         return String(courseCategory) === String(videoData.category);
                     }
                 );
 
-                // Also check if the course is free (price = 0)
-                let isFree = false;
+                // Determine if this specific video/module is accessible
+                let isAccessible = false;
                 try {
                     const categoryData = await categoriesApi.getById(String(videoData.category));
-                    isFree = Number(categoryData?.price ?? 0) === 0;
-                    
-                    // Also check if video's module is free
-                    if (!isFree && videoData.module && categoryData?.is_modular) {
-                        try {
-                            const modulesData = await import('@/services/api').then(m => m.modulesApi.getByCategory(String(videoData.category)));
-                            const modulesList = modulesData?.results || modulesData || [];
-                            const videoModule = modulesList.find((m: any) => String(m.id) === String(videoData.module));
-                            if (videoModule && Number(videoModule.price ?? 0) === 0) {
-                                isFree = true;
-                            }
-                        } catch {}
+                    const coursePrice = Number(categoryData?.price ?? 0);
+                    const isModular = !!categoryData?.is_modular;
+
+                    if (!isModular) {
+                        // Non-modular: free course OR user has it
+                        isAccessible = coursePrice === 0 || !!currentCourse;
+                    } else {
+                        // Modular: check this video's module
+                        let moduleFree = false;
+                        if (videoData.module) {
+                            try {
+                                const mod = await import('@/services/api').then(m => m.modulesApi.getById(String(videoData.module)));
+                                moduleFree = Number(mod?.price ?? 0) === 0;
+                            } catch {}
+                        }
+                        if (moduleFree) {
+                            isAccessible = true;
+                        } else if (currentCourse) {
+                            const gifted = currentCourse.modules_detail || currentCourse.modules || [];
+                            const giftedIds = gifted.map((m: any) => String(m.id || m));
+                            isAccessible = giftedIds.includes(String(videoData.module));
+                        }
                     }
                 } catch {}
 
-                setHasAccess(hasAccessToCourse || isFree);
+                setHasAccess(isAccessible);
 
-                if (!hasAccessToCourse && !isFree) {
+                if (!isAccessible) {
                     setLoading(false);
                     return;
                 }
@@ -271,8 +283,8 @@ export default function StudentVideoView() {
             <DashboardLayout>
                 <div className="flex flex-col items-center justify-center min-h-[400px]">
                     <Lock className="h-12 w-12 text-muted-foreground mb-4"/>
-                    <p className="text-muted-foreground mb-4 text-center">
-                        Siz bu kursni sotib olmagansiz. Videoni ko'rish uchun avval kursni sotib oling.
+                    <p className="text-muted-foreground mb-4 text-center max-w-md">
+                        Bu video pullik modulga tegishli. Uni ko'rish uchun modulni sotib oling yoki admindan sovg'a kutib oling.
                     </p>
                     <Button onClick={() => navigate('/student/courses')}>
                         Kurslarga o'tish

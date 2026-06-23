@@ -64,23 +64,18 @@ export default function StudentCategoryView() {
             const response = await userCoursesApi.getMyCourses();
             const myCourses = response?.results || response || [];
             const currentCourse = myCourses.find((c: any) => String(c.category?.id || c.category) === String(categoryId));
-            console.log('Current course for category', categoryId, ':', currentCourse);
             if (currentCourse) {
-                // Check modules_detail first (contains full module info), then modules
                 const modulesList = currentCourse.modules_detail || currentCourse.modules || [];
                 if (modulesList.length > 0) {
                     const ids = modulesList.map((m: any) => String(m.id || m));
-                    console.log('Accessible module IDs:', ids);
                     setAccessibleModuleIds(ids);
                 } else if (!currentCourse.category_is_modular) {
-                    // Non-modular course: full access
                     setAccessibleModuleIds(['all']);
                 } else {
-                    // Modular course with no specific modules = full access (gifted whole course)
-                    setAccessibleModuleIds(['all']);
+                    // Modular course gifted without specific modules — only free modules accessible
+                    setAccessibleModuleIds([]);
                 }
             } else {
-                // No access to this course
                 setAccessibleModuleIds([]);
             }
         } catch (e) {
@@ -127,14 +122,16 @@ export default function StudentCategoryView() {
 
     // Check if module is accessible
     const isModuleAccessible = (moduleId: string): boolean => {
-        if (!category?.is_modular) return true;
-        // Free course: all modules accessible
-        if (Number(category?.price ?? 0) === 0) return true;
-        if (accessibleModuleIds.includes('all')) return true;
-        // Check if this specific module is free
+        if (!category?.is_modular) {
+            // Non-modular: free course → accessible to all, paid → require purchase/gift
+            if (Number(category?.price ?? 0) === 0) return true;
+            return accessibleModuleIds.length > 0;
+        }
+        // Modular course: check this specific module's price
         const module = modules.find(m => String(m.id) === String(moduleId));
-        if (module && Number(module.price ?? 0) === 0) return true;
-        if (accessibleModuleIds.length === 0) return false;
+        if (module && Number(module.price ?? 0) === 0) return true; // free module
+        // Paid module — only via explicit gift/purchase
+        if (accessibleModuleIds.includes('all')) return true;
         return accessibleModuleIds.includes(String(moduleId));
     };
 

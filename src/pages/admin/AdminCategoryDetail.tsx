@@ -389,9 +389,22 @@ export default function AdminCategoryDetail() {
                             e.stopPropagation();
                             setSelectedModuleId(module.id);
                         }}
+                        title="Modul ichini ko'rish"
                         className="h-8 w-8 text-muted-foreground hover:text-foreground"
                     >
                         <ChevronRight className="h-4 w-4" />
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/admin/categories/${categoryId}/modules/${module.id}/edit`);
+                        }}
+                        title="Tahrirlash"
+                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                    >
+                        <Pencil className="h-4 w-4" />
                     </Button>
                     <Button
                         variant="ghost"
