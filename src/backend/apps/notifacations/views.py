@@ -97,13 +97,26 @@ class NotificationViewSet(viewsets.ModelViewSet):
             scheduled_at__lte=now
         )
         
+        from channels.layers import get_channel_layer
+        from asgiref.sync import async_to_sync
+        layer = get_channel_layer()
+
         sent_count = 0
         for notification in scheduled:
+            payload = NotificationSerializer(notification).data
             for user in notification.recipients.all():
                 UserNotification.objects.get_or_create(
                     user=user,
                     notification=notification
                 )
+                if layer is not None:
+                    try:
+                        async_to_sync(layer.group_send)(
+                            f'notifications_user_{user.id}',
+                            {'type': 'notify', 'data': payload},
+                        )
+                    except Exception:
+                        pass
             notification.sent_count = notification.recipients.count()
             notification.status = 'sent'
             notification.save()
