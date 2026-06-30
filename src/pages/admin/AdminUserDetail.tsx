@@ -393,7 +393,7 @@ export default function AdminUserDetail() {
     const handleRemoveCourse = async () => {
         if (courseToDelete) {
             try {
-                // TODO: Add delete endpoint for user courses
+                await userCoursesApi.revoke(courseToDelete);
                 setCourses(prev => prev.filter(c => c.id !== courseToDelete));
                 setCourseToDelete(null);
                 toast({title: 'O\'chirildi', description: 'Kurs olib tashlandi'});
