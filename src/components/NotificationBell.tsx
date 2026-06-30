@@ -11,6 +11,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { notificationsApi } from '@/services/api';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { WS_BASE_URL } from '@/lib/variables';
 
 interface Notification {
   id: string;
@@ -123,18 +124,65 @@ export function NotificationBell() {
     }
   }, [isOpen, fetchNotifications, user]);
 
-  // Poll for new notifications every 15 seconds
+  // WebSocket subscription — replaces polling
   useEffect(() => {
     if (!user || user.role === 'admin') return;
-    
-    const interval = setInterval(() => {
-      if (!isOpen) {
-        fetchUnreadCount();
+    const token = localStorage.getItem('access');
+    if (!token) return;
+
+    let ws: WebSocket | null = null;
+    let reconnectTimer: number | null = null;
+    let pingTimer: number | null = null;
+    let closed = false;
+
+    const connect = () => {
+      try {
+        ws = new WebSocket(`${WS_BASE_URL}/ws/notifications/?token=${encodeURIComponent(token)}`);
+      } catch (e) {
+        console.error('WS init failed', e);
+        return;
       }
-    }, 15000);
-    
-    return () => clearInterval(interval);
-  }, [user, isOpen, fetchUnreadCount]);
+      ws.onopen = () => {
+        pingTimer = window.setInterval(() => {
+          try { ws?.readyState === 1 && ws.send(JSON.stringify({ type: 'ping' })); } catch {}
+        }, 25000);
+      };
+      ws.onmessage = (ev) => {
+        try {
+          const msg = JSON.parse(ev.data);
+          if (msg.type === 'notification') {
+            setUnreadCount((c) => c + 1);
+            previousUnreadCount.current = previousUnreadCount.current + 1;
+            playNotificationSound();
+            toast({
+              title: '🔔 ' + (msg.data?.title || 'Yangi xabarnoma'),
+              description: msg.data?.message?.slice(0, 120) || 'Sizga yangi xabarnoma keldi',
+            });
+            // Refresh list in background so popover is up-to-date
+            fetchNotifications();
+          }
+        } catch (e) {
+          console.error('WS parse error', e);
+        }
+      };
+      ws.onclose = () => {
+        if (pingTimer) { window.clearInterval(pingTimer); pingTimer = null; }
+        if (!closed) {
+          reconnectTimer = window.setTimeout(connect, 3000);
+        }
+      };
+      ws.onerror = () => { try { ws?.close(); } catch {} };
+    };
+
+    connect();
+
+    return () => {
+      closed = true;
+      if (pingTimer) window.clearInterval(pingTimer);
+      if (reconnectTimer) window.clearTimeout(reconnectTimer);
+      try { ws?.close(); } catch {}
+    };
+  }, [user, playNotificationSound, toast, fetchNotifications]);
 
   const handleMarkAsRead = async (id: string, e?: React.MouseEvent) => {
     e?.stopPropagation();

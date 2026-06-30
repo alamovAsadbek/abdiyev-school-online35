@@ -2,7 +2,9 @@ import { ReactNode } from 'react';
 import { AppSidebar } from '@/components/AppSidebar';
 import { Navbar } from '@/components/Navbar';
 import { MobileBottomNav } from '@/components/MobileBottomNav';
+import { StudentScreenshotGuard } from '@/components/StudentScreenshotGuard';
 import { useSidebarContext } from '@/contexts/SidebarContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 
 interface DashboardLayoutProps {
@@ -11,9 +13,12 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { isCollapsed } = useSidebarContext();
+  const { user } = useAuth();
+  const isStudent = user && user.role !== 'admin';
 
   return (
     <div className="min-h-screen bg-background">
+      {isStudent && <StudentScreenshotGuard />}
       <AppSidebar />
       <Navbar />
       <MobileBottomNav />
