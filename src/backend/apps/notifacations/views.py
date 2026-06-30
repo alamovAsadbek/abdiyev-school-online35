@@ -57,13 +57,25 @@ class NotificationViewSet(viewsets.ModelViewSet):
 
             notification.recipients.set(users)
             
-            # Agar hozir yuborilsa, UserNotification yaratish
+            # Agar hozir yuborilsa, UserNotification yaratish + WS push
             if send_now:
+                from channels.layers import get_channel_layer
+                from asgiref.sync import async_to_sync
+                layer = get_channel_layer()
+                payload = NotificationSerializer(notification).data
                 for user in users:
                     UserNotification.objects.create(
                         user=user,
                         notification=notification
                     )
+                    if layer is not None:
+                        try:
+                            async_to_sync(layer.group_send)(
+                                f'notifications_user_{user.id}',
+                                {'type': 'notify', 'data': payload},
+                            )
+                        except Exception:
+                            pass
                 notification.sent_count = users.count()
             
             notification.save()
