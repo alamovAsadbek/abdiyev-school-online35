@@ -149,7 +149,7 @@ export default function AdminVideos() {
                         size="icon"
                         onClick={(e) => {
                             e.stopPropagation();
-                            navigate(`/admin/videos/add?edit=${video.id}`);
+                            navigate(`/admin/videos/${video.id}/edit`);
                         }}
                         className="h-8 w-8 text-muted-foreground hover:text-foreground"
                     >
