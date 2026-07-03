@@ -1,18 +1,41 @@
-import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Pencil, Trash2, Eye, Clock, Layers, Video, ChevronRight, Users, Settings, Check, X, Gift, Undo2 } from 'lucide-react';
-import { DashboardLayout } from '@/layouts/DashboardLayout';
-import { DataTable, Column } from '@/components/DataTable';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Switch } from '@/components/ui/switch';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { formatDate } from "@/lib/utils.ts";
-import { useToast } from '@/hooks/use-toast';
-import { useEffect, useState } from "react";
-import { categoriesApi, videosApi, modulesApi, userCoursesApi } from "@/services/api";
+import {useParams, useNavigate} from 'react-router-dom';
+import {
+    ArrowLeft,
+    Plus,
+    Pencil,
+    Trash2,
+    Eye,
+    Clock,
+    Layers,
+    Video,
+    ChevronRight,
+    Users,
+    Settings,
+    Check,
+    X,
+    Gift,
+    Undo2
+} from 'lucide-react';
+import {DashboardLayout} from '@/layouts/DashboardLayout';
+import {DataTable, Column} from '@/components/DataTable';
+import {Button} from '@/components/ui/button';
+import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs';
+import {Switch} from '@/components/ui/switch';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+    DialogDescription
+} from '@/components/ui/dialog';
+import {Input} from '@/components/ui/input';
+import {Textarea} from '@/components/ui/textarea';
+import {Label} from '@/components/ui/label';
+import {formatDate} from "@/lib/utils.ts";
+import {useToast} from '@/hooks/use-toast';
+import {useEffect, useState} from "react";
+import {categoriesApi, videosApi, modulesApi, userCoursesApi} from "@/services/api";
 
 interface Category {
     id: string;
@@ -58,9 +81,9 @@ interface Subscriber {
 }
 
 export default function AdminCategoryDetail() {
-    const { categoryId } = useParams();
+    const {categoryId} = useParams();
     const navigate = useNavigate();
-    const { toast } = useToast();
+    const {toast} = useToast();
     const [category, setCategory] = useState<Category | null>(null);
     const [videos, setVideos] = useState<Video[]>([]);
     const [modules, setModules] = useState<Module[]>([]);
@@ -68,12 +91,12 @@ export default function AdminCategoryDetail() {
     const [loading, setLoading] = useState(true);
     const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState('content');
-    
+
     // Module creation state
     const [showModuleDialog, setShowModuleDialog] = useState(false);
-    const [newModule, setNewModule] = useState({ name: '', description: '', price: '' });
+    const [newModule, setNewModule] = useState({name: '', description: '', price: ''});
     const [creatingModule, setCreatingModule] = useState(false);
-    
+
     // Settings confirmation state
     const [showSettingsConfirm, setShowSettingsConfirm] = useState(false);
     const [pendingSequentialChange, setPendingSequentialChange] = useState<boolean | null>(null);
@@ -82,7 +105,12 @@ export default function AdminCategoryDetail() {
     const [showGiftDialog, setShowGiftDialog] = useState(false);
     const [giftUserId, setGiftUserId] = useState('');
     const [giftModuleIds, setGiftModuleIds] = useState<string[]>([]);
-    const [allUsers, setAllUsers] = useState<{id: string; first_name: string; last_name: string; username: string}[]>([]);
+    const [allUsers, setAllUsers] = useState<{
+        id: string;
+        first_name: string;
+        last_name: string;
+        username: string
+    }[]>([]);
     const [giftingCourse, setGiftingCourse] = useState(false);
 
     const getCategory = async () => {
@@ -112,14 +140,14 @@ export default function AdminCategoryDetail() {
         try {
             const response = await videosApi.getByCategory(categoryId!);
             let videosList = response?.results || response || [];
-            
+
             // Filter by module if specified
             if (moduleId) {
                 videosList = videosList.filter((v: Video) => String(v.module) === String(moduleId));
             }
-            
+
             console.log('Videos for module', moduleId, ':', videosList.length, 'of', (response?.results || response || []).length);
-            
+
             setVideos(videosList);
         } catch (error) {
             console.log(error);
@@ -135,7 +163,7 @@ export default function AdminCategoryDetail() {
 
     const getSubscribers = async () => {
         try {
-            const response = await userCoursesApi.getAll({ category_id: categoryId });
+            const response = await userCoursesApi.getAll({category_id: categoryId});
             setSubscribers(response?.results || response || []);
         } catch (error) {
             console.log(error);
@@ -162,20 +190,22 @@ export default function AdminCategoryDetail() {
     useEffect(() => {
         const loadUsers = async () => {
             try {
-                const { usersApi } = await import('@/services/api');
-                const res = await usersApi.getAll({ role: 'student' });
+                const {usersApi} = await import('@/services/api');
+                const res = await usersApi.getAll({role: 'student'});
                 setAllUsers(res?.results || res || []);
-            } catch (e) { console.log(e); }
+            } catch (e) {
+                console.log(e);
+            }
         };
         loadUsers();
     }, []);
 
     const handleCreateModule = async () => {
         if (!newModule.name.trim()) {
-            toast({ title: 'Xatolik', description: 'Modul nomini kiriting', variant: 'destructive' });
+            toast({title: 'Xatolik', description: 'Modul nomini kiriting', variant: 'destructive'});
             return;
         }
-        
+
         setCreatingModule(true);
         try {
             await categoriesApi.addModule(categoryId!, {
@@ -184,12 +214,12 @@ export default function AdminCategoryDetail() {
                 price: newModule.price ? parseFloat(newModule.price) : null,
                 order: modules.length
             });
-            toast({ title: 'Muvaffaqiyat', description: 'Modul yaratildi' });
+            toast({title: 'Muvaffaqiyat', description: 'Modul yaratildi'});
             setShowModuleDialog(false);
-            setNewModule({ name: '', description: '', price: '' });
+            setNewModule({name: '', description: '', price: ''});
             getModules();
         } catch (error) {
-            toast({ title: 'Xatolik', description: 'Modul yaratishda xatolik', variant: 'destructive' });
+            toast({title: 'Xatolik', description: 'Modul yaratishda xatolik', variant: 'destructive'});
         } finally {
             setCreatingModule(false);
         }
@@ -202,21 +232,21 @@ export default function AdminCategoryDetail() {
 
     const confirmSequentialChange = async () => {
         if (pendingSequentialChange === null || !category) return;
-        
+
         try {
-            await categoriesApi.update(categoryId!, { 
+            await categoriesApi.update(categoryId!, {
                 ...category,
-                requires_sequential: pendingSequentialChange 
+                requires_sequential: pendingSequentialChange
             });
-            setCategory({ ...category, requires_sequential: pendingSequentialChange });
-            toast({ 
-                title: 'Muvaffaqiyat', 
-                description: pendingSequentialChange 
-                    ? "Ketma-ket o'qish yoqildi" 
-                    : "Ketma-ket o'qish o'chirildi" 
+            setCategory({...category, requires_sequential: pendingSequentialChange});
+            toast({
+                title: 'Muvaffaqiyat',
+                description: pendingSequentialChange
+                    ? "Ketma-ket o'qish yoqildi"
+                    : "Ketma-ket o'qish o'chirildi"
             });
         } catch (error) {
-            toast({ title: 'Xatolik', description: 'Sozlamani saqlashda xatolik', variant: 'destructive' });
+            toast({title: 'Xatolik', description: 'Sozlamani saqlashda xatolik', variant: 'destructive'});
         } finally {
             setShowSettingsConfirm(false);
             setPendingSequentialChange(null);
@@ -253,9 +283,9 @@ export default function AdminCategoryDetail() {
         try {
             await videosApi.delete(videoId);
             setVideos(prev => prev.filter(v => v.id !== videoId));
-            toast({ title: 'O\'chirildi', description: 'Video o\'chirildi' });
+            toast({title: 'O\'chirildi', description: 'Video o\'chirildi'});
         } catch (error) {
-            toast({ title: 'Xatolik', description: 'O\'chirishda xatolik', variant: 'destructive' });
+            toast({title: 'Xatolik', description: 'O\'chirishda xatolik', variant: 'destructive'});
         }
     };
 
@@ -264,9 +294,9 @@ export default function AdminCategoryDetail() {
         try {
             await modulesApi.delete(moduleId);
             setModules(prev => prev.filter(m => m.id !== moduleId));
-            toast({ title: 'O\'chirildi', description: 'Modul o\'chirildi' });
+            toast({title: 'O\'chirildi', description: 'Modul o\'chirildi'});
         } catch (error) {
-            toast({ title: 'Xatolik', description: 'O\'chirishda xatolik', variant: 'destructive' });
+            toast({title: 'Xatolik', description: 'O\'chirishda xatolik', variant: 'destructive'});
         }
     };
 
@@ -293,7 +323,7 @@ export default function AdminCategoryDetail() {
             header: 'Davomiyligi',
             render: (video) => (
                 <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-muted-foreground" />
+                    <Clock className="h-4 w-4 text-muted-foreground"/>
                     {video.duration}
                 </div>
             ),
@@ -304,7 +334,7 @@ export default function AdminCategoryDetail() {
             sortable: true,
             render: (video) => (
                 <div className="flex items-center gap-2">
-                    <Eye className="h-4 w-4 text-muted-foreground" />
+                    <Eye className="h-4 w-4 text-muted-foreground"/>
                     {video.view_count || 0}
                 </div>
             ),
@@ -325,11 +355,11 @@ export default function AdminCategoryDetail() {
                         size="icon"
                         onClick={(e) => {
                             e.stopPropagation();
-                            navigate(`/admin/videos/add?edit=${video.id}`);
+                            navigate(`/admin/videos/${video.id}/edit/`);
                         }}
                         className="h-8 w-8 text-muted-foreground hover:text-foreground"
                     >
-                        <Pencil className="h-4 w-4" />
+                        <Pencil className="h-4 w-4"/>
                     </Button>
                     <Button
                         variant="ghost"
@@ -337,7 +367,7 @@ export default function AdminCategoryDetail() {
                         onClick={(e) => handleDelete(video.id, e)}
                         className="h-8 w-8 text-muted-foreground text-destructive"
                     >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-4 w-4"/>
                     </Button>
                 </div>
             ),
@@ -351,7 +381,7 @@ export default function AdminCategoryDetail() {
             render: (module) => (
                 <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent/10 text-accent">
-                        <Layers className="h-5 w-5" />
+                        <Layers className="h-5 w-5"/>
                     </div>
                     <div>
                         <p className="font-medium text-card-foreground">{module.name}</p>
@@ -365,7 +395,7 @@ export default function AdminCategoryDetail() {
             header: 'Videolar',
             render: (module) => (
                 <div className="flex items-center gap-2">
-                    <Video className="h-4 w-4 text-muted-foreground" />
+                    <Video className="h-4 w-4 text-muted-foreground"/>
                     {module.video_count || 0} ta
                 </div>
             ),
@@ -373,8 +403,8 @@ export default function AdminCategoryDetail() {
         {
             key: 'price',
             header: 'Narxi',
-            render: (module) => module.price 
-                ? new Intl.NumberFormat('uz-UZ').format(module.price) + ' so\'m' 
+            render: (module) => module.price
+                ? new Intl.NumberFormat('uz-UZ').format(module.price) + ' so\'m'
                 : 'Kurs narxida',
         },
         {
@@ -392,7 +422,7 @@ export default function AdminCategoryDetail() {
                         title="Modul ichini ko'rish"
                         className="h-8 w-8 text-muted-foreground hover:text-foreground"
                     >
-                        <ChevronRight className="h-4 w-4" />
+                        <ChevronRight className="h-4 w-4"/>
                     </Button>
                     <Button
                         variant="ghost"
@@ -404,7 +434,7 @@ export default function AdminCategoryDetail() {
                         title="Tahrirlash"
                         className="h-8 w-8 text-muted-foreground hover:text-foreground"
                     >
-                        <Pencil className="h-4 w-4" />
+                        <Pencil className="h-4 w-4"/>
                     </Button>
                     <Button
                         variant="ghost"
@@ -412,7 +442,7 @@ export default function AdminCategoryDetail() {
                         onClick={(e) => handleDeleteModule(module.id, e)}
                         className="h-8 w-8 text-muted-foreground text-destructive"
                     >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-4 w-4"/>
                     </Button>
                 </div>
             ),
@@ -420,14 +450,13 @@ export default function AdminCategoryDetail() {
     ];
 
 
-
     const handleGiftCourse = async () => {
         if (!giftUserId) {
-            toast({ title: 'Xatolik', description: "Foydalanuvchini tanlang", variant: 'destructive' });
+            toast({title: 'Xatolik', description: "Foydalanuvchini tanlang", variant: 'destructive'});
             return;
         }
         if (category.is_modular && giftModuleIds.length === 0) {
-            toast({ title: 'Xatolik', description: "Modullarni tanlang", variant: 'destructive' });
+            toast({title: 'Xatolik', description: "Modullarni tanlang", variant: 'destructive'});
             return;
         }
         setGiftingCourse(true);
@@ -436,13 +465,13 @@ export default function AdminCategoryDetail() {
                 giftUserId, categoryId!, 'gift',
                 category.is_modular ? giftModuleIds : undefined
             );
-            toast({ title: 'Muvaffaqiyat', description: "Kurs sovg'a qilindi" });
+            toast({title: 'Muvaffaqiyat', description: "Kurs sovg'a qilindi"});
             setShowGiftDialog(false);
             setGiftUserId('');
             setGiftModuleIds([]);
             getSubscribers();
         } catch (error) {
-            toast({ title: 'Xatolik', description: "Sovg'a qilishda xatolik", variant: 'destructive' });
+            toast({title: 'Xatolik', description: "Sovg'a qilishda xatolik", variant: 'destructive'});
         } finally {
             setGiftingCourse(false);
         }
@@ -454,7 +483,8 @@ export default function AdminCategoryDetail() {
             header: 'Foydalanuvchi',
             render: (sub) => (
                 <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold">
+                    <div
+                        className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold">
                         {sub.user_name?.charAt(0).toUpperCase()}
                     </div>
                     <div>
@@ -473,8 +503,8 @@ export default function AdminCategoryDetail() {
             header: 'Berilgan usul',
             render: (sub) => (
                 <span className={`px-2 py-1 rounded-full text-xs ${
-                    sub.granted_by === 'gift' 
-                        ? 'bg-accent/10 text-accent' 
+                    sub.granted_by === 'gift'
+                        ? 'bg-accent/10 text-accent'
                         : 'bg-primary/10 text-primary'
                 }`}>
                     {sub.granted_by === 'gift' ? "Sovg'a" : "To'lov"}
@@ -501,7 +531,7 @@ export default function AdminCategoryDetail() {
                         }}
                         className="h-8 w-8 text-muted-foreground hover:text-foreground"
                     >
-                        <ChevronRight className="h-4 w-4" />
+                        <ChevronRight className="h-4 w-4"/>
                     </Button>
                     <Button
                         variant="ghost"
@@ -511,16 +541,20 @@ export default function AdminCategoryDetail() {
                             if (!confirm(`${sub.user_name} uchun kursni qaytarib olmoqchimisiz?`)) return;
                             try {
                                 await userCoursesApi.revoke(sub.id);
-                                toast({ title: "Qaytarib olindi", description: "Kurs muvaffaqiyatli qaytarib olindi" });
+                                toast({title: "Qaytarib olindi", description: "Kurs muvaffaqiyatli qaytarib olindi"});
                                 getSubscribers();
                             } catch (error) {
-                                toast({ title: 'Xatolik', description: "Qaytarib olishda xatolik", variant: 'destructive' });
+                                toast({
+                                    title: 'Xatolik',
+                                    description: "Qaytarib olishda xatolik",
+                                    variant: 'destructive'
+                                });
                             }
                         }}
                         className="h-8 w-8 text-destructive hover:bg-destructive hover:text-white"
                         title="Kursni qaytarib olish"
                     >
-                        <Undo2 className="h-4 w-4" />
+                        <Undo2 className="h-4 w-4"/>
                     </Button>
                 </div>
             ),
@@ -530,7 +564,7 @@ export default function AdminCategoryDetail() {
     // Content for module view (when a module is selected)
     if (selectedModuleId) {
         const selectedModule = modules.find(m => m.id === selectedModuleId);
-        
+
         return (
             <DashboardLayout>
                 {/* Back Button */}
@@ -542,7 +576,7 @@ export default function AdminCategoryDetail() {
                     }}
                     className="mb-6 -ml-2"
                 >
-                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    <ArrowLeft className="mr-2 h-4 w-4"/>
                     Orqaga
                 </Button>
 
@@ -550,8 +584,9 @@ export default function AdminCategoryDetail() {
                 <div className="flex items-center justify-between mb-8">
                     <div className="animate-fade-in">
                         <div className="flex items-center gap-4 mb-3">
-                            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-accent/10 text-accent">
-                                <Layers className="h-7 w-7" />
+                            <div
+                                className="flex h-14 w-14 items-center justify-center rounded-xl bg-accent/10 text-accent">
+                                <Layers className="h-7 w-7"/>
                             </div>
                             <div>
                                 <h1 className="text-2xl lg:text-3xl font-bold text-foreground">
@@ -572,7 +607,7 @@ export default function AdminCategoryDetail() {
                         onClick={() => navigate(`/admin/videos/add?category=${categoryId}&module=${selectedModuleId}`)}
                         className="gradient-primary text-primary-foreground"
                     >
-                        <Plus className="mr-2 h-4 w-4" />
+                        <Plus className="mr-2 h-4 w-4"/>
                         Video qo'shish
                     </Button>
                 </div>
@@ -598,7 +633,7 @@ export default function AdminCategoryDetail() {
                 onClick={() => navigate('/admin/categories')}
                 className="mb-6 -ml-2"
             >
-                <ArrowLeft className="mr-2 h-4 w-4" />
+                <ArrowLeft className="mr-2 h-4 w-4"/>
                 Orqaga
             </Button>
 
@@ -616,8 +651,9 @@ export default function AdminCategoryDetail() {
                             <div className="flex items-center gap-3 text-muted-foreground">
                                 <span>{category.video_count || videos.length} ta video dars</span>
                                 {category.is_modular && (
-                                    <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent/10 text-accent text-xs">
-                                        <Layers className="h-3 w-3" />
+                                    <span
+                                        className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent/10 text-accent text-xs">
+                                        <Layers className="h-3 w-3"/>
                                         {modules.length} modul
                                     </span>
                                 )}
@@ -631,7 +667,7 @@ export default function AdminCategoryDetail() {
                             variant="outline"
                             onClick={() => setShowModuleDialog(true)}
                         >
-                            <Plus className="mr-2 h-4 w-4" />
+                            <Plus className="mr-2 h-4 w-4"/>
                             Modul qo'shish
                         </Button>
                     )}
@@ -658,7 +694,7 @@ export default function AdminCategoryDetail() {
                         className="gradient-primary text-primary-foreground"
                         disabled={category.is_modular}
                     >
-                        <Plus className="mr-2 h-4 w-4" />
+                        <Plus className="mr-2 h-4 w-4"/>
                         Video qo'shish
                     </Button>
                 </div>
@@ -668,15 +704,15 @@ export default function AdminCategoryDetail() {
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <TabsList className="grid w-full max-w-md grid-cols-3 mb-6">
                     <TabsTrigger value="content" className="flex items-center gap-2">
-                        {category.is_modular ? <Layers className="h-4 w-4" /> : <Video className="h-4 w-4" />}
+                        {category.is_modular ? <Layers className="h-4 w-4"/> : <Video className="h-4 w-4"/>}
                         {category.is_modular ? 'Modullar' : 'Videolar'}
                     </TabsTrigger>
                     <TabsTrigger value="subscribers" className="flex items-center gap-2">
-                        <Users className="h-4 w-4" />
+                        <Users className="h-4 w-4"/>
                         Obunachlar
                     </TabsTrigger>
                     <TabsTrigger value="settings" className="flex items-center gap-2">
-                        <Settings className="h-4 w-4" />
+                        <Settings className="h-4 w-4"/>
                         Sozlamalar
                     </TabsTrigger>
                 </TabsList>
@@ -707,8 +743,9 @@ export default function AdminCategoryDetail() {
                 {/* Subscribers Tab */}
                 <TabsContent value="subscribers" className="animate-fade-in">
                     <div className="flex justify-end mb-4">
-                        <Button onClick={() => setShowGiftDialog(true)} className="gradient-primary text-primary-foreground">
-                            <Gift className="mr-2 h-4 w-4" />
+                        <Button onClick={() => setShowGiftDialog(true)}
+                                className="gradient-primary text-primary-foreground">
+                            <Gift className="mr-2 h-4 w-4"/>
                             Kurs sovg'a qilish
                         </Button>
                     </div>
@@ -739,17 +776,17 @@ export default function AdminCategoryDetail() {
                                 <div>
                                     <Label className="text-muted-foreground">Narxi</Label>
                                     <p className="text-foreground font-medium">
-                                        {category.price 
+                                        {category.price
                                             ? new Intl.NumberFormat('uz-UZ').format(category.price) + " so'm"
                                             : "Bepul"
                                         }
                                     </p>
                                 </div>
-                                <Button 
-                                    variant="outline" 
+                                <Button
+                                    variant="outline"
                                     onClick={() => navigate(`/admin/categories/${categoryId}/edit`)}
                                 >
-                                    <Pencil className="mr-2 h-4 w-4" />
+                                    <Pencil className="mr-2 h-4 w-4"/>
                                     Tahrirlash
                                 </Button>
                             </div>
@@ -759,7 +796,7 @@ export default function AdminCategoryDetail() {
                             <h3 className="text-lg font-semibold text-foreground mb-4">Kurs sozlamalari</h3>
                             <div className="space-y-6">
                                 {/* Modular setting - read-only */}
-                                <div 
+                                <div
                                     className="flex items-center justify-between cursor-pointer opacity-60"
                                     onClick={handleModularClick}
                                 >
@@ -773,7 +810,7 @@ export default function AdminCategoryDetail() {
                                         <span className="text-xs text-muted-foreground">
                                             {category.is_modular ? 'Ha' : 'Yo\'q'}
                                         </span>
-                                        <Switch checked={category.is_modular} disabled />
+                                        <Switch checked={category.is_modular} disabled/>
                                     </div>
                                 </div>
 
@@ -785,8 +822,8 @@ export default function AdminCategoryDetail() {
                                             Keyingi darsni ko'rish uchun avvalgisini tugatish va vazifani bajarish shart
                                         </p>
                                     </div>
-                                    <Switch 
-                                        checked={category.requires_sequential} 
+                                    <Switch
+                                        checked={category.requires_sequential}
                                         onCheckedChange={handleSequentialToggle}
                                     />
                                 </div>
@@ -799,21 +836,25 @@ export default function AdminCategoryDetail() {
                                             O'chirilsa kurs o'quvchilarga ko'rinmaydi
                                         </p>
                                     </div>
-                                    <Switch 
-                                        checked={category.is_active ?? true} 
+                                    <Switch
+                                        checked={category.is_active ?? true}
                                         onCheckedChange={async (checked) => {
                                             try {
-                                                await categoriesApi.update(categoryId!, { 
+                                                await categoriesApi.update(categoryId!, {
                                                     ...category,
-                                                    is_active: checked 
+                                                    is_active: checked
                                                 });
-                                                setCategory({ ...category, is_active: checked });
-                                                toast({ 
-                                                    title: 'Muvaffaqiyat', 
-                                                    description: checked ? "Kurs faollashtirildi" : "Kurs to'xtatildi" 
+                                                setCategory({...category, is_active: checked});
+                                                toast({
+                                                    title: 'Muvaffaqiyat',
+                                                    description: checked ? "Kurs faollashtirildi" : "Kurs to'xtatildi"
                                                 });
                                             } catch (error) {
-                                                toast({ title: 'Xatolik', description: 'Saqlashda xatolik', variant: 'destructive' });
+                                                toast({
+                                                    title: 'Xatolik',
+                                                    description: 'Saqlashda xatolik',
+                                                    variant: 'destructive'
+                                                });
                                             }
                                         }}
                                     />
@@ -840,7 +881,7 @@ export default function AdminCategoryDetail() {
                                 id="moduleName"
                                 placeholder="Masalan: 1-bo'lim"
                                 value={newModule.name}
-                                onChange={(e) => setNewModule({ ...newModule, name: e.target.value })}
+                                onChange={(e) => setNewModule({...newModule, name: e.target.value})}
                             />
                         </div>
                         <div className="space-y-2">
@@ -849,7 +890,7 @@ export default function AdminCategoryDetail() {
                                 id="moduleDescription"
                                 placeholder="Modul haqida qisqacha ma'lumot"
                                 value={newModule.description}
-                                onChange={(e) => setNewModule({ ...newModule, description: e.target.value })}
+                                onChange={(e) => setNewModule({...newModule, description: e.target.value})}
                             />
                         </div>
                         <div className="space-y-2">
@@ -859,7 +900,7 @@ export default function AdminCategoryDetail() {
                                 type="number"
                                 placeholder="Agar alohida sotilsa"
                                 value={newModule.price}
-                                onChange={(e) => setNewModule({ ...newModule, price: e.target.value })}
+                                onChange={(e) => setNewModule({...newModule, price: e.target.value})}
                             />
                         </div>
                     </div>
@@ -880,7 +921,7 @@ export default function AdminCategoryDetail() {
                     <DialogHeader>
                         <DialogTitle>Sozlamani o'zgartirish</DialogTitle>
                         <DialogDescription>
-                            {pendingSequentialChange 
+                            {pendingSequentialChange
                                 ? "Ketma-ket o'qishni yoqmoqchimisiz? Bu o'quvchilarni darslarni tartib bilan ko'rishga majbur qiladi."
                                 : "Ketma-ket o'qishni o'chirmoqchimisiz? O'quvchilar istalgan darsni ko'ra oladi."
                             }
@@ -888,11 +929,11 @@ export default function AdminCategoryDetail() {
                     </DialogHeader>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setShowSettingsConfirm(false)}>
-                            <X className="mr-2 h-4 w-4" />
+                            <X className="mr-2 h-4 w-4"/>
                             Bekor qilish
                         </Button>
                         <Button onClick={confirmSequentialChange}>
-                            <Check className="mr-2 h-4 w-4" />
+                            <Check className="mr-2 h-4 w-4"/>
                             Tasdiqlash
                         </Button>
                     </DialogFooter>
@@ -902,7 +943,10 @@ export default function AdminCategoryDetail() {
             {/* Gift Course Dialog */}
             <Dialog open={showGiftDialog} onOpenChange={(open) => {
                 setShowGiftDialog(open);
-                if (!open) { setGiftUserId(''); setGiftModuleIds([]); }
+                if (!open) {
+                    setGiftUserId('');
+                    setGiftModuleIds([]);
+                }
             }}>
                 <DialogContent className="max-w-md">
                     <DialogHeader>
@@ -949,7 +993,8 @@ export default function AdminCategoryDetail() {
                                 </div>
                                 <div className="space-y-2 max-h-48 overflow-y-auto border rounded-lg p-3">
                                     {modules.map(module => (
-                                        <label key={module.id} className="flex items-center gap-3 p-2 rounded hover:bg-muted/50 cursor-pointer">
+                                        <label key={module.id}
+                                               className="flex items-center gap-3 p-2 rounded hover:bg-muted/50 cursor-pointer">
                                             <input
                                                 type="checkbox"
                                                 checked={giftModuleIds.includes(String(module.id))}
@@ -976,7 +1021,7 @@ export default function AdminCategoryDetail() {
                             Bekor qilish
                         </Button>
                         <Button onClick={handleGiftCourse} disabled={giftingCourse}>
-                            <Gift className="mr-2 h-4 w-4" />
+                            <Gift className="mr-2 h-4 w-4"/>
                             {giftingCourse ? "Yuklanmoqda..." : "Sovg'a qilish"}
                         </Button>
                     </DialogFooter>
