@@ -161,7 +161,7 @@ export default function StudentCourses() {
                         </div>
                         <div>
                             <p className="font-medium text-card-foreground">{course.name}</p>
-                            <p className="text-xs text-muted-foreground line-clamp-1">{course.description || ''}</p>
+                            <p className="text-xs text-muted-foreground line-clamp-1">{stripHtml(course.description)}</p>
                         </div>
                         {isGifted && <Gift className="h-4 w-4 text-accent" />}
                         {!hasAccess && <Lock className="h-4 w-4 text-muted-foreground" />}
