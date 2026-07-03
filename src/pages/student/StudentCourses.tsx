@@ -368,7 +368,7 @@ export default function StudentCourses() {
                     <div className="space-y-6 mt-4">
                         <div>
                             <h3 className="text-sm font-semibold text-muted-foreground mb-2">TAVSIF</h3>
-                            <p className="text-foreground leading-relaxed">{selectedCourse?.description}</p>
+                            <RichContent html={selectedCourse?.description} className="text-foreground leading-relaxed" />
                         </div>
 
                         <div className="flex items-center justify-between border-t border-border pt-4">
