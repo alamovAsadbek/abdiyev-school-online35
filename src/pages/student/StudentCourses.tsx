@@ -11,6 +11,8 @@ import {Button} from '@/components/ui/button';
 import {DataTable, Column} from '@/components/DataTable';
 import {categoriesApi, userCoursesApi} from '@/services/api';
 import {useToast} from '@/hooks/use-toast';
+import {stripHtml} from '@/lib/richText';
+import {RichContent} from '@/components/RichContent';
 
 type ViewMode = 'card' | 'table';
 
