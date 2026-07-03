@@ -11,6 +11,8 @@ import {Button} from '@/components/ui/button';
 import {DataTable, Column} from '@/components/DataTable';
 import {categoriesApi, userCoursesApi} from '@/services/api';
 import {useToast} from '@/hooks/use-toast';
+import {stripHtml} from '@/lib/richText';
+import {RichContent} from '@/components/RichContent';
 
 type ViewMode = 'card' | 'table';
 
@@ -159,7 +161,7 @@ export default function StudentCourses() {
                         </div>
                         <div>
                             <p className="font-medium text-card-foreground">{course.name}</p>
-                            <p className="text-xs text-muted-foreground line-clamp-1">{course.description || ''}</p>
+                            <p className="text-xs text-muted-foreground line-clamp-1">{stripHtml(course.description)}</p>
                         </div>
                         {isGifted && <Gift className="h-4 w-4 text-accent" />}
                         {!hasAccess && <Lock className="h-4 w-4 text-muted-foreground" />}
@@ -287,12 +289,12 @@ export default function StudentCourses() {
                             return (
                                 <div
                                     key={categoryId}
-                                    className="animate-fade-in relative"
+                                    className="animate-fade-in relative h-full"
                                     style={{animationDelay: `${0.1 + index * 0.05}s`}}
                                 >
                                     <div
                                         onClick={() => handleCourseClick(categoryId)}
-                                        className={`rounded-xl border bg-card p-5 cursor-pointer transition-all hover:shadow-lg ${hasAccess || isFree ? 'border-border hover:border-primary/50' : 'border-border/50'}`}
+                                        className={`h-full flex flex-col rounded-xl border bg-card p-5 cursor-pointer transition-all hover:shadow-lg ${hasAccess || isFree ? 'border-border hover:border-primary/50' : 'border-border/50'}`}
                                     >
                                         <div className="flex items-start justify-between mb-4">
                                             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-2xl">
@@ -312,14 +314,14 @@ export default function StudentCourses() {
                                             ) : null}
                                         </div>
 
-                                        <h3 className="font-semibold text-card-foreground mb-2 line-clamp-1">
+                                        <h3 className="font-semibold text-card-foreground mb-2 line-clamp-1 min-h-[1.5rem]">
                                             {(category as any).name}
                                         </h3>
-                                        <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
-                                            {(category as any).description || ''}
+                                        <p className="text-sm text-muted-foreground mb-4 line-clamp-2 min-h-[2.5rem] flex-1">
+                                            {stripHtml((category as any).description) || ' '}
                                         </p>
 
-                                        <div className="flex items-center justify-between pt-3 border-t border-border">
+                                        <div className="flex items-center justify-between pt-3 border-t border-border mt-auto">
                                             <span className={`text-lg font-bold ${hasAccess ? 'text-green-600' : isFree ? 'text-green-600' : 'text-primary'}`}>
                                                 {hasAccess ? 'Ochiq' : isFree ? 'Bepul' : formatCurrency(price)}
                                             </span>
@@ -366,7 +368,7 @@ export default function StudentCourses() {
                     <div className="space-y-6 mt-4">
                         <div>
                             <h3 className="text-sm font-semibold text-muted-foreground mb-2">TAVSIF</h3>
-                            <p className="text-foreground leading-relaxed">{selectedCourse?.description}</p>
+                            <RichContent html={selectedCourse?.description} className="text-foreground leading-relaxed" />
                         </div>
 
                         <div className="flex items-center justify-between border-t border-border pt-4">

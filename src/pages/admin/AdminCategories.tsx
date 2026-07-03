@@ -8,6 +8,7 @@ import {useToast} from '@/hooks/use-toast';
 import {ConfirmDialog} from '@/components/ConfirmDialog';
 import {categoriesApi} from '@/services/api';
 import { formatDate } from "@/lib/utils";
+import { stripHtml } from "@/lib/richText";
 
 interface Module {
     id: string;
@@ -92,7 +93,7 @@ export default function AdminCategories() {
                     </div>
                     <div>
                         <p className="font-medium text-card-foreground">{category.name}</p>
-                        <p className="text-xs text-muted-foreground line-clamp-1">{category.description}</p>
+                        <p className="text-xs text-muted-foreground line-clamp-1">{stripHtml(category.description)}</p>
                     </div>
                 </div>
             ),

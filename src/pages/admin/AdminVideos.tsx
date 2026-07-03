@@ -8,6 +8,7 @@ import {useToast} from '@/hooks/use-toast';
 import {ConfirmDialog} from '@/components/ConfirmDialog';
 import {videosApi, categoriesApi} from '@/services/api';
 import {formatDate} from "@/lib/utils.ts";
+import {stripHtml} from '@/lib/richText';
 
 interface Video {
     id: string;
@@ -98,7 +99,7 @@ export default function AdminVideos() {
                     />
                     <div>
                         <p className="font-medium text-card-foreground line-clamp-1">{video.title}</p>
-                        <p className="text-xs text-muted-foreground line-clamp-1">{video.description}</p>
+                        <p className="text-xs text-muted-foreground line-clamp-1">{stripHtml(video.description)}</p>
                     </div>
                 </div>
             ),
@@ -149,7 +150,7 @@ export default function AdminVideos() {
                         size="icon"
                         onClick={(e) => {
                             e.stopPropagation();
-                            navigate(`/admin/videos/add?edit=${video.id}`);
+                            navigate(`/admin/videos/${video.id}/edit`);
                         }}
                         className="h-8 w-8 text-muted-foreground hover:text-foreground"
                     >

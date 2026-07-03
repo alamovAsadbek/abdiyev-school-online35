@@ -42,7 +42,7 @@ class TaskSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Task
-        fields = ['id', 'video', 'title', 'description', 'task_type', 'file',
+        fields = ['id', 'video', 'title', 'description', 'task_type', 'file', 'answer_file',
                   'allow_resubmission', 'requires_approval', 'questions', 'created_at']
 
 

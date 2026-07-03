@@ -10,6 +10,7 @@ import { videosApi, categoriesApi, userCoursesApi, progressApi } from '@/service
 import { useToast } from '@/hooks/use-toast';
 import { useProgress } from '@/contexts/ProgressContext';
 import { cn } from '@/lib/utils';
+import { stripHtml } from '@/lib/richText';
 
 type ViewMode = 'card' | 'table';
 type FilterType = 'all' | 'watched' | 'unwatched';
@@ -144,7 +145,7 @@ export default function StudentVideos() {
                     )}
                     <div>
                         <p className="font-medium">{video.title}</p>
-                        <p className="text-xs text-muted-foreground line-clamp-1">{video.description}</p>
+                        <p className="text-xs text-muted-foreground line-clamp-1">{stripHtml(video.description)}</p>
                     </div>
                 </div>
             )
@@ -268,7 +269,7 @@ export default function StudentVideos() {
                             key={video.id}
                             onClick={() => navigate(`/student/video/${video.id}`)}
                             className={cn(
-                                "rounded-xl border bg-card overflow-hidden cursor-pointer hover:shadow-lg transition-all hover:border-primary/50",
+                                "rounded-xl border bg-card overflow-hidden cursor-pointer hover:shadow-lg transition-all hover:border-primary/50 flex flex-col h-full",
                                 isWatched(video.id) ? "border-green-500/30" : "border-border"
                             )}
                         >
@@ -285,12 +286,12 @@ export default function StudentVideos() {
                                     </div>
                                 )}
                             </div>
-                            <div className="p-4">
-                                <span className="text-xs text-muted-foreground">
+                            <div className="p-4 flex flex-col flex-1">
+                                <span className="text-xs text-muted-foreground line-clamp-1">
                                     {video.category?.icon} {video.category?.name}
                                 </span>
-                                <h3 className="font-semibold text-card-foreground mt-1 line-clamp-2">{video.title}</h3>
-                                <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{video.description}</p>
+                                <h3 className="font-semibold text-card-foreground mt-1 line-clamp-2 min-h-[2.75rem]">{video.title}</h3>
+                                <p className="text-xs text-muted-foreground mt-1 line-clamp-2 min-h-[2rem] flex-1">{stripHtml(video.description) || ' '}</p>
                                 <div className="flex items-center justify-between mt-3 text-xs text-muted-foreground">
                                     <span>{video.duration}</span>
                                     <span>{video.view_count} ko'rish</span>
