@@ -99,7 +99,7 @@ export default function AdminVideos() {
                     />
                     <div>
                         <p className="font-medium text-card-foreground line-clamp-1">{video.title}</p>
-                        <p className="text-xs text-muted-foreground line-clamp-1">{video.description}</p>
+                        <p className="text-xs text-muted-foreground line-clamp-1">{stripHtml(video.description)}</p>
                     </div>
                 </div>
             ),
