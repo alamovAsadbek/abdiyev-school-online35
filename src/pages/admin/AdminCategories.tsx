@@ -8,6 +8,7 @@ import {useToast} from '@/hooks/use-toast';
 import {ConfirmDialog} from '@/components/ConfirmDialog';
 import {categoriesApi} from '@/services/api';
 import { formatDate } from "@/lib/utils";
+import { stripHtml } from "@/lib/richText";
 
 interface Module {
     id: string;
