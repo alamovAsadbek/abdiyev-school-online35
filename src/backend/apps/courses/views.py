@@ -340,50 +340,59 @@ class TaskViewSet(viewsets.ModelViewSet):
 
     def update(self, request, *args, **kwargs):
         """Handle task update with questions"""
-        instance = self.get_object()
-        data = request.data.copy()
-        questions_data = data.pop('questions', None)
-        data.pop('answer_file', None)
+        try:
+            instance = self.get_object()
+            data = request.data.copy()
+            questions_data = data.pop('questions', None)
+            data.pop('answer_file', None)
+            for key in list(data.keys()):
+                if key.startswith('question_image_'):
+                    data.pop(key, None)
 
-        if questions_data is not None:
-            questions_data = self._normalize_questions(questions_data)
-            task_type = data.get('task_type', instance.task_type)
-            if task_type == 'test':
-                validation_error = self._validate_test_questions(questions_data)
-                if validation_error:
-                    return Response({'error': validation_error}, status=status.HTTP_400_BAD_REQUEST)
-
-        serializer = self.get_serializer(instance, data=data, partial=True)
-        serializer.is_valid(raise_exception=True)
-
-        with transaction.atomic():
-            task = serializer.save()
-            answer_file = request.FILES.get('answer_file')
-            if answer_file:
-                task.answer_file = answer_file
-                task.save(update_fields=['answer_file'])
-
-            # Update questions if provided
             if questions_data is not None:
-                # Delete existing questions and recreate
-                task.questions.all().delete()
-                for idx, q_data in enumerate(questions_data):
-                    image_key = f'question_image_{idx}'
-                    question_image = request.FILES.get(image_key)
-                    options, correct_answer = self._get_question_options_and_answer(q_data)
+                questions_data = self._normalize_questions(questions_data)
+                task_type = data.get('task_type', instance.task_type)
+                if task_type == 'test':
+                    validation_error = self._validate_test_questions(questions_data)
+                    if validation_error:
+                        return Response({'error': validation_error}, status=status.HTTP_400_BAD_REQUEST)
 
-                    TaskQuestion.objects.create(
-                        task=task,
-                        question=q_data.get('question', ''),
-                        options=options,
-                        correct_answer=correct_answer,
-                        order=idx + 1,
-                        description=q_data.get('description', ''),
-                        image=question_image,
-                    )
+            serializer = self.get_serializer(instance, data=data, partial=True)
+            serializer.is_valid(raise_exception=True)
 
-        task.refresh_from_db()
-        return Response(self.get_serializer(task).data)
+            with transaction.atomic():
+                task = serializer.save()
+                answer_file = request.FILES.get('answer_file')
+                if answer_file:
+                    task.answer_file = answer_file
+                    task.save(update_fields=['answer_file'])
+
+                if questions_data is not None:
+                    task.questions.all().delete()
+                    for idx, q_data in enumerate(questions_data):
+                        image_key = f'question_image_{idx}'
+                        question_image = request.FILES.get(image_key)
+                        options, correct_answer = self._get_question_options_and_answer(q_data)
+
+                        TaskQuestion.objects.create(
+                            task=task,
+                            question=q_data.get('question', '') or '',
+                            options=options,
+                            correct_answer=correct_answer,
+                            order=idx + 1,
+                            description=q_data.get('description', '') or '',
+                            image=question_image,
+                        )
+
+            task.refresh_from_db()
+            return Response(self.get_serializer(task).data)
+        except Exception as exc:
+            import traceback
+            traceback.print_exc()
+            return Response(
+                {'error': f'Vazifani yangilashda xatolik: {exc}'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
     @action(detail=False, methods=['get'])
     def by_video(self, request):
