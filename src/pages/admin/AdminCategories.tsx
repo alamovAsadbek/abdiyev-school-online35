@@ -93,7 +93,7 @@ export default function AdminCategories() {
                     </div>
                     <div>
                         <p className="font-medium text-card-foreground">{category.name}</p>
-                        <p className="text-xs text-muted-foreground line-clamp-1">{category.description}</p>
+                        <p className="text-xs text-muted-foreground line-clamp-1">{stripHtml(category.description)}</p>
                     </div>
                 </div>
             ),
