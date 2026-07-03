@@ -145,7 +145,7 @@ export default function StudentVideos() {
                     )}
                     <div>
                         <p className="font-medium">{video.title}</p>
-                        <p className="text-xs text-muted-foreground line-clamp-1">{video.description}</p>
+                        <p className="text-xs text-muted-foreground line-clamp-1">{stripHtml(video.description)}</p>
                     </div>
                 </div>
             )
