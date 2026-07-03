@@ -10,6 +10,7 @@ import { videosApi, categoriesApi, userCoursesApi, progressApi } from '@/service
 import { useToast } from '@/hooks/use-toast';
 import { useProgress } from '@/contexts/ProgressContext';
 import { cn } from '@/lib/utils';
+import { stripHtml } from '@/lib/richText';
 
 type ViewMode = 'card' | 'table';
 type FilterType = 'all' | 'watched' | 'unwatched';
