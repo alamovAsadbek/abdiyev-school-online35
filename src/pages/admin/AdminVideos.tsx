@@ -8,6 +8,7 @@ import {useToast} from '@/hooks/use-toast';
 import {ConfirmDialog} from '@/components/ConfirmDialog';
 import {videosApi, categoriesApi} from '@/services/api';
 import {formatDate} from "@/lib/utils.ts";
+import {stripHtml} from '@/lib/richText';
 
 interface Video {
     id: string;
