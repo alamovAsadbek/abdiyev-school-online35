@@ -204,12 +204,12 @@ export default function StudentProfile() {
                                         <CardTitle>Shaxsiy ma'lumotlar</CardTitle>
                                         <CardDescription>O'quvchi profil ma'lumotlari</CardDescription>
                                     </div>
-                                    {!isEditing && (
-                                        <Button onClick={() => setIsEditing(true)}>
-                                            <User className="h-4 w-4 mr-2"/>
-                                            Tahrirlash
-                                        </Button>
-                                    )}
+                                    {/*{!isEditing && (*/}
+                                    {/*    <Button onClick={() => setIsEditing(true)}>*/}
+                                    {/*        <User className="h-4 w-4 mr-2"/>*/}
+                                    {/*        Tahrirlash*/}
+                                    {/*    </Button>*/}
+                                    {/*)}*/}
                                 </div>
                             </CardHeader>
                             <CardContent>
