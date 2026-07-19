@@ -4,42 +4,42 @@ import {API_BASE_URL} from "@/lib/variables.ts";
 
 export class ApiSettings {
     private apiUrl: string;
-    private headers: Record<string, string>;
 
     constructor() {
-        // Set API URL based on environment (default to development)
         this.apiUrl = API_BASE_URL;
+    }
 
-        // Set default headers
-        this.headers = {
-            'Content-Type': 'application/json',
+    // Har chaqiriqda localStorage'dan yangilab headers quramiz
+    private getHeaders(isFormData: boolean = false): Record<string, string> {
+        const headers: Record<string, string> = {
             'Accept': 'application/json',
         };
 
-        // Get token from localStorage if available
+        if (!isFormData) {
+            headers['Content-Type'] = 'application/json';
+        }
+
         const token = localStorage.getItem('access');
         if (token) {
-            this.headers['Authorization'] = `Bearer ${token}`;
+            headers['Authorization'] = `Bearer ${token}`;
         }
+
+        return headers;
     }
 
-    // Set authentication token
     setToken(token: string) {
-        this.headers['Authorization'] = `Bearer ${token}`;
-        localStorage.setItem('auth-token', token);
+        localStorage.setItem('access', token);
     }
 
-    // Clear authentication token
     clearToken() {
-        delete this.headers['Authorization'];
-        localStorage.removeItem('auth-token');
+        localStorage.removeItem('access');
+        localStorage.removeItem('refresh');
     }
 
-    // GET request
     async get(endpoint: string, params: Record<string, any> = {}) {
         try {
             const response = await axios.get(`${this.apiUrl}${endpoint}`, {
-                headers: this.headers,
+                headers: this.getHeaders(),
                 params: params
             });
             return response.data;
@@ -50,18 +50,10 @@ export class ApiSettings {
         }
     }
 
-    // POST request
     async post(endpoint: string, data: any, isFormData: boolean = false) {
         try {
-            const headers = {...this.headers};
-
-            // If sending form data, remove Content-Type to let browser set it
-            if (isFormData) {
-                delete headers['Content-Type'];
-            }
-
             const response = await axios.post(`${this.apiUrl}${endpoint}`, data, {
-                headers: headers
+                headers: this.getHeaders(isFormData)
             });
             return response.data;
         } catch (error) {
@@ -71,17 +63,10 @@ export class ApiSettings {
         }
     }
 
-    // PUT request
     async put(endpoint: string, data: any, isFormData: boolean = false) {
         try {
-            const headers = {...this.headers};
-
-            if (isFormData) {
-                delete headers['Content-Type'];
-            }
-
             const response = await axios.put(`${this.apiUrl}${endpoint}`, data, {
-                headers: headers
+                headers: this.getHeaders(isFormData)
             });
             return response.data;
         } catch (error) {
@@ -91,11 +76,10 @@ export class ApiSettings {
         }
     }
 
-    // DELETE request
     async delete(endpoint: string) {
         try {
             const response = await axios.delete(`${this.apiUrl}${endpoint}`, {
-                headers: this.headers
+                headers: this.getHeaders()
             });
             return response.data;
         } catch (error) {
@@ -105,22 +89,28 @@ export class ApiSettings {
         }
     }
 
-    // Handle API errors
-    private handleApiError(error) {
-        // Check if error is network related (offline)
+    private handleApiError(error: any) {
         if (!navigator.onLine || error.message === 'Network Error') {
             console.log('You are offline. Please check your internet connection.');
-            // You can display an offline notification or handle it as needed
+            return;
         }
 
-        // Handle other types of errors
-        if (error.response) {
-            // Server responded with an error status
-            if (error.response.status === 401) {
-                // Unauthorized - clear token and redirect to login
+        if (error.response && error.response.status === 401) {
+            const hadToken = !!localStorage.getItem('access');
+
+            // Token bo'lgan holda 401 keldi — bu sessiya muddati tugaganini bildiradi
+            if (hadToken) {
                 this.clearToken();
-                window.location.href = '/login';
+
+                // Faqat himoyalangan sahifada bo'lsa (/student, /admin) login'ga tashlaymiz.
+                // Public sahifada (kurslar ro'yxati va h.k.) foydalanuvchini uzib yubormaymiz —
+                // token'ni tozalab, xatoni yuqoriga uzatamiz, sahifa o'zi "anonim" holatda ishlashda davom etadi.
+                const path = window.location.pathname;
+                if (path.startsWith('/student') || path.startsWith('/admin')) {
+                    window.location.href = '/login';
+                }
             }
+            // Token bo'lmagan holda 401 keldi — bu allaqachon anonim so'rov, redirect kerak emas
         }
     }
 }

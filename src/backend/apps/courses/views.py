@@ -16,26 +16,32 @@ from .serializers import (
 from apps.notifacations.models import Notification, UserNotification
 from apps.users.models import User
 
+from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
+
 
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
-    permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            return [AllowAny()]
+        return [IsAdminUser()]
 
     def get_queryset(self):
         queryset = Category.objects.all()
         is_modular = self.request.query_params.get('is_modular')
         is_active = self.request.query_params.get('is_active')
-        
+
         if is_modular is not None:
             queryset = queryset.filter(is_modular=is_modular.lower() == 'true')
-        
-        # For non-admin users, only show active categories
-        if not (self.request.user.is_staff or self.request.user.is_superuser):
+
+        user = self.request.user
+        if not (user.is_authenticated and (user.is_staff or user.is_superuser)):
             queryset = queryset.filter(is_active=True)
         elif is_active is not None:
             queryset = queryset.filter(is_active=is_active.lower() == 'true')
-        
+
         return queryset
 
     @action(detail=True, methods=['post'])
@@ -44,7 +50,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
         category = self.get_object()
         if not category.is_modular:
             return Response({'error': 'Category is not modular'}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         serializer = ModuleSerializer(data={
             'category': category.id,
             'name': request.data.get('name'),
@@ -60,7 +66,11 @@ class CategoryViewSet(viewsets.ModelViewSet):
 class ModuleViewSet(viewsets.ModelViewSet):
     queryset = Module.objects.all()
     serializer_class = ModuleSerializer
-    permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve', 'by_category']:
+            return [AllowAny()]
+        return [IsAdminUser()]
 
     @action(detail=False, methods=['get'])
     def by_category(self, request):
@@ -72,10 +82,28 @@ class ModuleViewSet(viewsets.ModelViewSet):
         return Response({'error': 'category_id is required'}, status=status.HTTP_400_BAD_REQUEST)
 
 
+def user_has_video_access(user, video):
+    category = video.category
+    if category.is_free:
+        return True
+    if not user.is_authenticated:
+        return False
+    if user.is_staff or user.is_superuser:
+        return True
+    user_course = UserCourse.objects.filter(user=user, category=category).first()
+    if not user_course:
+        return False
+    return user_course.has_access_to_video(video)
+
+
 class VideoViewSet(viewsets.ModelViewSet):
     queryset = Video.objects.all()
     serializer_class = VideoSerializer
-    permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve', 'by_category']:
+            return [AllowAny()]
+        return [IsAdminUser()]
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
@@ -168,11 +196,11 @@ class VideoViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def by_category(self, request):
         category_id = request.query_params.get('category_id')
-        if category_id:
-            videos = Video.objects.filter(category_id=category_id)
-            serializer = self.get_serializer(videos, many=True)
-            return Response(serializer.data)
-        return Response({'error': 'category_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+        if not category_id:
+            return Response({'error': 'category_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+        videos = Video.objects.filter(category_id=category_id)
+        serializer = self.get_serializer(videos, many=True)
+        return Response(serializer.data)
 
     @action(detail=True, methods=['get'])
     def stats(self, request, pk=None):
@@ -262,7 +290,8 @@ class TaskViewSet(viewsets.ModelViewSet):
             except (TypeError, ValueError):
                 return f'{idx}-savol uchun to‘g‘ri javob noto‘g‘ri tanlangan'
             original_options = q_data.get('options', [])
-            if correct_answer < 0 or correct_answer >= len(original_options) or not str(original_options[correct_answer]).strip():
+            if correct_answer < 0 or correct_answer >= len(original_options) or not str(
+                    original_options[correct_answer]).strip():
                 return f'{idx}-savol uchun to‘g‘ri javobni to‘ldirilgan variantlardan tanlang'
         return None
 
@@ -515,7 +544,7 @@ class UserCourseViewSet(viewsets.ModelViewSet):
         granted_by = request.data.get('granted_by', 'gift')
 
         category = Category.objects.get(id=category_id)
-        
+
         course, created = UserCourse.objects.get_or_create(
             user_id=user_id,
             category_id=category_id,
@@ -541,7 +570,7 @@ class UserCourseViewSet(viewsets.ModelViewSet):
                     message = f"Tabriklaymiz! Sizga '{category.name}' kursidan quyidagi modullar sovg'a qilindi: {module_names}"
                 else:
                     message = f"Tabriklaymiz! Sizga '{category.name}' kursi sovg'a qilindi. Endi barcha video darslarni bepul ko'rishingiz mumkin."
-                
+
                 notification = Notification.objects.create(
                     title="Sizga yangi kurs sovg'a qilindi! 🎁",
                     message=message,
@@ -561,19 +590,19 @@ class UserCourseViewSet(viewsets.ModelViewSet):
 
         serializer = self.get_serializer(course)
         return Response(serializer.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
-    
+
     @action(detail=True, methods=['post'])
     def add_modules(self, request, pk=None):
         """Add modules to an existing user course"""
         course = self.get_object()
         module_ids = request.data.get('module_ids', [])
-        
+
         if not course.category.is_modular:
             return Response({'error': 'Category is not modular'}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         modules = Module.objects.filter(id__in=module_ids, category=course.category)
         course.modules.add(*modules)
-        
+
         serializer = self.get_serializer(course)
         return Response(serializer.data)
 
@@ -640,7 +669,8 @@ class StudentProgressViewSet(viewsets.ModelViewSet):
         progress = StudentProgress.objects.filter(user_id=user_id).first()
 
         if not progress:
-            return Response({'completed_videos': [], 'completed_tasks': [], 'video_details': []}, status=status.HTTP_200_OK)
+            return Response({'completed_videos': [], 'completed_tasks': [], 'video_details': []},
+                            status=status.HTTP_200_OK)
 
         # Get detailed video information
         video_details = []
@@ -652,7 +682,7 @@ class StudentProgressViewSet(viewsets.ModelViewSet):
                 task = video.tasks.first()
                 if task:
                     submission = TaskSubmission.objects.filter(
-                        user_id=user_id, 
+                        user_id=user_id,
                         task=task
                     ).order_by('-submitted_at').first()
                     if submission:
@@ -661,7 +691,7 @@ class StudentProgressViewSet(viewsets.ModelViewSet):
                             'task_total': submission.total,
                             'task_status': submission.status
                         }
-                
+
                 video_details.append({
                     'video_id': video.id,
                     'video_title': video.title,

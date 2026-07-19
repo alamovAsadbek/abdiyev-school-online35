@@ -23,7 +23,23 @@ export function Navbar() {
     const navigate = useNavigate();
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
-    if (!user) return null;
+    if (!user) {
+        return (
+            <nav className="fixed top-0 left-0 right-0 z-30 h-16 border-b border-border bg-background/95 backdrop-blur">
+                <div className="flex items-center justify-between h-full px-6">
+                    <div className="flex items-center gap-2">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg gradient-primary">
+                            <span className="text-primary-foreground font-bold text-sm">A</span>
+                        </div>
+                        <span className="font-semibold text-foreground">ABDIYEV SCHOOL</span>
+                    </div>
+                    <Button onClick={() => navigate('/login')} className="gap-2">
+                        Kirish
+                    </Button>
+                </div>
+            </nav>
+        );
+    }
 
     const handleLogout = () => {
         logout();
@@ -53,7 +69,7 @@ export function Navbar() {
                         className="inline-flex items-center gap-2 px-3 h-9 rounded-md border border-border text-sm hover:bg-muted transition-colors"
                         title={ADMIN_CONTACT_LABEL}
                     >
-                        <MessageCircle className="h-4 w-4" />
+                        <MessageCircle className="h-4 w-4"/>
                         <span className="hidden lg:inline">{ADMIN_CONTACT_LABEL}</span>
                     </a>
 
@@ -93,7 +109,7 @@ export function Navbar() {
                                 <LogOut className='mr-2' style={{fontSize: '10px'}}/>
                                 Chiqish
                             </DropdownMenuItem>
-                           <span className='text-xs font-bold text-gray-600 ml-2 align-middle'>
+                            <span className='text-xs font-bold text-gray-600 ml-2 align-middle'>
                                version 1.0.0
                            </span>
                         </DropdownMenuContent>
@@ -120,7 +136,7 @@ export function Navbar() {
                             className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-border hover:bg-muted transition-colors"
                             title={ADMIN_CONTACT_LABEL}
                         >
-                            <MessageCircle className="h-4 w-4" />
+                            <MessageCircle className="h-4 w-4"/>
                         </a>
                         <NotificationBell/>
                         <div

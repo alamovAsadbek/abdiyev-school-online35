@@ -13,13 +13,17 @@ class Category(models.Model):
     is_active = models.BooleanField(default=True)  # Whether course is active/visible
     created_at = models.DateTimeField(auto_now_add=True)
 
+    @property
+    def is_free(self):
+        return self.price == 0
+
     def __str__(self):
         return self.name
 
     @property
     def video_count(self):
         return self.videos.count()
-    
+
     @property
     def module_count(self):
         return self.modules.count() if self.is_modular else 0
@@ -67,13 +71,13 @@ class Video(models.Model):
 
     def __str__(self):
         return self.title
-    
+
     def get_video_url(self):
         """Return video file URL or external URL"""
         if self.video_file:
             return self.video_file.url
         return self.video_url
-    
+
     def get_thumbnail_url(self):
         """Return thumbnail file URL or external URL"""
         if self.thumbnail:
@@ -82,13 +86,36 @@ class Video(models.Model):
 
     def get_category_name(self):
         return self.category.name
-    
+
     def get_module_name(self):
         return self.module.name if self.module else None
 
     class Meta:
         db_table = 'videos'
         ordering = ['category', 'module', 'order']
+
+    def is_locked_for(self, user):
+        """Shu video berilgan user uchun qulflanganmi yoki yo'q"""
+        category = self.category
+
+        # Bepul kurs — hech kimga qulf yo'q
+        if category.price == 0:
+            return False
+
+        # Login qilmagan user — qulflangan
+        if not user or not getattr(user, 'is_authenticated', False):
+            return True
+
+        # Admin — qulf yo'q
+        if user.is_staff or user.is_superuser:
+            return False
+
+        # Kursni sotib olganmi / berilganmi tekshiramiz
+        user_course = UserCourse.objects.filter(user=user, category=category).first()
+        if not user_course:
+            return True
+
+        return not user_course.has_access_to_video(self)
 
 
 class Task(models.Model):
@@ -97,13 +124,14 @@ class Task(models.Model):
         ('file', 'File Upload'),
         ('text', 'Text'),
     )
-    
+
     video = models.ForeignKey(Video, on_delete=models.CASCADE, related_name='tasks')
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
     task_type = models.CharField(max_length=10, choices=TASK_TYPE_CHOICES, default='test')
     file = models.FileField(upload_to='tasks/', blank=True, null=True)
-    answer_file = models.FileField(upload_to='task_answers/', blank=True, null=True)  # Answer file shown after completion
+    answer_file = models.FileField(upload_to='task_answers/', blank=True,
+                                   null=True)  # Answer file shown after completion
     allow_resubmission = models.BooleanField(default=True)
     requires_approval = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -148,13 +176,13 @@ class UserCourse(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.category.name}"
-    
+
     def has_access_to_module(self, module):
         """Check if user has access to a specific module"""
         if not self.category.is_modular:
             return True  # Non-modular courses give full access
         return self.modules.filter(id=module.id).exists()
-    
+
     def has_access_to_video(self, video):
         """Check if user has access to a specific video"""
         if not self.category.is_modular or not video.module:
@@ -185,7 +213,7 @@ class TaskSubmission(models.Model):
         ('approved', 'Approved'),
         ('rejected', 'Rejected'),
     )
-    
+
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='task_submissions')
     task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='submissions')
     file = models.FileField(upload_to='submissions/', blank=True, null=True)
