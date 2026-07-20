@@ -9,7 +9,6 @@ import {ProgressProvider} from "@/contexts/ProgressContext";
 import {SidebarProvider} from "@/contexts/SidebarContext";
 
 // Pages
-import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 
@@ -52,8 +51,8 @@ import AdminTaskCreate from "@/pages/admin/AdminTaskCreate.tsx";
 
 const queryClient = new QueryClient();
 
-// Protected Route Component
-function ProtectedRoute({children, allowedRole}: { children: React.ReactNode; allowedRole?: 'admin' | 'student' }) {
+// Faqat admin uchun himoya
+function AdminRoute({children}: { children: React.ReactNode }) {
     const {user, isLoading} = useAuth();
 
     if (isLoading) {
@@ -64,18 +63,14 @@ function ProtectedRoute({children, allowedRole}: { children: React.ReactNode; al
         );
     }
 
-    if (!user) {
+    if (!user || user.role !== 'admin') {
         return <Navigate to="/login" replace/>;
-    }
-
-    if (allowedRole && user.role !== allowedRole) {
-        return <Navigate to={user.role === 'admin' ? '/admin' : '/student'} replace/>;
     }
 
     return <>{children}</>;
 }
 
-// Auth Route - Redirect if already logged in
+// Login/register sahifasi - agar allaqachon login qilingan bo'lsa, o'z panel'iga o'tkazadi
 function AuthRoute({children}: { children: React.ReactNode }) {
     const {user, isLoading} = useAuth();
 
@@ -97,76 +92,49 @@ function AuthRoute({children}: { children: React.ReactNode }) {
 function AppRoutes() {
     return (
         <Routes>
-            {/* Public Routes */}
-            <Route path="/" element={<Landing/>}/>
             <Route path="/login" element={<AuthRoute><Login/></AuthRoute>}/>
 
-            {/* Student Routes */}
-            <Route path="/student"
-                   element={<ProtectedRoute allowedRole="student"><StudentDashboard/></ProtectedRoute>}/>
-            <Route path="/student/profile"
-                   element={<ProtectedRoute allowedRole="student"><StudentProfile/></ProtectedRoute>}/>
-            <Route path="/student/courses"
-                   element={<ProtectedRoute allowedRole="student"><StudentCourses/></ProtectedRoute>}/>
-            <Route path="/student/categories"
-                   element={<ProtectedRoute allowedRole="student"><StudentCourses/></ProtectedRoute>}/>
-            <Route path="/student/category/:categoryId"
-                   element={<ProtectedRoute allowedRole="student"><StudentCategoryView/></ProtectedRoute>}/>
-            <Route path="/student/videos"
-                   element={<ProtectedRoute allowedRole="student"><StudentVideos/></ProtectedRoute>}/>
-            <Route path="/student/video/:videoId"
-                   element={<ProtectedRoute allowedRole="student"><StudentVideoView/></ProtectedRoute>}/>
-            <Route path="/student/tasks"
-                   element={<ProtectedRoute allowedRole="student"><StudentTasks/></ProtectedRoute>}/>
-            <Route path="/student/task/:taskId"
-                   element={<ProtectedRoute allowedRole="student"><StudentTaskView/></ProtectedRoute>}/>
-            <Route path="/student/submission/:submissionId"
-                   element={<ProtectedRoute allowedRole="student"><StudentSubmissionDetail/></ProtectedRoute>}/>
-            <Route path="/student/checkout"
-                   element={<ProtectedRoute allowedRole="student"><StudentCheckout/></ProtectedRoute>}/>
+            {/* Student Routes - LOGIN SHART EMAS. Har bir sahifa o'zi ichida
+                user bor/yo'qligini useAuth() orqali tekshiradi va pullik/shaxsiy
+                joylarda "kirish kerak" holatini ko'rsatadi. */}
+            <Route path="/" element={<StudentDashboard/>}/>
+            <Route path="/student" element={<StudentDashboard/>}/>
+            <Route path="/student/profile" element={<StudentProfile/>}/>
+            <Route path="/student/courses" element={<StudentCourses/>}/>
+            <Route path="/student/categories" element={<StudentCourses/>}/>
+            <Route path="/student/category/:categoryId" element={<StudentCategoryView/>}/>
+            <Route path="/student/videos" element={<StudentVideos/>}/>
+            <Route path="/student/video/:videoId" element={<StudentVideoView/>}/>
+            <Route path="/student/tasks" element={<StudentTasks/>}/>
+            <Route path="/student/task/:taskId" element={<StudentTaskView/>}/>
+            <Route path="/student/submission/:submissionId" element={<StudentSubmissionDetail/>}/>
+            <Route path="/student/checkout" element={<StudentCheckout/>}/>
 
-            {/* Admin Routes */}
-            <Route path="/admin" element={<ProtectedRoute allowedRole="admin"><AdminDashboard/></ProtectedRoute>}/>
-            <Route path="/admin/users" element={<ProtectedRoute allowedRole="admin"><AdminUsers/></ProtectedRoute>}/>
-            <Route path="/admin/users/:userId"
-                   element={<ProtectedRoute allowedRole="admin"><AdminUserDetail/></ProtectedRoute>}/>
-            <Route path="/admin/users/:userId/edit"
-                   element={<ProtectedRoute allowedRole="admin"><AdminUserEdit/></ProtectedRoute>}/>
-            <Route path="/admin/payments"
-                   element={<ProtectedRoute allowedRole="admin"><AdminPayments/></ProtectedRoute>}/>
-            <Route path="/admin/payments/:paymentId"
-                   element={<ProtectedRoute allowedRole="admin"><AdminPaymentDetail/></ProtectedRoute>}/>
+            {/* Admin Routes - login shart, faqat admin */}
+            <Route path="/admin" element={<AdminRoute><AdminDashboard/></AdminRoute>}/>
+            <Route path="/admin/users" element={<AdminRoute><AdminUsers/></AdminRoute>}/>
+            <Route path="/admin/users/:userId" element={<AdminRoute><AdminUserDetail/></AdminRoute>}/>
+            <Route path="/admin/users/:userId/edit" element={<AdminRoute><AdminUserEdit/></AdminRoute>}/>
+            <Route path="/admin/payments" element={<AdminRoute><AdminPayments/></AdminRoute>}/>
+            <Route path="/admin/payments/:paymentId" element={<AdminRoute><AdminPaymentDetail/></AdminRoute>}/>
+            <Route path="/admin/categories" element={<AdminRoute><AdminCategories/></AdminRoute>}/>
+            <Route path="/admin/categories/create" element={<AdminRoute><AdminCategoryCreate/></AdminRoute>}/>
+            <Route path="/admin/categories/:categoryId" element={<AdminRoute><AdminCategoryDetail/></AdminRoute>}/>
+            <Route path="/admin/categories/:categoryId/edit" element={<AdminRoute><AdminCategoryCreate/></AdminRoute>}/>
+            <Route path="/admin/categories/:categoryId/modules/:moduleId/edit" element={<AdminRoute><AdminModuleEdit/></AdminRoute>}/>
+            <Route path="/admin/videos" element={<AdminRoute><AdminVideos/></AdminRoute>}/>
+            <Route path="/admin/videos/add" element={<AdminRoute><AdminVideoAddWithTask/></AdminRoute>}/>
+            <Route path="/admin/videos/add-old" element={<AdminRoute><AdminVideoAdd/></AdminRoute>}/>
+            <Route path="/admin/videos/:videoId" element={<AdminRoute><AdminVideoDetail/></AdminRoute>}/>
+            <Route path="/admin/videos/:videoId/edit" element={<AdminRoute><AdminVideoEdit/></AdminRoute>}/>
+            <Route path="/admin/tasks" element={<AdminRoute><AdminTasks/></AdminRoute>}/>
+            <Route path="/admin/tasks/create" element={<AdminRoute><AdminTaskCreate/></AdminRoute>}/>
+            <Route path="/admin/tasks/:taskId" element={<AdminRoute><AdminTaskDetail/></AdminRoute>}/>
+            <Route path="/admin/tasks/:taskId/stats" element={<AdminRoute><AdminTaskStatistics/></AdminRoute>}/>
+            <Route path="/admin/notifications" element={<AdminRoute><AdminNotifications/></AdminRoute>}/>
+            <Route path="/admin/notifications/create" element={<AdminRoute><AdminNotificationCreate/></AdminRoute>}/>
+            <Route path="/admin/submissions/:submissionId" element={<AdminRoute><AdminSubmissionDetail/></AdminRoute>}/>
 
-            <Route path="/admin/categories"
-                   element={<ProtectedRoute allowedRole="admin"><AdminCategories/></ProtectedRoute>}/>
-            <Route path="/admin/categories/create"
-                   element={<ProtectedRoute allowedRole="admin"><AdminCategoryCreate/></ProtectedRoute>}/>
-            <Route path="/admin/categories/:categoryId"
-                   element={<ProtectedRoute allowedRole="admin"><AdminCategoryDetail/></ProtectedRoute>}/>
-            <Route path="/admin/categories/:categoryId/edit"
-                   element={<ProtectedRoute allowedRole="admin"><AdminCategoryCreate/></ProtectedRoute>}/>
-            <Route path="/admin/categories/:categoryId/modules/:moduleId/edit"
-                   element={<ProtectedRoute allowedRole="admin"><AdminModuleEdit/></ProtectedRoute>}/>
-            <Route path="/admin/videos" element={<ProtectedRoute allowedRole="admin"><AdminVideos/></ProtectedRoute>}/>
-            <Route path="/admin/videos/add"
-                   element={<ProtectedRoute allowedRole="admin"><AdminVideoAddWithTask/></ProtectedRoute>}/>
-            <Route path="/admin/videos/add-old"
-                   element={<ProtectedRoute allowedRole="admin"><AdminVideoAdd/></ProtectedRoute>}/>
-            <Route path="/admin/videos/:videoId"
-                   element={<ProtectedRoute allowedRole="admin"><AdminVideoDetail/></ProtectedRoute>}/>
-            <Route path="/admin/videos/:videoId/edit"
-                   element={<ProtectedRoute allowedRole="admin"><AdminVideoEdit/></ProtectedRoute>}/>
-            <Route path="/admin/tasks" element={<ProtectedRoute allowedRole="admin"><AdminTasks/></ProtectedRoute>}/>
-            <Route path="/admin/tasks/create" element={<ProtectedRoute allowedRole="admin"><AdminTaskCreate/></ProtectedRoute>}/>
-            <Route path="/admin/tasks/:taskId" element={<ProtectedRoute allowedRole="admin"><AdminTaskDetail/></ProtectedRoute>}/>
-            <Route path="/admin/tasks/:taskId/stats" element={<ProtectedRoute allowedRole="admin"><AdminTaskStatistics/></ProtectedRoute>}/>
-            <Route path="/admin/notifications"
-                   element={<ProtectedRoute allowedRole="admin"><AdminNotifications/></ProtectedRoute>}/>
-            <Route path="/admin/notifications/create"
-                   element={<ProtectedRoute allowedRole="admin"><AdminNotificationCreate/></ProtectedRoute>}/>
-            <Route path="/admin/submissions/:submissionId"
-                   element={<ProtectedRoute allowedRole="admin"><AdminSubmissionDetail/></ProtectedRoute>}/>
-            
             {/* 404 */}
             <Route path="*" element={<NotFound/>}/>
         </Routes>
@@ -182,7 +150,7 @@ const App = () => (
                         <TooltipProvider>
                             <Toaster/>
                             <Sonner/>
-                            <BrowserRouter>
+                            <BrowserRouter future={{v7_startTransition: true, v7_relativeSplatPath: true}}>
                                 <AppRoutes/>
                             </BrowserRouter>
                         </TooltipProvider>
