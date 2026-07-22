@@ -1,5 +1,6 @@
 export const API_BASE_URL = `${import.meta.env.VITE_API_KEY || 'http://127.0.0.1:8001/api'}`;
 
+
 // WebSocket base URL — derived from API base; can be overridden with VITE_WS_URL.
 export const WS_BASE_URL: string = (() => {
   const explicit = (import.meta as any).env?.VITE_WS_URL as string | undefined;
