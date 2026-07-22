@@ -101,7 +101,7 @@ class VideoViewSet(viewsets.ModelViewSet):
     serializer_class = VideoSerializer
 
     def get_permissions(self):
-        if self.action in ['list', 'retrieve', 'by_category']:
+        if self.action in ['list', 'retrieve', 'by_category', 'increment_view']:
             return [AllowAny()]
         return [IsAdminUser()]
 
@@ -231,7 +231,11 @@ class VideoViewSet(viewsets.ModelViewSet):
 class TaskViewSet(viewsets.ModelViewSet):
     queryset = Task.objects.all()
     serializer_class = TaskSerializer
-    permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve', 'by_video']:
+            return [AllowAny()]
+        return [IsAdminUser()]
 
     def _normalize_questions(self, raw_questions):
         """Accept JSON body, FormData string, or QueryDict pop-list and return question dicts."""
@@ -614,23 +618,45 @@ class UserCourseViewSet(viewsets.ModelViewSet):
         return Response({'status': 'revoked'}, status=status.HTTP_200_OK)
 
 
+def get_progress_instance(request):
+    """Login qilgan bo'lsa - user orqali, bo'lmasa - device_id orqali progress topadi/yaratadi"""
+    user = request.user
+    if user and user.is_authenticated:
+        progress, _ = StudentProgress.objects.get_or_create(user=user)
+        return progress
+
+    device_id = request.data.get('device_id') or request.query_params.get('device_id')
+    if not device_id:
+        return None
+
+    progress, _ = StudentProgress.objects.get_or_create(device_id=device_id, user=None)
+    return progress
+
+
 class StudentProgressViewSet(viewsets.ModelViewSet):
     queryset = StudentProgress.objects.all()
     serializer_class = StudentProgressSerializer
-    permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        if self.action in ['my_progress', 'complete_video', 'complete_task']:
+            return [AllowAny()]
+        return [IsAdminUser()]
 
     @action(detail=False, methods=['get'])
     def my_progress(self, request):
-        progress, created = StudentProgress.objects.get_or_create(user=request.user)
+        progress = get_progress_instance(request)
+        if not progress:
+            return Response({'completed_videos': [], 'completed_tasks': []})
         serializer = self.get_serializer(progress)
         return Response(serializer.data)
 
     @action(detail=False, methods=['post'])
     def complete_video(self, request):
-        video_id = request.data.get('video_id')
-        progress, created = StudentProgress.objects.get_or_create(user=request.user)
+        progress = get_progress_instance(request)
+        if not progress:
+            return Response({'error': 'device_id kerak'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Convert to int for consistent storage
+        video_id = request.data.get('video_id')
         try:
             video_id_int = int(video_id)
         except (ValueError, TypeError):
@@ -645,10 +671,11 @@ class StudentProgressViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'])
     def complete_task(self, request):
-        task_id = request.data.get('task_id')
-        progress, created = StudentProgress.objects.get_or_create(user=request.user)
+        progress = get_progress_instance(request)
+        if not progress:
+            return Response({'error': 'device_id kerak'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Convert to int for consistent storage
+        task_id = request.data.get('task_id')
         try:
             task_id_int = int(task_id)
         except (ValueError, TypeError):
@@ -672,12 +699,10 @@ class StudentProgressViewSet(viewsets.ModelViewSet):
             return Response({'completed_videos': [], 'completed_tasks': [], 'video_details': []},
                             status=status.HTTP_200_OK)
 
-        # Get detailed video information
         video_details = []
         for vid_id in progress.completed_videos:
             try:
                 video = Video.objects.get(id=vid_id)
-                # Get latest submission for this video's tasks
                 task_info = {}
                 task = video.tasks.first()
                 if task:
@@ -708,54 +733,59 @@ class StudentProgressViewSet(viewsets.ModelViewSet):
         return Response(data)
 
 
+def get_submission_owner_filter(request):
+    """Login bo'lsa user, bo'lmasa device_id bo'yicha filter qaytaradi (dict)"""
+    user = request.user
+    if user and user.is_authenticated:
+        return {'user': user}
+    device_id = request.data.get('device_id') or request.query_params.get('device_id')
+    if not device_id:
+        return None
+    return {'device_id': device_id}
+
+
 class TaskSubmissionViewSet(viewsets.ModelViewSet):
     queryset = TaskSubmission.objects.all()
     serializer_class = TaskSubmissionSerializer
-    permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        if self.action in ['my_submissions', 'submit', 'retrieve', 'detail_with_answers']:
+            return [AllowAny()]
+        return [IsAdminUser()]
 
     def get_queryset(self):
         request_user = self.request.user
         query_user = self.request.query_params.get('user')
+        device_id = self.request.query_params.get('device_id')
 
-        # Agar admin bo'lsa, xohlagan userni ko'radi
-        if request_user.is_staff or request_user.is_superuser:
+        # Admin - xohlagan userni ko'radi
+        if request_user.is_authenticated and (request_user.is_staff or request_user.is_superuser):
             if query_user:
                 return TaskSubmission.objects.filter(user_id=query_user)
             return TaskSubmission.objects.all()
 
-        # Oddiy user faqat o'zini ko'radi
-        if query_user and str(request_user.id) != str(query_user):
-            return TaskSubmission.objects.none()
+        # Login qilgan oddiy user - faqat o'zini
+        if request_user.is_authenticated:
+            if query_user and str(request_user.id) != str(query_user):
+                return TaskSubmission.objects.none()
+            return TaskSubmission.objects.filter(user=request_user)
 
-        return TaskSubmission.objects.filter(user=request_user)
+        # Guest - faqat o'z device_id'siga tegishli submissionlarni ko'radi
+        if device_id:
+            return TaskSubmission.objects.filter(device_id=device_id)
+
+        return TaskSubmission.objects.none()
 
     @action(detail=False, methods=['get'])
     def my_submissions(self, request):
-        submissions = TaskSubmission.objects.filter(user=request.user)
+        owner_filter = get_submission_owner_filter(request)
+        if not owner_filter:
+            return Response([])
+        submissions = TaskSubmission.objects.filter(**owner_filter)
         serializer = self.get_serializer(submissions, many=True)
         return Response(serializer.data)
 
-    @action(detail=False, methods=['get'])
-    def by_task(self, request):
-        """Get all submissions for a specific task with detailed answers"""
-        task_id = request.query_params.get('task_id')
-        if not task_id:
-            return Response({'error': 'task_id is required'}, status=status.HTTP_400_BAD_REQUEST)
-
-        submissions = TaskSubmission.objects.filter(task_id=task_id).select_related('user', 'task')
-        serializer = self.get_serializer(submissions, many=True)
-        return Response(serializer.data)
-
-    @action(detail=False, methods=['get'])
-    def by_video(self, request):
-        """Get all submissions for a specific video's tasks"""
-        video_id = request.query_params.get('video_id')
-        if not video_id:
-            return Response({'error': 'video_id is required'}, status=status.HTTP_400_BAD_REQUEST)
-
-        submissions = TaskSubmission.objects.filter(task__video_id=video_id).select_related('user', 'task')
-        serializer = self.get_serializer(submissions, many=True)
-        return Response(serializer.data)
+    # by_task, by_video - o'zgarishsiz (admin uchun, IsAdminUser bo'lib qoladi)
 
     @action(detail=True, methods=['get'])
     def detail_with_answers(self, request, pk=None):
@@ -766,9 +796,7 @@ class TaskSubmissionViewSet(viewsets.ModelViewSet):
 
         serializer_data = self.get_serializer(submission).data
 
-        # Add detailed question info with user answers
         questions_detail = []
-
         answers = submission.answers
 
         if isinstance(answers, str):
@@ -798,23 +826,24 @@ class TaskSubmissionViewSet(viewsets.ModelViewSet):
         score = request.data.get('score', 0)
         total = request.data.get('total', 0)
 
+        owner_filter = get_submission_owner_filter(request)
+        if not owner_filter:
+            return Response({'error': 'Login yoki device_id kerak'}, status=status.HTTP_400_BAD_REQUEST)
+
         try:
             task = Task.objects.get(id=task_id)
         except Task.DoesNotExist:
             return Response({'error': 'Task not found'}, status=status.HTTP_404_NOT_FOUND)
 
-        # Determine initial status based on task type
         initial_status = 'pending'
         if task.task_type == 'test':
-            initial_status = 'approved'  # Test auto-approved
+            initial_status = 'approved'
 
-        # Check if submission already exists
-        existing = TaskSubmission.objects.filter(user=request.user, task_id=task_id).first()
+        existing = TaskSubmission.objects.filter(task_id=task_id, **owner_filter).first()
 
         if existing:
             if not task.allow_resubmission:
                 return Response({'error': 'Resubmission not allowed'}, status=status.HTTP_400_BAD_REQUEST)
-            # Update existing submission
             existing.file = file if file else existing.file
             existing.text_content = text_content if text_content else existing.text_content
             existing.answers = answers if answers else existing.answers
@@ -826,80 +855,19 @@ class TaskSubmissionViewSet(viewsets.ModelViewSet):
             existing.save()
             submission = existing
         else:
-            submission = TaskSubmission.objects.create(
-                user=request.user,
+            create_kwargs = dict(
                 task_id=task_id,
                 file=file,
                 text_content=text_content,
                 answers=answers,
                 score=score,
                 total=total,
-                status=initial_status
+                status=initial_status,
             )
+            create_kwargs.update(owner_filter)
+            submission = TaskSubmission.objects.create(**create_kwargs)
 
         serializer = self.get_serializer(submission)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-    @action(detail=True, methods=['post'])
-    def approve(self, request, pk=None):
-        """Teacher approves a submission"""
-        submission = self.get_object()
-        feedback = request.data.get('feedback', '')
-
-        submission.status = 'approved'
-        submission.feedback = feedback
-        submission.reviewed_at = datetime.datetime.now()
-        submission.save()
-
-        # Send notification to student
-        try:
-            notification = Notification.objects.create(
-                title="Vazifangiz tasdiqlandi! ✅",
-                message=f"'{submission.task.title}' vazifangiz o'qituvchi tomonidan tasdiqlandi.",
-                type='task'
-            )
-            notification.recipients.add(submission.user)
-            notification.sent_count = 1
-            notification.save()
-
-            UserNotification.objects.create(
-                user=submission.user,
-                notification=notification
-            )
-        except Exception as e:
-            print(f"Error sending approval notification: {e}")
-
-        serializer = self.get_serializer(submission)
-        return Response(serializer.data)
-
-    @action(detail=True, methods=['post'])
-    def reject(self, request, pk=None):
-        """Teacher rejects a submission"""
-        submission = self.get_object()
-        feedback = request.data.get('feedback', '')
-
-        submission.status = 'rejected'
-        submission.feedback = feedback
-        submission.reviewed_at = datetime.datetime.now()
-        submission.save()
-
-        # Send notification to student
-        try:
-            notification = Notification.objects.create(
-                title="Vazifangiz qaytarildi ❌",
-                message=f"'{submission.task.title}' vazifangiz qaytarildi. Iltimos qayta topshiring. Izoh: {feedback}",
-                type='task'
-            )
-            notification.recipients.add(submission.user)
-            notification.sent_count = 1
-            notification.save()
-
-            UserNotification.objects.create(
-                user=submission.user,
-                notification=notification
-            )
-        except Exception as e:
-            print(f"Error sending rejection notification: {e}")
-
-        serializer = self.get_serializer(submission)
-        return Response(serializer.data)
+    # approve, reject - o'zgarishsiz (admin uchun)

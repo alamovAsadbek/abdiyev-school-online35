@@ -113,50 +113,11 @@ export default function StudentVideoView() {
 
             setLoading(true);
             try {
-                // Fetch video
+                // Fetch video — backend allaqachon is_locked va video_url (agar ochiq bo'lsa) qaytaradi
                 const videoData = await videosApi.getById(videoId);
-                console.log('video data', videoData)
                 setVideo(videoData);
 
-                // Check if user has access to this course
-                const myCourses = await userCoursesApi.getMyCourses();
-                const courses = myCourses?.results || myCourses || [];
-                const currentCourse = courses.find(
-                    (c: any) => {
-                        const courseCategory = c.category_id || c.categoryId || c.category?.id || c.category;
-                        return String(courseCategory) === String(videoData.category);
-                    }
-                );
-
-                // Determine if this specific video/module is accessible
-                let isAccessible = false;
-                try {
-                    const categoryData = await categoriesApi.getById(String(videoData.category));
-                    const coursePrice = Number(categoryData?.price ?? 0);
-                    const isModular = !!categoryData?.is_modular;
-
-                    if (!isModular) {
-                        // Non-modular: free course OR user has it
-                        isAccessible = coursePrice === 0 || !!currentCourse;
-                    } else {
-                        // Modular: check this video's module
-                        let moduleFree = false;
-                        if (videoData.module) {
-                            try {
-                                const mod = await import('@/services/api').then(m => m.modulesApi.getById(String(videoData.module)));
-                                moduleFree = Number(mod?.price ?? 0) === 0;
-                            } catch {}
-                        }
-                        if (moduleFree) {
-                            isAccessible = true;
-                        } else if (currentCourse) {
-                            const gifted = currentCourse.modules_detail || currentCourse.modules || [];
-                            const giftedIds = gifted.map((m: any) => String(m.id || m));
-                            isAccessible = giftedIds.includes(String(videoData.module));
-                        }
-                    }
-                } catch {}
-
+                const isAccessible = !videoData.is_locked;
                 setHasAccess(isAccessible);
 
                 if (!isAccessible) {
@@ -174,7 +135,7 @@ export default function StudentVideoView() {
                     const videos = videosInCategory?.results || videosInCategory || [];
                     const sortedVideos = videos.sort((a: Video, b: Video) => a.order - b.order);
                     setCategoryVideos(sortedVideos);
-                    
+
                     // Fetch tasks for all videos to check completion requirements
                     const tasksMap: {[videoId: string]: Task | null} = {};
                     await Promise.all(sortedVideos.map(async (v: Video) => {
@@ -201,8 +162,7 @@ export default function StudentVideoView() {
                 }
 
                 // Increment view count
-                videosApi.incrementView(videoId).catch(() => {
-                });
+                videosApi.incrementView(videoId).catch(() => {});
 
             } catch (error) {
                 console.error('Failed to fetch video data:', error);
@@ -218,6 +178,7 @@ export default function StudentVideoView() {
 
         fetchData();
     }, [videoId, toast]);
+
 
     // Auto mark as watched after 10 seconds
     useEffect(() => {

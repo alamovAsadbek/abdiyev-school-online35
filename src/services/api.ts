@@ -191,19 +191,38 @@ export const userCoursesApi = {
 };
 
 // Progress API
+function getOrCreateGuestId(): string {
+    let guestId = localStorage.getItem('guest_id');
+    if (!guestId) {
+        guestId = 'guest_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+        localStorage.setItem('guest_id', guestId);
+    }
+    return guestId;
+}
+
 export const progressApi = {
-  getMyProgress: async () => {
-    return api.get('/progress/my_progress/');
-  },
-  completeVideo: async (videoId: string) => {
-    return api.post('/progress/complete_video/', { video_id: videoId });
-  },
-  completeTask: async (taskId: string) => {
-    return api.post('/progress/complete_task/', { task_id: taskId });
-  },
-  getUserProgress: async (userId: string) => {
-    return api.get(`/progress/user_progress/?user_id=${userId}`);
-  },
+    getMyProgress: async () => {
+        const token = localStorage.getItem('access');
+        if (token) {
+            return api.get('/progress/my_progress/');
+        }
+        return api.get('/progress/my_progress/', { device_id: getOrCreateGuestId() });
+    },
+    completeVideo: async (videoId: string) => {
+        const token = localStorage.getItem('access');
+        const payload: any = { video_id: videoId };
+        if (!token) payload.device_id = getOrCreateGuestId();
+        return api.post('/progress/complete_video/', payload);
+    },
+    completeTask: async (taskId: string) => {
+        const token = localStorage.getItem('access');
+        const payload: any = { task_id: taskId };
+        if (!token) payload.device_id = getOrCreateGuestId();
+        return api.post('/progress/complete_task/', payload);
+    },
+    getUserProgress: async (userId: string) => {
+        return api.get(`/progress/user_progress/?user_id=${userId}`);
+    },
 };
 
 // Task Submissions API
@@ -215,7 +234,11 @@ export const submissionsApi = {
     return api.get(`/submissions/${id}/`);
   },
   getMySubmissions: async () => {
-    return api.get('/submissions/my_submissions/');
+    const token = localStorage.getItem('access');
+    if (token) {
+      return api.get('/submissions/my_submissions/');
+    }
+    return api.get('/submissions/my_submissions/', { device_id: getOrCreateGuestId() });
   },
   getByTask: async (taskId: string) => {
     return api.get(`/submissions/by_task/?task_id=${taskId}`);
@@ -227,6 +250,10 @@ export const submissionsApi = {
     return api.get(`/submissions/${id}/detail_with_answers/`);
   },
   submit: async (data: FormData) => {
+    const token = localStorage.getItem('access');
+    if (!token) {
+      data.append('device_id', getOrCreateGuestId());
+    }
     return api.post('/submissions/submit/', data, true);
   },
   approve: async (id: string, feedback?: string) => {

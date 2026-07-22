@@ -196,12 +196,13 @@ class UserCourse(models.Model):
 
 
 class StudentProgress(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='progress')
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='progress', null=True)
+    device_id = models.CharField(max_length=64, null=True, blank=True, unique=True)
     completed_videos = models.JSONField(default=list)  # List of video IDs
     completed_tasks = models.JSONField(default=list)  # List of task IDs
 
     def __str__(self):
-        return f"{self.user.username} - Progress"
+        return f"{self.user.username if self.user else self.device_id} - Progress"
 
     class Meta:
         db_table = 'student_progress'
@@ -214,20 +215,22 @@ class TaskSubmission(models.Model):
         ('rejected', 'Rejected'),
     )
 
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='task_submissions')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='task_submissions', null=True, blank=True)
+    device_id = models.CharField(max_length=64, null=True, blank=True)
     task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='submissions')
     file = models.FileField(upload_to='submissions/', blank=True, null=True)
-    text_content = models.TextField(blank=True, null=True)  # For text submissions
-    answers = models.JSONField(default=dict, blank=True)  # For test submissions: {question_id: selected_answer}
+    text_content = models.TextField(blank=True, null=True)
+    answers = models.JSONField(default=dict, blank=True)
     score = models.IntegerField(default=0)
     total = models.IntegerField(default=0)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
-    feedback = models.TextField(blank=True, null=True)  # Teacher feedback
+    feedback = models.TextField(blank=True, null=True)
     reviewed_at = models.DateTimeField(blank=True, null=True)
     submitted_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.user.username} - {self.task.title}"
+        owner = self.user.username if self.user else self.device_id
+        return f"{owner} - {self.task.title}"
 
     class Meta:
         db_table = 'task_submissions'
