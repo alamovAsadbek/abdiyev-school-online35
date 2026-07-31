@@ -1,13 +1,13 @@
 import {useState} from 'react';
 import {useNavigate} from 'react-router-dom';
-import {GraduationCap, Lock, Eye, EyeOff, Loader2, User, UserCog} from 'lucide-react';
+import {GraduationCap, Lock, Eye, EyeOff, Loader2, User, UserCog, ArrowLeft} from 'lucide-react';
 import {useAuth} from '@/contexts/AuthContext';
 import {Button} from '@/components/ui/button';
 import {Input} from '@/components/ui/input';
 import {Label} from '@/components/ui/label';
 import {useToast} from '@/hooks/use-toast';
 import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs';
-// import bgImgclear from '@/data/images/loginBackground.png';
+import bgImg from '@/data/images/loginBackground.png';
 
 export default function Login() {
     const [username, setUsername] = useState('');
@@ -122,10 +122,18 @@ export default function Login() {
 
     return (
         <div className="min-h-screen flex">
+            <button
+                onClick={() => navigate('/')}
+                className="absolute top-6 left-6 z-20 flex items-center gap-2 text-sm font-medium text-foreground/80 hover:text-foreground bg-background/80 backdrop-blur-sm px-4 py-2 rounded-lg border border-border transition-colors"
+            >
+                <ArrowLeft className="h-4 w-4"/>
+                Asosiy sahifaga qaytish
+            </button>
+
             {/* Left Side - Branding */}
             <div className="hidden lg:flex lg:w-1/2 gradient-hero relative overflow-hidden">
                 <div className="absolute inset-0 " style={{
-                    // backgroundImage: `url(${bgImg})`,
+                    backgroundImage: `url(${bgImg})`,
                     backgroundSize: "cover",
                     backgroundPosition: "center"
                 }}
@@ -256,6 +264,13 @@ export default function Login() {
                                     ) : (
                                         'Kirish'
                                     )}
+                                </Button>
+                                <Button
+                                    onClick={() => navigate('/')}
+                                    className="w-full h-12 gradient-text text-primary-foreground font-semibold"
+                                >
+                                    <ArrowLeft className="h-4 w-4"/>
+                                    Asosiy sahifaga qaytish
                                 </Button>
                             </form>
                         </TabsContent>

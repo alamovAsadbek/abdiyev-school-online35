@@ -785,7 +785,27 @@ class TaskSubmissionViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(submissions, many=True)
         return Response(serializer.data)
 
-    # by_task, by_video - o'zgarishsiz (admin uchun, IsAdminUser bo'lib qoladi)
+    @action(detail=False, methods=['get'])
+    def by_task(self, request):
+        """Get all submissions for a specific task with detailed answers"""
+        task_id = request.query_params.get('task_id')
+        if not task_id:
+            return Response({'error': 'task_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        submissions = TaskSubmission.objects.filter(task_id=task_id).select_related('user', 'task')
+        serializer = self.get_serializer(submissions, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'])
+    def by_video(self, request):
+        """Get all submissions for a specific video's tasks"""
+        video_id = request.query_params.get('video_id')
+        if not video_id:
+            return Response({'error': 'video_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        submissions = TaskSubmission.objects.filter(task__video_id=video_id).select_related('user', 'task')
+        serializer = self.get_serializer(submissions, many=True)
+        return Response(serializer.data)
 
     @action(detail=True, methods=['get'])
     def detail_with_answers(self, request, pk=None):
@@ -870,4 +890,64 @@ class TaskSubmissionViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(submission)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-    # approve, reject - o'zgarishsiz (admin uchun)
+    @action(detail=True, methods=['post'])
+    def approve(self, request, pk=None):
+        """Teacher approves a submission"""
+        submission = self.get_object()
+        feedback = request.data.get('feedback', '')
+
+        submission.status = 'approved'
+        submission.feedback = feedback
+        submission.reviewed_at = datetime.datetime.now()
+        submission.save()
+
+        try:
+            notification = Notification.objects.create(
+                title="Vazifangiz tasdiqlandi! ✅",
+                message=f"'{submission.task.title}' vazifangiz o'qituvchi tomonidan tasdiqlandi.",
+                type='task'
+            )
+            notification.recipients.add(submission.user)
+            notification.sent_count = 1
+            notification.save()
+
+            UserNotification.objects.create(
+                user=submission.user,
+                notification=notification
+            )
+        except Exception as e:
+            print(f"Error sending approval notification: {e}")
+
+        serializer = self.get_serializer(submission)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'])
+    def reject(self, request, pk=None):
+        """Teacher rejects a submission"""
+        submission = self.get_object()
+        feedback = request.data.get('feedback', '')
+
+        submission.status = 'rejected'
+        submission.feedback = feedback
+        submission.reviewed_at = datetime.datetime.now()
+        submission.save()
+
+        try:
+            notification = Notification.objects.create(
+                title="Vazifangiz qaytarildi ❌",
+                message=f"'{submission.task.title}' vazifangiz qaytarildi. Iltimos qayta topshiring. Izoh: {feedback}",
+                type='task'
+            )
+            notification.recipients.add(submission.user)
+            notification.sent_count = 1
+            notification.save()
+
+            UserNotification.objects.create(
+                user=submission.user,
+                notification=notification
+            )
+        except Exception as e:
+            print(f"Error sending rejection notification: {e}")
+
+        serializer = self.get_serializer(submission)
+        return Response(serializer.data)
