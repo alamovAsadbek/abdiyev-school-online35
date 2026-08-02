@@ -64,6 +64,7 @@ class Video(models.Model):
     thumbnail = models.ImageField(upload_to='thumbnails/', null=True, blank=True)
     thumbnail_url = models.URLField(null=True, blank=True)
     video_file = models.FileField(upload_to='videos/', null=True, blank=True)
+    lesson_file = models.FileField(upload_to='lessons/', null=True, blank=True)
     video_url = models.URLField(null=True, blank=True)
     order = models.IntegerField(default=0)
     view_count = models.IntegerField(default=0)
@@ -71,6 +72,14 @@ class Video(models.Model):
 
     def __str__(self):
         return self.title
+
+    def get_lesson_file_url(self, request=None):
+        """Qo'llanma faylining URL manzilini qaytaradi"""
+        if not self.lesson_file:
+            return None
+        if request:
+            return request.build_absolute_uri(self.lesson_file.url)
+        return self.lesson_file.url
 
     def get_video_url(self):
         """Return video file URL or external URL"""

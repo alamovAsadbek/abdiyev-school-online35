@@ -14,12 +14,12 @@ class CategorySerializer(serializers.ModelSerializer):
     video_count = serializers.ReadOnlyField()
     module_count = serializers.ReadOnlyField()
     modules = ModuleSerializer(many=True, read_only=True)
-    is_free = serializers.ReadOnlyField()          # <-- YANGI QATOR
+    is_free = serializers.ReadOnlyField()  # <-- YANGI QATOR
 
     class Meta:
         model = Category
         fields = ['id', 'name', 'description', 'icon', 'color', 'price',
-                  'is_modular', 'requires_sequential', 'is_active', 'is_free',   # <-- 'is_free' qo'shildi
+                  'is_modular', 'requires_sequential', 'is_active', 'is_free',  # <-- 'is_free' qo'shildi
                   'video_count', 'module_count', 'modules', 'created_at']
 
 
@@ -54,17 +54,19 @@ class VideoSerializer(serializers.ModelSerializer):
     video_url = serializers.SerializerMethodField()
     thumbnail = serializers.SerializerMethodField()
     is_locked = serializers.SerializerMethodField()
+    lesson_file_url = serializers.SerializerMethodField()          # <-- YANGI
 
-    # Write-only fields - optional for file uploads
     video_file = serializers.FileField(write_only=True, required=False, allow_null=True)
     thumbnail_file = serializers.ImageField(write_only=True, required=False, allow_null=True)
     thumbnail_url = serializers.URLField(write_only=True, required=False, allow_null=True, allow_blank=True)
+    lesson_file = serializers.FileField(write_only=True, required=False, allow_null=True)   # <-- YANGI (yuklash uchun)
 
     class Meta:
         model = Video
         fields = ['id', 'category', 'category_name', 'module', 'module_name', 'title', 'description',
                   'duration', 'thumbnail', 'video_url', 'video_file', 'is_locked',
                   'thumbnail_file', 'thumbnail_url',
+                  'lesson_file', 'lesson_file_url',                # <-- YANGI
                   'order', 'view_count', 'tasks', 'created_at']
         extra_kwargs = {
             'category': {'required': True},
@@ -75,12 +77,11 @@ class VideoSerializer(serializers.ModelSerializer):
         }
 
     def create(self, validated_data):
-        # Handle file uploads
         video_file = validated_data.pop('video_file', None)
         thumbnail_file = validated_data.pop('thumbnail_file', None)
         thumbnail_url = validated_data.pop('thumbnail_url', None)
+        lesson_file = validated_data.pop('lesson_file', None)      # <-- YANGI
 
-        # Set default empty description if not provided
         if 'description' not in validated_data or validated_data.get('description') is None:
             validated_data['description'] = ''
 
@@ -92,6 +93,8 @@ class VideoSerializer(serializers.ModelSerializer):
             video.thumbnail = thumbnail_file
         elif thumbnail_url:
             video.thumbnail_url = thumbnail_url
+        if lesson_file:                                            # <-- YANGI
+            video.lesson_file = lesson_file
 
         video.save()
         return video
@@ -100,6 +103,7 @@ class VideoSerializer(serializers.ModelSerializer):
         video_file = validated_data.pop('video_file', None)
         thumbnail_file = validated_data.pop('thumbnail_file', None)
         thumbnail_url = validated_data.pop('thumbnail_url', None)
+        lesson_file = validated_data.pop('lesson_file', None)      # <-- YANGI
 
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
@@ -110,12 +114,13 @@ class VideoSerializer(serializers.ModelSerializer):
             instance.thumbnail = thumbnail_file
         elif thumbnail_url:
             instance.thumbnail_url = thumbnail_url
+        if lesson_file:                                            # <-- YANGI
+            instance.lesson_file = lesson_file
 
         instance.save()
         return instance
 
     def get_video_url(self, obj):
-        """Video manbasini qaytaradi, lekin qulflangan bo'lsa - None"""
         request = self.context.get('request')
         user = getattr(request, 'user', None) if request else None
 
@@ -129,7 +134,6 @@ class VideoSerializer(serializers.ModelSerializer):
         return obj.video_url
 
     def get_thumbnail(self, obj):
-        """Return thumbnail file URL or external URL"""
         if obj.thumbnail:
             request = self.context.get('request')
             if request:
@@ -138,13 +142,21 @@ class VideoSerializer(serializers.ModelSerializer):
         return obj.thumbnail_url
 
     def get_is_locked(self, obj):
-        """Shu video hozirgi so'rov yuborayotgan user uchun qulflanganmi"""
         request = self.context.get('request')
         user = getattr(request, 'user', None) if request else None
         return obj.is_locked_for(user)
 
+    def get_lesson_file_url(self, obj):                            # <-- YANGI
+        """Qulflangan video uchun qo'llanma faylini ham berma"""
+        request = self.context.get('request')
+        user = getattr(request, 'user', None) if request else None
+
+        if obj.is_locked_for(user):
+            return None
+
+        return obj.get_lesson_file_url(request)
+
     def to_representation(self, instance):
-        """Video qulflangan bo'lsa, testlarni (savol-javoblarni) ham berma"""
         data = super().to_representation(instance)
         if data.get('is_locked'):
             data['tasks'] = []

@@ -14,7 +14,7 @@ import {
     Search,
     ChevronRight,
     Users,
-    BarChart3, Info
+    BarChart3, Info, FileText, Download
 } from 'lucide-react';
 import {DashboardLayout} from '@/layouts/DashboardLayout';
 import {Button} from '@/components/ui/button';
@@ -80,6 +80,14 @@ export default function AdminVideoDetail() {
         } catch (err) {
             console.error(err);
         }
+    };
+
+    const getFileType = (url?: string): 'image' | 'pdf' | 'other' | null => {
+        if (!url) return null;
+        const ext = url.split('.').pop()?.toLowerCase().split('?')[0];
+        if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext || '')) return 'image';
+        if (ext === 'pdf') return 'pdf';
+        return 'other';
     };
 
     const loadData = async () => {
@@ -156,6 +164,8 @@ export default function AdminVideoDetail() {
                 </div>
             </DashboardLayout>
         );
+    } else {
+        console.log("video", video)
     }
 
     const handleMarkCompleted = () => {
@@ -347,9 +357,10 @@ export default function AdminVideoDetail() {
                                     <div className="flex justify-between items-center border-b pb-2">
                                         <span className="text-muted-foreground">Kategoriya</span>
                                         <span
-                                            className="font-medium text-primary hover:cursor-pointer hover:text-success" onClick={()=>{
+                                            className="font-medium text-primary hover:cursor-pointer hover:text-success"
+                                            onClick={() => {
                                                 navigate(`/admin/categories/${video.category}`)
-                                        }}>{video.category_name}</span>
+                                            }}>{video.category_name}</span>
                                     </div>
 
                                     <div className="flex justify-between items-center border-b pb-2">
@@ -364,8 +375,47 @@ export default function AdminVideoDetail() {
 
                                     <div className="flex justify-between items-center border-b pb-2">
                                         <span className="text-muted-foreground">Yaratilgan vaqti</span>
-                                        <span className="font-medium text-foreground">{formatDate(video.created_at)}</span>
+                                        <span
+                                            className="font-medium text-foreground">{formatDate(video.created_at)}</span>
                                     </div>
+                                    {/* Qo'shimcha qo'llanma fayli */}
+                                    {video.lesson_file_url && (
+                                        <div className="rounded-xl border border-border bg-card p-5">
+                                            <h3 className="font-semibold text-card-foreground mb-4 flex items-center gap-2">
+                                                <FileText className="h-5 w-5 text-primary"/>
+                                                Qo'shimcha qo'llanma
+                                            </h3>
+
+                                            {getFileType(video.lesson_file_url) === 'image' ? (
+                                                <a href={video.lesson_file_url} target="_blank"
+                                                   rel="noopener noreferrer" className="block">
+                                                    <img
+                                                        src={video.lesson_file_url}
+                                                        alt="Qo'llanma"
+                                                        className="w-full max-h-48 object-contain rounded-lg border border-border bg-muted/30"
+                                                    />
+                                                </a>
+                                            ) : (
+                                                <a
+                                                    href={video.lesson_file_url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
+                                                >
+                                                    <div
+                                                        className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary flex-shrink-0">
+                                                        <FileText className="h-5 w-5"/>
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-sm font-medium truncate">Qo'llanma.pdf</p>
+                                                        <p className="text-xs text-muted-foreground">Yuklab olish uchun
+                                                            bosing</p>
+                                                    </div>
+                                                    <Download className="h-4 w-4 text-muted-foreground flex-shrink-0"/>
+                                                </a>
+                                            )}
+                                        </div>
+                                    )}
 
                                 </div>
 

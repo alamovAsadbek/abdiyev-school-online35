@@ -55,7 +55,8 @@ const toEmbedUrl = (url: string): string => {
             const id = u.pathname.split('/').filter(Boolean)[0];
             if (id) return `https://player.vimeo.com/video/${id}`;
         }
-    } catch { /* ignore */ }
+    } catch { /* ignore */
+    }
     return url;
 };
 
@@ -93,7 +94,7 @@ export default function AdminVideoAddWithTask() {
         videoUrl: '',
         thumbnail: '',
     });
-    
+
     // Modules state
     const [modules, setModules] = useState<any[]>([]);
     const [selectedCategory, setSelectedCategory] = useState<any>(null);
@@ -120,6 +121,9 @@ export default function AdminVideoAddWithTask() {
     const [thumbnailMode, setThumbnailMode] = useState<'upload' | 'url'>('upload');
     const [isLoading, setIsLoading] = useState(false);
     const [videoError, setVideoError] = useState<string>('');
+    const [lessonFile, setLessonFile] = useState<File | null>(null);
+    const [lessonFileError, setLessonFileError] = useState('');
+    const lessonFileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         categoriesApi.getAll()
@@ -134,7 +138,7 @@ export default function AdminVideoAddWithTask() {
             })
             .catch(console.error);
     }, []);
-    
+
     // Load modules when category changes
     useEffect(() => {
         if (formData.categoryId && selectedCategory?.is_modular) {
@@ -148,7 +152,7 @@ export default function AdminVideoAddWithTask() {
             setFormData(prev => ({...prev, moduleId: ''}));
         }
     }, [formData.categoryId, selectedCategory]);
-    
+
     // Update selected category when categoryId changes
     const handleCategoryChange = (categoryId: string) => {
         const cat = categories.find(c => String(c.id) === categoryId);
@@ -168,6 +172,21 @@ export default function AdminVideoAddWithTask() {
             return false;
         }
         return true;
+    };
+
+    // handle change lesson file
+    const handleLessonFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const maxSize = 20 * 1024 * 1024; // 20MB
+        if (file.size > maxSize) {
+            setLessonFileError('Fayl hajmi 20MB dan oshmasligi kerak');
+            return;
+        }
+
+        setLessonFileError('');
+        setLessonFile(file);
     };
 
     const handleVideoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -276,7 +295,7 @@ export default function AdminVideoAddWithTask() {
             } else if (videoMode === 'url') {
                 formDataToSend.append('video_url', formData.videoUrl.trim());
             }
-            
+
             // Add module if selected
             if (formData.moduleId) {
                 formDataToSend.append('module', formData.moduleId);
@@ -288,6 +307,10 @@ export default function AdminVideoAddWithTask() {
                 formDataToSend.append('thumbnail_url', formData.thumbnail);
             }
 
+            if (lessonFile) {
+                formDataToSend.append('lesson_file', lessonFile);
+            }
+            
             const response = await videosApi.create(formDataToSend);
             setCreatedVideoId(response.id);
             toast({title: 'Muvaffaqiyat', description: 'Video qo\'shildi'});
@@ -344,7 +367,7 @@ export default function AdminVideoAddWithTask() {
         setIsLoading(true);
         try {
             const hasImages = questions.some(q => q.image);
-            
+
             if (hasImages || answerFile) {
                 const fd = new FormData();
                 fd.append('title', taskData.title);
@@ -352,11 +375,11 @@ export default function AdminVideoAddWithTask() {
                 fd.append('video', createdVideoId!);
                 fd.append('task_type', taskType);
                 fd.append('allow_resubmission', String(taskData.allowResubmission));
-                
+
                 if (answerFile) {
                     fd.append('answer_file', answerFile);
                 }
-                
+
                 if (taskType === 'test') {
                     const questionsData = questions.map((q, idx) => ({
                         question: q.question,
@@ -367,14 +390,14 @@ export default function AdminVideoAddWithTask() {
                         option_explanations: q.optionExplanations || [],
                     }));
                     fd.append('questions', JSON.stringify(questionsData));
-                    
+
                     questions.forEach((q, idx) => {
                         if (q.image) {
                             fd.append(`question_image_${idx}`, q.image);
                         }
                     });
                 }
-                
+
                 await tasksApi.create(fd);
             } else {
                 const payload: any = {
@@ -479,13 +502,16 @@ export default function AdminVideoAddWithTask() {
                                     </SelectContent>
                                 </Select>
                             </div>
-                            
+
                             {/* Module selector for modular courses */}
                             {selectedCategory?.is_modular && modules.length > 0 && (
                                 <div className="space-y-2">
                                     <Label htmlFor="module">Modul <span className='text-destructive'>*</span></Label>
                                     <Select value={formData.moduleId}
-                                            onValueChange={(value) => setFormData(prev => ({...prev, moduleId: value}))}>
+                                            onValueChange={(value) => setFormData(prev => ({
+                                                ...prev,
+                                                moduleId: value
+                                            }))}>
                                         <SelectTrigger><SelectValue placeholder="Modulni tanlang"/></SelectTrigger>
                                         <SelectContent>
                                             {modules.map((mod) => (
@@ -500,7 +526,7 @@ export default function AdminVideoAddWithTask() {
                                     </p>
                                 </div>
                             )}
-                            
+
                             {selectedCategory?.is_modular && modules.length === 0 && (
                                 <div className="p-3 rounded-lg bg-warning/10 border border-warning/20">
                                     <p className="text-sm text-warning">
@@ -520,9 +546,62 @@ export default function AdminVideoAddWithTask() {
                             </div>
                         </div>
 
-                        {/* Video Upload */}
+                        {/* Lesson File Upload */}
                         <div className="rounded-xl border border-border bg-card p-6 space-y-4">
-                            <h2 className="text-lg font-semibold text-foreground">Video</h2>
+                            <h2 className="text-lg font-semibold text-foreground">Qo'shimcha qo'llanma (ixtiyoriy)</h2>
+                            <div className="p-3 rounded-lg bg-muted/50 border border-border">
+                                <p className="text-sm text-muted-foreground flex items-center gap-2">
+                                    <AlertTriangle className="h-4 w-4 flex-shrink-0"/>
+                                    <span>PDF, Word yoki boshqa formatdagi fayl, maksimal hajmi 20MB</span>
+                                </p>
+                            </div>
+
+                            <input
+                                ref={lessonFileInputRef}
+                                type="file"
+                                className="hidden"
+                                onChange={handleLessonFileChange}
+                            />
+                            <Button
+                                type="button"
+                                variant="outline"
+                                className={`w-full cursor-pointer ${lessonFileError ? 'border-destructive' : ''}`}
+                                onClick={() => lessonFileInputRef.current?.click()}
+                            >
+                                <Upload className="mr-2 h-4 w-4"/>
+                                {lessonFile ? lessonFile.name : "Qo'llanma faylini tanlang"}
+                            </Button>
+                            {lessonFileError && <p className="text-sm text-destructive">{lessonFileError}</p>}
+
+                            {lessonFile && (
+                                <div className="p-4 rounded-lg bg-muted/50 border border-border space-y-2">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <h3 className="font-medium text-sm text-foreground">Fayl ma'lumotlari</h3>
+                                        <Button type="button" variant="ghost" size="sm" onClick={() => {
+                                            setLessonFile(null);
+                                            setLessonFileError('');
+                                        }}>
+                                            <X className="mr-1 h-4 w-4"/> O'chirish
+                                        </Button>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2 text-sm">
+                                        <div>
+                                            <span className="text-muted-foreground">Fayl nomi: </span>
+                                            <span className="text-foreground">{lessonFile.name}</span>
+                                        </div>
+                                        <div>
+                                            <span className="text-muted-foreground">Hajmi: </span>
+                                            <span
+                                                className="text-foreground">{(lessonFile.size / (1024 * 1024)).toFixed(2)} MB</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Video yuklash */}
+                        <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+                            <h2 className="text-lg font-semibold text-foreground">Video dars</h2>
                             <div className="p-3 rounded-lg bg-warning/10 border border-warning/20">
                                 <p className="text-sm text-warning flex items-center gap-2">
                                     <AlertTriangle className="h-4 w-4 flex-shrink-0"/>
@@ -543,7 +622,7 @@ export default function AdminVideoAddWithTask() {
                                         setVideoFilePreview('');
                                     }
                                 }}>
-                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectTrigger><SelectValue/></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="file">Video fayl yuklash</SelectItem>
                                         <SelectItem value="url">Video havola (YouTube, Vimeo, ...)</SelectItem>
@@ -566,18 +645,29 @@ export default function AdminVideoAddWithTask() {
                                     {videoFile && (
                                         <div className="p-4 rounded-lg bg-muted/50 border border-border space-y-3">
                                             <div className="flex items-center justify-between gap-3">
-                                                <h3 className="font-medium text-sm text-foreground">Video ma'lumotlari</h3>
-                                                <Button type="button" variant="ghost" size="sm" onClick={() => { setVideoFile(null); setVideoFilePreview(''); }}>
+                                                <h3 className="font-medium text-sm text-foreground">Video
+                                                    ma'lumotlari</h3>
+                                                <Button type="button" variant="ghost" size="sm" onClick={() => {
+                                                    setVideoFile(null);
+                                                    setVideoFilePreview('');
+                                                }}>
                                                     <X className="mr-1 h-4 w-4"/> O'chirish
                                                 </Button>
                                             </div>
                                             <div className="grid grid-cols-2 gap-2 text-sm">
-                                                <div><span className="text-muted-foreground">Fayl nomi: </span><span className="text-foreground">{videoFile.name}</span></div>
-                                                <div><span className="text-muted-foreground">Hajmi: </span><span className="text-foreground">{(videoFile.size / (1024 * 1024)).toFixed(2)} MB</span></div>
-                                                <div><span className="text-muted-foreground">Format: </span><span className="text-foreground">{videoFile.type}</span></div>
-                                                {formData.duration && <div><span className="text-muted-foreground">Davomiylik: </span><span className="text-foreground">{formData.duration}</span></div>}
+                                                <div><span className="text-muted-foreground">Fayl nomi: </span><span
+                                                    className="text-foreground">{videoFile.name}</span></div>
+                                                <div><span className="text-muted-foreground">Hajmi: </span><span
+                                                    className="text-foreground">{(videoFile.size / (1024 * 1024)).toFixed(2)} MB</span>
+                                                </div>
+                                                <div><span className="text-muted-foreground">Format: </span><span
+                                                    className="text-foreground">{videoFile.type}</span></div>
+                                                {formData.duration && <div><span
+                                                    className="text-muted-foreground">Davomiylik: </span><span
+                                                    className="text-foreground">{formData.duration}</span></div>}
                                             </div>
-                                            {videoFilePreview && <video src={videoFilePreview} controls className="w-full rounded-lg bg-black aspect-video" />}
+                                            {videoFilePreview && <video src={videoFilePreview} controls
+                                                                        className="w-full rounded-lg bg-black aspect-video"/>}
                                         </div>
                                     )}
                                 </div>
@@ -589,7 +679,8 @@ export default function AdminVideoAddWithTask() {
                                         onChange={(e) => setFormData(prev => ({...prev, videoUrl: e.target.value}))}
                                     />
                                     {formData.videoUrl && (
-                                        <div className="rounded-lg overflow-hidden border border-border bg-black aspect-video">
+                                        <div
+                                            className="rounded-lg overflow-hidden border border-border bg-black aspect-video">
                                             <iframe
                                                 src={toEmbedUrl(formData.videoUrl)}
                                                 title="Video preview"
@@ -602,6 +693,101 @@ export default function AdminVideoAddWithTask() {
                                 </div>
                             )}
                         </div>
+
+                        {/*/!* Video Upload *!/*/}
+                        {/*<div className="rounded-xl border border-border bg-card p-6 space-y-4">*/}
+                        {/*    <h2 className="text-lg font-semibold text-foreground">Video</h2>*/}
+                        {/*    <div className="p-3 rounded-lg bg-warning/10 border border-warning/20">*/}
+                        {/*        <p className="text-sm text-warning flex items-center gap-2">*/}
+                        {/*            <AlertTriangle className="h-4 w-4 flex-shrink-0"/>*/}
+                        {/*            <span>Faqat MP4 formatda, maksimal hajmi 150MB</span>*/}
+                        {/*        </p>*/}
+                        {/*    </div>*/}
+
+                        {/*    <div className="space-y-2">*/}
+                        {/*        <Label>Video manbai</Label>*/}
+                        {/*        <Select value={videoMode} onValueChange={(value) => {*/}
+                        {/*            const mode = value as 'file' | 'url';*/}
+                        {/*            setVideoMode(mode);*/}
+                        {/*            setVideoError('');*/}
+                        {/*            if (mode === 'file') {*/}
+                        {/*                setFormData(prev => ({...prev, videoUrl: ''}));*/}
+                        {/*            } else {*/}
+                        {/*                setVideoFile(null);*/}
+                        {/*                setVideoFilePreview('');*/}
+                        {/*            }*/}
+                        {/*        }}>*/}
+                        {/*            <SelectTrigger><SelectValue/></SelectTrigger>*/}
+                        {/*            <SelectContent>*/}
+                        {/*                <SelectItem value="file">Video fayl yuklash</SelectItem>*/}
+                        {/*                <SelectItem value="url">Video havola (YouTube, Vimeo, ...)</SelectItem>*/}
+                        {/*            </SelectContent>*/}
+                        {/*        </Select>*/}
+                        {/*    </div>*/}
+
+                        {/*    {videoMode === 'file' ? (*/}
+                        {/*        <div className="space-y-3">*/}
+                        {/*            <input ref={videoInputRef} type="file" accept="video/mp4" className="hidden"*/}
+                        {/*                   onChange={handleVideoFileChange}/>*/}
+                        {/*            <Button type="button" variant="outline"*/}
+                        {/*                    className={`w-full ${videoError ? 'border-destructive' : ''}`}*/}
+                        {/*                    onClick={() => videoInputRef.current?.click()}>*/}
+                        {/*                <Upload className="mr-2 h-4 w-4"/>*/}
+                        {/*                {videoFile ? videoFile.name : 'Video tanlang (MP4)'}*/}
+                        {/*            </Button>*/}
+                        {/*            {videoError && <p className="text-sm text-destructive">{videoError}</p>}*/}
+
+                        {/*            {videoFile && (*/}
+                        {/*                <div className="p-4 rounded-lg bg-muted/50 border border-border space-y-3">*/}
+                        {/*                    <div className="flex items-center justify-between gap-3">*/}
+                        {/*                        <h3 className="font-medium text-sm text-foreground">Video*/}
+                        {/*                            ma'lumotlari</h3>*/}
+                        {/*                        <Button type="button" variant="ghost" size="sm" onClick={() => {*/}
+                        {/*                            setVideoFile(null);*/}
+                        {/*                            setVideoFilePreview('');*/}
+                        {/*                        }}>*/}
+                        {/*                            <X className="mr-1 h-4 w-4"/> O'chirish*/}
+                        {/*                        </Button>*/}
+                        {/*                    </div>*/}
+                        {/*                    <div className="grid grid-cols-2 gap-2 text-sm">*/}
+                        {/*                        <div><span className="text-muted-foreground">Fayl nomi: </span><span*/}
+                        {/*                            className="text-foreground">{videoFile.name}</span></div>*/}
+                        {/*                        <div><span className="text-muted-foreground">Hajmi: </span><span*/}
+                        {/*                            className="text-foreground">{(videoFile.size / (1024 * 1024)).toFixed(2)} MB</span>*/}
+                        {/*                        </div>*/}
+                        {/*                        <div><span className="text-muted-foreground">Format: </span><span*/}
+                        {/*                            className="text-foreground">{videoFile.type}</span></div>*/}
+                        {/*                        {formData.duration && <div><span*/}
+                        {/*                            className="text-muted-foreground">Davomiylik: </span><span*/}
+                        {/*                            className="text-foreground">{formData.duration}</span></div>}*/}
+                        {/*                    </div>*/}
+                        {/*                    {videoFilePreview && <video src={videoFilePreview} controls*/}
+                        {/*                                                className="w-full rounded-lg bg-black aspect-video"/>}*/}
+                        {/*                </div>*/}
+                        {/*            )}*/}
+                        {/*        </div>*/}
+                        {/*    ) : (*/}
+                        {/*        <div className="space-y-3">*/}
+                        {/*            <Input*/}
+                        {/*                placeholder="https://www.youtube.com/watch?v=..."*/}
+                        {/*                value={formData.videoUrl}*/}
+                        {/*                onChange={(e) => setFormData(prev => ({...prev, videoUrl: e.target.value}))}*/}
+                        {/*            />*/}
+                        {/*            {formData.videoUrl && (*/}
+                        {/*                <div*/}
+                        {/*                    className="rounded-lg overflow-hidden border border-border bg-black aspect-video">*/}
+                        {/*                    <iframe*/}
+                        {/*                        src={toEmbedUrl(formData.videoUrl)}*/}
+                        {/*                        title="Video preview"*/}
+                        {/*                        className="w-full h-full"*/}
+                        {/*                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"*/}
+                        {/*                        allowFullScreen*/}
+                        {/*                    />*/}
+                        {/*                </div>*/}
+                        {/*            )}*/}
+                        {/*        </div>*/}
+                        {/*    )}*/}
+                        {/*</div>*/}
 
                         {/* Thumbnail */}
                         <div className="rounded-xl border border-border bg-card p-6 space-y-4">
@@ -728,24 +914,30 @@ export default function AdminVideoAddWithTask() {
                                             Vazifa bajarilgandan keyin o'quvchiga ko'rsatiladigan javoblar fayli
                                         </p>
                                     </div>
-                                    <Switch checked={hasAnswerFile} onCheckedChange={setHasAnswerFile} />
+                                    <Switch checked={hasAnswerFile} onCheckedChange={setHasAnswerFile}/>
                                 </div>
                                 {hasAnswerFile && (
                                     <div className="space-y-3">
-                                        <input ref={answerFileRef} type="file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" className="hidden"
-                                            onChange={(e) => { const file = e.target.files?.[0]; if (file) setAnswerFile(file); }} />
-                                        <Button type="button" variant="outline" className="w-full" onClick={() => answerFileRef.current?.click()}>
-                                            <Upload className="mr-2 h-4 w-4" />
+                                        <input ref={answerFileRef} type="file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                                               className="hidden"
+                                               onChange={(e) => {
+                                                   const file = e.target.files?.[0];
+                                                   if (file) setAnswerFile(file);
+                                               }}/>
+                                        <Button type="button" variant="outline" className="w-full"
+                                                onClick={() => answerFileRef.current?.click()}>
+                                            <Upload className="mr-2 h-4 w-4"/>
                                             {answerFile ? answerFile.name : 'Javob faylini tanlang'}
                                         </Button>
                                         {answerFile && (
                                             <div className="flex items-center justify-between p-3 rounded-lg bg-muted">
                                                 <div className="flex items-center gap-2">
-                                                    <FileText className="h-4 w-4 text-muted-foreground" />
+                                                    <FileText className="h-4 w-4 text-muted-foreground"/>
                                                     <span className="text-sm">{answerFile.name}</span>
                                                 </div>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setAnswerFile(null)}>
-                                                    <X className="h-4 w-4" />
+                                                <Button variant="ghost" size="icon" className="h-8 w-8"
+                                                        onClick={() => setAnswerFile(null)}>
+                                                    <X className="h-4 w-4"/>
                                                 </Button>
                                             </div>
                                         )}
@@ -884,7 +1076,7 @@ export default function AdminVideoAddWithTask() {
                                                 <div className="flex items-center justify-between">
                                                     <Label className="text-sm">Javob tushuntirishi (ixtiyoriy)</Label>
                                                     <Switch checked={q.showExplanation || false}
-                                                            onCheckedChange={(checked) => updateQuestion(qIndex, 'showExplanation', checked)} />
+                                                            onCheckedChange={(checked) => updateQuestion(qIndex, 'showExplanation', checked)}/>
                                                 </div>
                                             </div>
 

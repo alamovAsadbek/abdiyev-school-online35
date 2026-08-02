@@ -10,7 +10,7 @@ import {
     CircleUser,
     ChevronDown,
     Clapperboard,
-    MonitorPause
+    MonitorPause, FileText, X, Maximize2
 } from 'lucide-react';
 import {DashboardLayout} from '@/layouts/DashboardLayout';
 import {Button} from '@/components/ui/button';
@@ -32,6 +32,7 @@ interface Video {
     category_name?: string;
     order: number;
     module?: string | number | null;
+    lesson_file_url?: string | null;
 }
 
 interface Task {
@@ -59,12 +60,13 @@ export default function StudentVideoView() {
     const [video, setVideo] = useState<Video | null>(null);
     const [category, setCategory] = useState<Category | null>(null);
     const [task, setTask] = useState<Task | null>(null);
-    const [videoTasks, setVideoTasks] = useState<{[videoId: string]: Task | null}>({});
+    const [videoTasks, setVideoTasks] = useState<{ [videoId: string]: Task | null }>({});
     const [categoryVideos, setCategoryVideos] = useState<Video[]>([]);
     const [hasWatched, setHasWatched] = useState(false);
     const [loading, setLoading] = useState(true);
     const [hasAccess, setHasAccess] = useState(false);
     const [markingComplete, setMarkingComplete] = useState(false);
+    const [lessonFileFullscreen, setLessonFileFullscreen] = useState(false)
 
     const [open, setOpen] = useState(true);
 
@@ -75,6 +77,13 @@ export default function StudentVideoView() {
         ? categoryVideos[currentIndex + 1]
         : null;
 
+    const getFileType = (url?: string): 'image' | 'pdf' | 'other' | null => {
+        if (!url) return null;
+        const ext = url.split('.').pop()?.toLowerCase().split('?')[0];
+        if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext || '')) return 'image';
+        if (ext === 'pdf') return 'pdf';
+        return 'other';
+    };
 
     // Check if a video is locked (previous not completed or task not done) - using backend progress
     const isVideoLocked = (targetVideoId: string): boolean => {
@@ -137,7 +146,7 @@ export default function StudentVideoView() {
                     setCategoryVideos(sortedVideos);
 
                     // Fetch tasks for all videos to check completion requirements
-                    const tasksMap: {[videoId: string]: Task | null} = {};
+                    const tasksMap: { [videoId: string]: Task | null } = {};
                     await Promise.all(sortedVideos.map(async (v: Video) => {
                         try {
                             const tasksData = await tasksApi.getByVideo(String(v.id));
@@ -162,7 +171,8 @@ export default function StudentVideoView() {
                 }
 
                 // Increment view count
-                videosApi.incrementView(videoId).catch(() => {});
+                videosApi.incrementView(videoId).catch(() => {
+                });
 
             } catch (error) {
                 console.error('Failed to fetch video data:', error);
@@ -245,7 +255,8 @@ export default function StudentVideoView() {
                 <div className="flex flex-col items-center justify-center min-h-[400px]">
                     <Lock className="h-12 w-12 text-muted-foreground mb-4"/>
                     <p className="text-muted-foreground mb-4 text-center max-w-md">
-                        Bu video pullik modulga tegishli. Uni ko'rish uchun modulni sotib oling yoki admindan sovg'a kutib oling.
+                        Bu video pullik modulga tegishli. Uni ko'rish uchun modulni sotib oling yoki admindan sovg'a
+                        kutib oling.
                     </p>
                     <Button onClick={() => navigate('/student/courses')}>
                         Kurslarga o'tish
@@ -297,44 +308,44 @@ export default function StudentVideoView() {
 
                         {/* Video Info */}
                         <div className="mt-5">
-                    {/*        <div className="flex items-start justify-between gap-4 mb-4">*/}
-                    {/*            <div>*/}
-                    {/*                <h1 className="text-xl lg:text-2xl font-bold text-foreground mb-2">*/}
-                    {/*                    {video.title}*/}
-                    {/*                </h1>*/}
-                    {/*                <div className="flex items-center gap-4 text-sm text-muted-foreground">*/}
-                    {/*<span className="flex items-center gap-1">*/}
-                    {/*  <Clock className="h-4 w-4"/>*/}
-                    {/*    {video.duration}*/}
-                    {/*</span>*/}
-                    {/*                    {category && (*/}
-                    {/*                        <span*/}
-                    {/*                            className="px-2 py-1 rounded-md bg-primary/10 text-primary text-xs font-medium">*/}
-                    {/*    {category.name}*/}
-                    {/*  </span>*/}
-                    {/*                    )}*/}
-                    {/*                </div>*/}
-                    {/*            </div>*/}
+                            {/*        <div className="flex items-start justify-between gap-4 mb-4">*/}
+                            {/*            <div>*/}
+                            {/*                <h1 className="text-xl lg:text-2xl font-bold text-foreground mb-2">*/}
+                            {/*                    {video.title}*/}
+                            {/*                </h1>*/}
+                            {/*                <div className="flex items-center gap-4 text-sm text-muted-foreground">*/}
+                            {/*<span className="flex items-center gap-1">*/}
+                            {/*  <Clock className="h-4 w-4"/>*/}
+                            {/*    {video.duration}*/}
+                            {/*</span>*/}
+                            {/*                    {category && (*/}
+                            {/*                        <span*/}
+                            {/*                            className="px-2 py-1 rounded-md bg-primary/10 text-primary text-xs font-medium">*/}
+                            {/*    {category.name}*/}
+                            {/*  </span>*/}
+                            {/*                    )}*/}
+                            {/*                </div>*/}
+                            {/*            </div>*/}
 
-                                {!completed ? (
-                                    <Button
-                                        onClick={handleMarkCompleted}
-                                        className="gradient-primary text-primary-foreground"
-                                        disabled={!hasWatched || markingComplete}
-                                    >
-                                        <CheckCircle2 className="mr-2 h-4 w-4"/>
-                                        {markingComplete ? 'Saqlanmoqda...' : hasWatched ? 'Ko\'rildi deb belgilash' : 'Videoni ko\'ring...'}
-                                    </Button>
-                                ) : (
-                                    <></>
-                                )}
-                    {/*        </div>*/}
+                            {!completed ? (
+                                <Button
+                                    onClick={handleMarkCompleted}
+                                    className="gradient-primary text-primary-foreground"
+                                    disabled={!hasWatched || markingComplete}
+                                >
+                                    <CheckCircle2 className="mr-2 h-4 w-4"/>
+                                    {markingComplete ? 'Saqlanmoqda...' : hasWatched ? 'Ko\'rildi deb belgilash' : 'Videoni ko\'ring...'}
+                                </Button>
+                            ) : (
+                                <></>
+                            )}
+                            {/*        </div>*/}
 
-                    {/*        <p className="text-muted-foreground">*/}
-                    {/*            {video.description}*/}
-                    {/*        </p>*/}
+                            {/*        <p className="text-muted-foreground">*/}
+                            {/*            {video.description}*/}
+                            {/*        </p>*/}
 
-                    {/*        /!* Protection Notice *!/*/}
+                            {/*        /!* Protection Notice *!/*/}
                             <div className="mt-4 p-3 rounded-lg bg-warning/10 border border-warning/20">
                                 <p className="text-xs text-warning flex items-center gap-2">
                                     <Lock className="h-3 w-3"/>
@@ -356,7 +367,8 @@ export default function StudentVideoView() {
                                         </div>
                                         <div className="text-left">
                                             <h3 className="font-semibold">{video.title} - {video.category_name}</h3>
-                                            <p className="text-sm text-muted-foreground">Video dars haqida ma'lumot | {user?.watermark_id}</p>
+                                            <p className="text-sm text-muted-foreground">Video dars haqida ma'lumot
+                                                | {user?.watermark_id}</p>
                                         </div>
                                     </div>
 
@@ -399,7 +411,7 @@ export default function StudentVideoView() {
                                         <MonitorPause className="h-4 w-4"/>
                                         Ko'rilmagan
                                     </div>
-                                    ) : (
+                                ) : (
                                     <div className="status-badge status-completed">
                                         <CheckCircle2 className="h-4 w-4"/>
                                         Ko'rildi
@@ -458,6 +470,97 @@ export default function StudentVideoView() {
                                 Vazifani bajarish
                                 <ChevronRight className="ml-2 h-4 w-4"/>
                             </Button>
+                        </div>
+                    )}
+
+                    {/* Qo'shimcha qo'llanma - yuklab olib bo'lmaydi, faqat ko'rish */}
+                    {video.lesson_file_url && (
+                        <div className="animate-fade-in rounded-xl border border-border bg-card p-5"
+                             style={{animationDelay: '0.05s'}}>
+                            <div className="flex items-center justify-between mb-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                                        <FileText className="h-5 w-5"/>
+                                    </div>
+                                    <div>
+                                        <h3 className="font-semibold text-card-foreground">Qo'shimcha qo'llanma</h3>
+                                        <p className="text-xs text-muted-foreground">Faqat ko'rish uchun</p>
+                                    </div>
+                                </div>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => setLessonFileFullscreen(true)}
+                                    className="h-8 w-8"
+                                    title="Kattalashtirish"
+                                >
+                                    <Maximize2 className="h-4 w-4"/>
+                                </Button>
+                            </div>
+
+                            <div
+                                onContextMenu={(e) => e.preventDefault()}
+                                onClick={() => setLessonFileFullscreen(true)}
+                                className="rounded-lg overflow-hidden border border-border bg-muted/30 cursor-pointer"
+                            >
+                                {getFileType(video.lesson_file_url) === 'image' ? (
+                                    <img
+                                        src={video.lesson_file_url}
+                                        alt="Qo'llanma"
+                                        draggable={false}
+                                        className="w-full max-h-64 object-contain select-none"
+                                    />
+                                ) : (
+                                    <iframe
+                                        src={`${video.lesson_file_url}#toolbar=0&navpanes=0`}
+                                        title="Qo'llanma"
+                                        className="w-full h-64 pointer-events-none"
+                                    />
+                                )}
+                            </div>
+
+                            <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
+                                <Lock className="h-3 w-3"/>
+                                Bu material himoyalangan, yuklab olish taqiqlangan
+                            </p>
+                        </div>
+                    )}
+
+                    {/* Fullscreen modal */}
+                    {lessonFileFullscreen && video.lesson_file_url && (
+                        <div
+                            className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 md:p-8"
+                            onClick={() => setLessonFileFullscreen(false)}
+                        >
+                            <button
+                                onClick={() => setLessonFileFullscreen(false)}
+                                className="absolute top-4 right-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+                            >
+                                <X className="h-5 w-5"/>
+                            </button>
+
+                            <div
+                                onClick={(e) => e.stopPropagation()}
+                                onContextMenu={(e) => e.preventDefault()}
+                                className="w-full h-full max-w-5xl bg-card rounded-xl overflow-hidden"
+                            >
+                                {getFileType(video.lesson_file_url) === 'image' ? (
+                                    <div className="w-full h-full flex items-center justify-center overflow-auto">
+                                        <img
+                                            src={video.lesson_file_url}
+                                            alt="Qo'llanma"
+                                            draggable={false}
+                                            className="max-w-full max-h-full object-contain select-none"
+                                        />
+                                    </div>
+                                ) : (
+                                    <iframe
+                                        src={`${video.lesson_file_url}#toolbar=0&navpanes=0`}
+                                        title="Qo'llanma - to'liq ekran"
+                                        className="w-full h-full"
+                                    />
+                                )}
+                            </div>
                         </div>
                     )}
 
