@@ -179,9 +179,17 @@ export default function AdminVideoAddWithTask() {
         const file = e.target.files?.[0];
         if (!file) return;
 
+        const allowedTypes = ['application/pdf', 'image/png', 'image/jpeg', 'image/webp'];
+        if (!allowedTypes.includes(file.type)) {
+            setLessonFileError('Faqat PDF yoki rasm (JPG, PNG, WEBP) formatlari qabul qilinadi');
+            e.target.value = '';
+            return;
+        }
+
         const maxSize = 20 * 1024 * 1024; // 20MB
         if (file.size > maxSize) {
             setLessonFileError('Fayl hajmi 20MB dan oshmasligi kerak');
+            e.target.value = '';
             return;
         }
 
@@ -310,7 +318,7 @@ export default function AdminVideoAddWithTask() {
             if (lessonFile) {
                 formDataToSend.append('lesson_file', lessonFile);
             }
-            
+
             const response = await videosApi.create(formDataToSend);
             setCreatedVideoId(response.id);
             toast({title: 'Muvaffaqiyat', description: 'Video qo\'shildi'});
@@ -552,13 +560,14 @@ export default function AdminVideoAddWithTask() {
                             <div className="p-3 rounded-lg bg-muted/50 border border-border">
                                 <p className="text-sm text-muted-foreground flex items-center gap-2">
                                     <AlertTriangle className="h-4 w-4 flex-shrink-0"/>
-                                    <span>PDF, Word yoki boshqa formatdagi fayl, maksimal hajmi 20MB</span>
+                                    <span>Faqat PDF yoki rasm (JPG, PNG), maksimal hajmi 20MB</span>
                                 </p>
                             </div>
 
                             <input
                                 ref={lessonFileInputRef}
                                 type="file"
+                                accept=".pdf,image/png,image/jpeg,image/jpg,image/webp"
                                 className="hidden"
                                 onChange={handleLessonFileChange}
                             />
