@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { 
-  Home, 
-  Video, 
-  ClipboardList, 
+import {
+  Home,
+  Video,
+  ClipboardList,
   LogOut,
   GraduationCap,
   Users,
@@ -15,7 +15,7 @@ import {
   User,
   ChevronLeft,
   ChevronRight,
-  Bell
+  Bell, Library
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -35,6 +35,7 @@ const studentNavItems: NavItem[] = [
   { icon: Home, label: 'Bosh sahifa', path: '/student' },
   { icon: FolderOpen, label: 'Kurslar', path: '/student/courses' },
   { icon: Video, label: 'Video darslar', path: '/student/videos' },
+  { icon: Library, label: 'Kutubxona', path: '/student/library' },
   { icon: ClipboardList, label: 'Vazifalar', path: '/student/tasks' },
   { icon: User, label: 'Profil', path: '/student/profile' },
 ];
@@ -45,6 +46,7 @@ const adminNavItems: NavItem[] = [
   { icon: CreditCard, label: 'To\'lovlar', path: '/admin/payments' },
   { icon: FolderOpen, label: 'Kurslar', path: '/admin/categories' },
   { icon: Video, label: 'Video darslar', path: '/admin/videos' },
+  { icon: Library, label: 'Kutubxona', path: '/admin/library' },
   { icon: ClipboardList, label: 'Vazifalar', path: '/admin/tasks' },
   { icon: Bell, label: 'Xabarnomalar', path: '/admin/notifications' },
 ];

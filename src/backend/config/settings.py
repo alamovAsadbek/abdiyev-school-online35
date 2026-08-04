@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     'apps.courses',
     'apps.payments',
     'apps.notifacations',
+    'apps.library',
 ]
 
 ASGI_APPLICATION = 'config.asgi.application'

@@ -23,6 +23,7 @@ import StudentTaskView from "./pages/student/StudentTaskView";
 import StudentSubmissionDetail from "./pages/student/StudentSubmissionDetail";
 import StudentProfile from "./pages/student/StudentProfile";
 import StudentCheckout from "./pages/student/StudentCheckout";
+import StudentLibrary from "./pages/student/StudentLibrary";
 
 // Admin Pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -47,7 +48,9 @@ import AdminTaskStatistics from "@/pages/admin/AdminTaskStatistics.tsx";
 import AdminSubmissionDetail from "@/pages/admin/AdminSubmissionDetail.tsx";
 import AdminTaskDetail from "@/pages/admin/AdminTaskDetail.tsx";
 import AdminTaskCreate from "@/pages/admin/AdminTaskCreate.tsx";
-
+import AdminLibrary from "./pages/admin/AdminLibrary";
+import AdminBookCreate from "./pages/admin/AdminBookCreate";
+import AdminBookDetail from "@/pages/admin/AdminBookDetail.tsx";
 
 const queryClient = new QueryClient();
 
@@ -109,6 +112,7 @@ function AppRoutes() {
             <Route path="/student/task/:taskId" element={<StudentTaskView/>}/>
             <Route path="/student/submission/:submissionId" element={<StudentSubmissionDetail/>}/>
             <Route path="/student/checkout" element={<StudentCheckout/>}/>
+            <Route path="/student/library" element={<StudentLibrary/>}/>
 
             {/* Admin Routes - login shart, faqat admin */}
             <Route path="/admin" element={<AdminRoute><AdminDashboard/></AdminRoute>}/>
@@ -134,6 +138,10 @@ function AppRoutes() {
             <Route path="/admin/notifications" element={<AdminRoute><AdminNotifications/></AdminRoute>}/>
             <Route path="/admin/notifications/create" element={<AdminRoute><AdminNotificationCreate/></AdminRoute>}/>
             <Route path="/admin/submissions/:submissionId" element={<AdminRoute><AdminSubmissionDetail/></AdminRoute>}/>
+            <Route path="/admin/library" element={<AdminRoute><AdminLibrary/></AdminRoute>}/>
+            <Route path="/admin/library/create" element={<AdminRoute><AdminBookCreate/></AdminRoute>}/>
+            <Route path="/admin/library/:bookId/edit" element={<AdminRoute><AdminBookCreate/></AdminRoute>}/>
+            <Route path="/admin/library/:bookId" element={<AdminRoute><AdminBookDetail/></AdminRoute>}/>
 
             {/* 404 */}
             <Route path="*" element={<NotFound/>}/>
